@@ -45,7 +45,7 @@ data.extensions.universal_opening_selector = config;
 data.extensions.regex_scripts ||= [];
 data.extensions.regex_scripts = data.extensions.regex_scripts.filter(x => x.findRegex !== '<UniversalOpeningSelector/>');
 data.extensions.regex_scripts.push({
-  id: crypto.randomUUID(), scriptName: 'Universal Opening Selector v0.1', disabled: false,
+  id: crypto.randomUUID(), scriptName: '红豆粉开场白选择器 / Aliceneko Opening Selector v0.1', disabled: false,
   runOnEdit: true, findRegex:'<UniversalOpeningSelector/>', replaceString:'```html\n'+html+'\n```',
   trimStrings:[], placement:[2], substituteRegex:0, minDepth:null,maxDepth:null,
   markdownOnly:true,promptOnly:false,
