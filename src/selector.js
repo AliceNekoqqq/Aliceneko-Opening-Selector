@@ -1,4 +1,4 @@
-/* Universal Opening Selector — embedded card runtime, no external dependencies. */
+/* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 (() => {
   'use strict';
   const KEY = 'universal_opening_selector';
