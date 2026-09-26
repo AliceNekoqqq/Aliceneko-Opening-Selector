@@ -1,12 +1,13 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
-(() => {
+export function mountInDocument(doc = document) {
   'use strict';
   const KEY = 'universal_opening_selector';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
-  const root = document.querySelector('[data-uos]');
-  if (!root) return;
-  const seed = JSON.parse(document.getElementById('uos-seed').textContent);
-  let host = window;
+  const root = doc.querySelector('[data-uos]');
+  if (!root || root.dataset.uosMounted === '1') return false;
+  root.dataset.uosMounted = '1';
+  const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
+  let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
     try { if (host.SillyTavern?.getContext) break; if (host.parent===host) break; void host.parent.document; host=host.parent; }
     catch { break; }
@@ -17,7 +18,7 @@
   let config = normalize(stored || seed);
   let displayTheme = localTheme() || config.theme;
   const $ = (s, base=root) => base.querySelector(s);
-  const el = (tag, cls, content) => { const n=document.createElement(tag); if(cls)n.className=cls; if(content!=null)n.textContent=String(content); return n; };
+  const el = (tag, cls, content) => { const n=doc.createElement(tag); if(cls)n.className=cls; if(content!=null)n.textContent=String(content); return n; };
   function normalize(input) {
     const x=input && typeof input==='object' ? input : {};
     return {
@@ -134,4 +135,5 @@
   audio.ontimeupdate=()=>{$('[data-lyric]').textContent=currentLyric(audio.currentTime)};
   audio.onplay=()=>{$('[data-play]').textContent='暂停'};audio.onpause=()=>{$('[data-play]').textContent='播放'};
   render();
-})();
+  return true;
+}
