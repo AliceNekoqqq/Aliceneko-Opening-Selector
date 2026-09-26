@@ -11,11 +11,23 @@ export function mountInDocument(doc = document) {
     catch { break; }
   }
   const context = () => host.SillyTavern?.getContext?.();
+  const helper = () => {
+    let w = doc.defaultView;
+    for (let i=0;w && i<8;i++) {
+      try { if (typeof w.TavernHelper?.setChatMessages === 'function') return w.TavernHelper;
+        if (typeof w.setChatMessages === 'function') return w;
+        if (w.parent === w) break; void w.parent.document; w=w.parent;
+      } catch { break; }
+    }
+    return null;
+  };
   const character = () => { const c=context(); return c?.characters?.[c.characterId]; };
-  const stored = character()?.data?.extensions?.[KEY];
+  const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];
   let config = normalize(stored || seed);
+  let draft = null;
   let displayTheme = localTheme() || config.theme;
-  const $ = (s, base=root) => base.querySelector(s);
+  let portaled = [];
+  const $ = (s, base=root) => base.querySelector(s) || (base === root ? portaled.find(x=>x.matches(s)) || portaled.map(x=>x.querySelector(s)).find(Boolean) : null);
   const el = (tag, cls, content) => { const n=doc.createElement(tag); if(cls)n.className=cls; if(content!=null)n.textContent=String(content); return n; };
   function normalize(input) {
     const x=input && typeof input==='object' ? input : {};
@@ -49,8 +61,21 @@ export function mountInDocument(doc = document) {
     return Array.from({length:count},(_,i)=>({...infer(greetings[i],i),...(config.entries[i]||{})}));
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
-  function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
-  function status(message){$('[data-status]').textContent=message}
+  function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
+  function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled)for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art'])dlg.style.setProperty(key,style.getPropertyValue(key));}
+  function portalDialogs(){
+    let viewport=doc.defaultView;
+    for(let i=0;i<8;i++){try{if(viewport.parent===viewport)break;void viewport.parent.document;viewport=viewport.parent}catch{break}}
+    if (viewport.document === doc || !viewport.document?.body) return;
+    const wrap=viewport.document.createElement('div');wrap.setAttribute('data-uos-portal','');
+    const shadow=wrap.attachShadow({mode:'open'});
+    const link=viewport.document.createElement('link');link.rel='stylesheet';link.href=doc.querySelector('link[rel="stylesheet"]')?.href||'';shadow.append(link);
+    portaled=[$('[data-theme-dialog]'),$('[data-settings-dialog]')];
+    for(const dlg of portaled)shadow.append(dlg);
+    viewport.document.body.append(wrap);syncDialogTheme();
+    doc.defaultView.addEventListener('unload',()=>wrap.remove(),{once:true});
+  }
+  function status(message){$('[data-status]').textContent=message;const inDialog=$('[data-save-state]');if(inDialog)inDialog.textContent=message}
   function render(){
     setTheme(displayTheme,false);
     $('[data-title]').textContent=config.title;
@@ -66,23 +91,50 @@ export function mountInDocument(doc = document) {
       const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title),el('div','uos-description',entry.description));
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));grid.append(card);
     });
-    const player=$('[data-player]');player.hidden=!config.music.audio;
-    const audio=$('audio',player);if(audio.src!==config.music.audio)audio.src=config.music.audio;
-    $('[data-music-title]').textContent=config.music.title||'开场音乐';
+    renderMusic(config.music);
+  }
+  function formatTime(s){const n=Math.max(0,Math.floor(Number(s)||0));return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`}
+  function lyricRows(source){
+    const rows=[];
+    for(const line of String(source||'').split(/\r?\n/)){
+      const m=/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/.exec(line);
+      if(m)rows.push({time:+m[1]*60+(+m[2])+(+('0.'+(m[3]||'0'))),text:m[4].trim()});
+    }
+    return rows.sort((a,b)=>a.time-b.time);
+  }
+  function renderMusic(music){
+    const player=$('[data-player]'),audio=$('audio',player),box=$('[data-lyrics]');
+    player.hidden=!music.audio;
+    if(audio.getAttribute('src')!==music.audio){audio.pause();if(music.audio)audio.src=music.audio;else audio.removeAttribute('src');audio.load()}
+    $('[data-music-title]').textContent=music.title||'开场音乐';
+    box.replaceChildren();
+    const rows=lyricRows(music.lyrics);
+    if(rows.length){for(const row of rows){const b=el('button','uos-lyric-row',row.text);b.type='button';b.dataset.time=String(row.time);b.onclick=()=>{audio.currentTime=row.time};box.append(b)}}
+    else box.textContent=music.lyrics?.trim()||'♫';
+    updatePlayer();
+  }
+  function updatePlayer(){
+    const audio=$('[data-player] audio'),duration=Number.isFinite(audio.duration)?audio.duration:0;
+    $('[data-seek]').value=String(duration?Math.round(audio.currentTime/duration*1000):0);
+    $('[data-clock]').textContent=`${formatTime(audio.currentTime)} / ${formatTime(duration)}`;
+    $('[data-play]').textContent=audio.paused?'▶':'Ⅱ';
+    const rows=Array.from($('[data-lyrics]').querySelectorAll('[data-time]'));
+    let active=-1;rows.forEach((row,i)=>{if(+row.dataset.time<=audio.currentTime+.08)active=i;row.classList.toggle('is-active',i===active)});
+    if(active>=0 && rows[active]!==updatePlayer.lastRow){const box=$('[data-lyrics]'),row=rows[active];box.scrollTo({top:row.offsetTop-box.offsetTop-(box.clientHeight-row.clientHeight)/2,behavior:'smooth'});updatePlayer.lastRow=row}
   }
   async function choose(target){
-    const c=context();if(!c?.chat?.length || c.chat.length!==1){status('聊天已经开始，请新建聊天后选择开场。');return}
-    if(target>greetingList().length){status('这条开场不存在。请检查角色卡中的备用开场。');return}
+    const h=helper();if(!h){status('酒馆助手尚未就绪，请稍后重试或用首条消息翻页箭头。');return}
+    let first;try{first=h.getChatMessages(0,{include_swipes:true})?.[0]}catch(e){status(`读取开场失败：${e?.message||e}`);return}
+    if(!first || first.role!=='assistant' || !Array.isArray(first.swipes) || target>=first.swipes.length){status('开场尚未载入，请刷新后新建聊天。');return}
+    if(Number(h.getLastMessageId?.()??0)>0){status('聊天已经开始，请新建聊天后选择开场。');return}
+    if(first.swipe_id!==0 || !String(first.swipes[0]||'').includes('<UniversalOpeningSelector/>')){status('当前已离开选择页，请新建聊天后重试。');return}
     status(`正在进入第 ${target} 条开场…`);
-    // Use SillyTavern's own swipe control so it performs its normal persistence/rendering.
-    for(let attempts=0;attempts<target+2;attempts++){
-      const current=Number(context()?.chat?.[0]?.swipe_id||0);
-      if(current===target){status('已进入开场。');return}
-      const selector=host.document.querySelector('.mes[mesid="0"] .swipe_right, .mes[mesid="0"] .swipe_right_button, .mes[mesid="0"] .swipe_right_button_wrapper');
-      if(!selector){status('找不到酒馆翻页按钮。请使用首条消息的翻页箭头。');return}
-      selector.click();await new Promise(resolve=>host.setTimeout(resolve,180));
-    }
-    status('未能完成切换，请使用首条消息的翻页箭头。');
+    root.querySelectorAll('.uos-card').forEach(b=>b.disabled=true);
+    try{
+      await h.setChatMessages([{message_id:0,swipe_id:target}],{refresh:'all'});
+      const current=h.getChatMessages(0,{include_swipes:true})?.[0];
+      if(current?.swipe_id!==target)throw new Error('消息页未切换');
+    }catch(e){status(`切换失败：${e?.message||e}。可使用首条消息翻页箭头。`);root.querySelectorAll('.uos-card').forEach(b=>b.disabled=false)}
   }
   function openThemes(){const dlg=$('[data-theme-dialog]');dlg.hidden=false;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice',name);b.type='button';b.setAttribute('aria-pressed',String(id===displayTheme));b.onclick=()=>{setTheme(id);dlg.hidden=true};grid.append(b)});}
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
@@ -91,11 +143,11 @@ export function mountInDocument(doc = document) {
   async function lyricsText(file){const text=await file.text();return text.slice(0,300000)}
   function openSettings(){
     const dlg=$('[data-settings-dialog]');dlg.hidden=false;
-    const draft=normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
+    draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
     fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));
     const list=el('div');fields.append(list);
     const items=entries();items.forEach((entry,i)=>{
-      draft.entries[i]={...entry};const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
+      draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>draft.entries[i].title=v),
         field('标签',entry.label,v=>draft.entries[i].label=v),
@@ -103,35 +155,37 @@ export function mountInDocument(doc = document) {
         fileField('上传封面（1 MB 内）','image/png,image/jpeg,image/webp,image/gif',1048576,v=>draft.entries[i].image=v));
       box.append(group);const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{draft.entries[i].image='';status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
-    const music=el('section','uos-entry');music.append(el('h3','', '音乐与歌词'));
+    const music=$('[data-bgm-fields]');music.replaceChildren();
     music.append(field('曲名',draft.music.title,v=>draft.music.title=v),
-      fileField('上传音乐（8 MB 内）','audio/mpeg,audio/mp4,audio/ogg,audio/wav',8*1048576,v=>draft.music.audio=v),
-      fileField('上传歌词（LRC 或 TXT）','.lrc,.txt,text/plain',300000,async(_data,file)=>{draft.music.lyrics=await lyricsText(file)}));
-    const clearMusic=el('button','uos-icon','移除音乐');clearMusic.type='button';clearMusic.onclick=()=>{draft.music={title:'',audio:'',lyrics:''};status('已移除音乐，点击保存生效')};music.append(clearMusic);
+      fileField('上传音乐（8 MB 内）','audio/mpeg,audio/mp4,audio/ogg,audio/wav',8*1048576,v=>{draft.music.audio=v;renderMusic(draft.music);$('[data-bgm-loaded]').textContent='音乐已载入，可在选择页预览；点击保存写入角色卡。'}),
+      fileField('上传歌词（LRC 或 TXT）','.lrc,.txt,text/plain',300000,async(_data,file)=>{draft.music.lyrics=await lyricsText(file);renderMusic(draft.music);$('[data-bgm-loaded]').textContent='歌词已载入；点击保存写入角色卡。'}));
+    const loaded=el('p','uos-help');loaded.dataset.bgmLoaded='';loaded.textContent=draft.music.audio?'已载入音乐'+(draft.music.lyrics?'及歌词':'')+'。保存后随卡导出。':'尚未上传音乐';music.append(loaded);
+    const clearMusic=el('button','uos-icon','移除音乐');clearMusic.type='button';clearMusic.onclick=()=>{draft.music={title:'',audio:'',lyrics:''};renderMusic(draft.music);loaded.textContent='音乐已移除，点击保存生效'};music.append(clearMusic);
     music.append(el('p','uos-help','请仅上传你有权分享的歌曲及歌词。下载与非商用不自动授予再分发许可。'));
-    fields.append(music);
+    dlg.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{
+      dlg.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b===button)));
+      dlg.querySelectorAll('[data-tab-panel]').forEach(panel=>panel.hidden=panel.dataset.tabPanel!==button.dataset.tab);
+    });
     $('[data-save]').onclick=async()=>{
       const c=context();if(!c || c.characterId==null || !c.writeExtensionField){status('无法写入角色卡：请在支持角色卡扩展字段的酒馆中编辑。');return}
+      const button=$('[data-save]');button.disabled=true;button.textContent='正在保存…';
       try{
         draft.theme=displayTheme;
         await c.writeExtensionField(c.characterId,KEY,draft);
-        config=normalize(draft);render();dlg.hidden=true;status('已保存到角色卡。导出角色卡时会带上配置和素材。');
+        config=normalize(draft);draft=null;render();dlg.hidden=true;status('已保存到角色卡。导出角色卡时会带上配置和素材。');
       }catch(e){status(`保存失败：${e.message||e}`)}
+      finally{button.disabled=false;button.textContent='保存到角色卡'}
     };
   }
-  function currentLyric(time){
-    const lines=config.music.lyrics.split(/\r?\n/);let line='';
-    for(const raw of lines){const match=/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/.exec(raw);if(!match)continue;
-      if(+match[1]*60+(+match[2])+(+('0.'+(match[3]||'0')))<=time)line=match[4].trim();}
-    return line||'♫';
-  }
+  try{portalDialogs()}catch(e){console.warn('[Aliceneko Opening Selector] 弹窗挂载失败',e)}
   $('[data-theme-button]').onclick=openThemes;
   $('[data-settings-button]').onclick=openSettings;
-  root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).hidden=true);
+  [root,...portaled].flatMap(base=>Array.from(base.querySelectorAll('[data-close]'))).forEach(b=>b.onclick=()=>$(b.dataset.close).hidden=true);
   const audio=$('[data-player] audio');
   $('[data-play]').onclick=()=>{if(audio.paused)audio.play().catch(()=>status('无法播放该音乐文件'));else audio.pause()};
-  audio.ontimeupdate=()=>{$('[data-lyric]').textContent=currentLyric(audio.currentTime)};
-  audio.onplay=()=>{$('[data-play]').textContent='暂停'};audio.onpause=()=>{$('[data-play]').textContent='播放'};
+  $('[data-player]').querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>{audio.currentTime=Math.max(0,Math.min(audio.duration||Infinity,audio.currentTime+Number(b.dataset.skip)));updatePlayer()});
+  $('[data-seek]').oninput=e=>{if(Number.isFinite(audio.duration))audio.currentTime=audio.duration*Number(e.target.value)/1000};
+  audio.ontimeupdate=updatePlayer;audio.onloadedmetadata=updatePlayer;audio.onplay=updatePlayer;audio.onpause=updatePlayer;
   render();
   root.dataset.uosMounted = '1';
   return true;
