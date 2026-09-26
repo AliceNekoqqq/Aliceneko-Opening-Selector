@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
+const VERSION = 'v0.1.0-beta.3';
+const CDN = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}`;
+
 const [, , input, output] = process.argv;
 if (!input || !output) {
   console.error('Usage: node pack.mjs character.json output.json');
@@ -30,13 +33,13 @@ const config = {
   music: previous.music || {title:'',audio:'',lyrics:''},
 };
 
-const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8')}</style></head><body>
+const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="${CDN}/src/selector.css"></head><body>
 <main class="uos" data-uos data-theme="archive"><div class="uos-top"><span class="uos-kicker">CHOOSE YOUR BEGINNING</span><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div>
 <h1 data-title></h1><p class="uos-intro" data-subtitle></p><div class="uos-player" data-player hidden><button type="button" data-play>播放</button><div class="uos-player-meta"><strong data-music-title></strong><div class="uos-lyric" data-lyric>♫</div></div><audio preload="none"></audio></div><div class="uos-grid" data-grid></div>
 <p class="uos-footer">选择后进入对应的正式开场。也可使用酒馆首条消息的翻页箭头。当前聊天开始后不能重新选择。</p><div class="uos-status" data-status role="status"></div>
 <div class="uos-dialog" data-theme-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>切换主题</h2><button type="button" class="uos-icon" data-close="[data-theme-dialog]">关闭</button></div><div class="uos-theme-grid" data-theme-grid></div></div></div>
 <div class="uos-dialog" data-settings-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>作者设置</h2><button type="button" class="uos-icon" data-close="[data-settings-dialog]">关闭</button></div><p class="uos-help">已读取 ${greetings.length} 条正式开场。标题、封面和音乐保存进角色卡；玩家导入角色卡即可使用。请在保存后从酒馆导出更新后的角色卡。</p><div data-settings-fields></div><button type="button" class="uos-save" data-save>保存到角色卡</button><p class="uos-help">音乐以内嵌数据保存，会增加角色卡体积。建议先压缩音频。可访问 https://www.gequhai.com/ 查找曲目，但分享前请确认使用权。</p></div></div>
-</main><script type="application/json" id="uos-seed">${JSON.stringify(config).replace(/</g,'\\u003c')}</script><script>${fs.readFileSync(new URL('./src/selector.js',import.meta.url),'utf8').replace(/<\/script/gi,'<\\/script')}</script></body></html>`;
+</main><script type="application/json" id="uos-seed">${JSON.stringify(config).replace(/</g,'\\u003c')}</script><script type="module">import('${CDN}/index.js').then(m=>m.mountOpeningSelector()).catch(()=>{document.querySelector('[data-status]').textContent='选择器加载失败，请使用酒馆首条消息的翻页箭头。'});</script></body></html>`;
 
 data.first_mes = '<UniversalOpeningSelector/>\n\n【请选择开场】如果选择页没有出现，请使用酒馆首条消息的翻页箭头。';
 data.alternate_greetings = greetings;
@@ -45,7 +48,7 @@ data.extensions.universal_opening_selector = config;
 data.extensions.regex_scripts ||= [];
 data.extensions.regex_scripts = data.extensions.regex_scripts.filter(x => x.findRegex !== '<UniversalOpeningSelector/>');
 data.extensions.regex_scripts.push({
-  id: crypto.randomUUID(), scriptName: '红豆粉开场白选择器 / Aliceneko Opening Selector v0.1', disabled: false,
+  id: crypto.randomUUID(), scriptName: `红豆粉开场白选择器 / Aliceneko Opening Selector ${VERSION}`, disabled: false,
   runOnEdit: true, findRegex:'<UniversalOpeningSelector/>', replaceString:'```html\n'+html+'\n```',
   trimStrings:[], placement:[2], substituteRegex:0, minDepth:null,maxDepth:null,
   markdownOnly:true,promptOnly:false,
