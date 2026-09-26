@@ -16,7 +16,7 @@
 - 作者设置保存在 `data.extensions.universal_opening_selector`。SillyTavern 的 `writeExtensionField` 将修改写回角色卡，正常导出后随卡分享。
 - 封面、音频用 Data URL 内嵌在卡内；歌词存为文本。这样不会引用作者本机文件。每张封面限 1 MB，音频限 8 MB；角色卡体积会显著增加。
 - 无封面时显示当前主题的编号、渐变与排版，不依赖默认图片。
-- BGM 设置在独立标签页，上传后可预览，点击保存写回角色卡；播放器参考《丧尸少年》的唱片、进度条和歌词布局，并跟随主题变色。音乐需手动播放；支持 LRC 时间标签及 TXT（TXT 显示全文，不逐行同步）。作者应确认分享媒体的权利。
+- BGM 设置在独立标签页，启用开关控制播放器显示与播放，上传后可预览，点击保存写回角色卡；播放器参考《丧尸少年》的唱片、进度条和歌词布局，并跟随主题变色。音乐需手动播放；支持 LRC 时间标签及 TXT（TXT 显示全文，不逐行同步）。作者应确认分享媒体的权利。
 - 作者默认主题随卡保存；玩家临时切换的主题单独存于本机。
 
 ## 实现与限制
@@ -27,7 +27,7 @@
 
 ## 主题
 
-旧档案、霓虹夜、纸与墨、黑白电影、林间信。主题按钮在设置按钮左侧；弹窗优先挂载到酒馆顶层页面，在手机屏幕中央显示。
+旧档案、霓虹夜、纸与墨、黑白电影、林间信。主题按钮在设置按钮左侧；弹窗优先挂载到酒馆顶层页面，在手机屏幕中央显示；切换开场再返回选择页时会重新挂载。
 
 ## 开发
 
@@ -36,7 +36,7 @@
 已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
 
 ```js
-const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.6/index.js');
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.7/index.js');
 mountOpeningSelector();
 ```
 
