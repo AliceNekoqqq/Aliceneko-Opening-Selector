@@ -46,7 +46,5 @@ try{
   });
   await page.locator('.uos-card').nth(1).click();
   await page.waitForFunction(()=>window.__state.chat[0].swipe_id===2);
-  await page.screenshot({path:path.resolve('examples/selector-preview.png'),fullPage:true});
-  fs.writeFileSync(path.resolve('examples/selector-preview.html'),html);
   console.log('UI, theme, save, and native swipe checks passed');
 }finally{await browser.close();fs.rmSync(dir,{recursive:true,force:true})}
