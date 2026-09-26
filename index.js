@@ -1,9 +1,14 @@
 import { mountInDocument } from './src/selector.js';
 
-export const OPENING_SELECTOR_VERSION = '0.1.0-beta.6';
+export const OPENING_SELECTOR_VERSION = '0.1.0-beta.7';
 
 // Works when imported inside the selector iframe or from a Tavern Helper host script.
 export function mountOpeningSelector(startDocument = document) {
+  let hostDocument=startDocument;
+  try {let win=startDocument.defaultView;for(let i=0;i<8 && win?.parent && win.parent!==win;i++){
+    void win.parent.document;win=win.parent;hostDocument=win.document;
+  }} catch { /* sandbox boundary: scan the current document */ }
+  if (hostDocument.__uosObserver?.version === OPENING_SELECTOR_VERSION) return hostDocument.__uosObserver;
   let mounted = 0;
   const visit = (doc, depth = 0) => {
     if (!doc || depth > 8) return;
@@ -12,16 +17,15 @@ export function mountOpeningSelector(startDocument = document) {
       try { visit(frame.contentDocument, depth + 1); } catch { /* cross-origin iframe */ }
     }
   };
-  visit(startDocument);
-  if (mounted) return mounted;
-  // Chat HTML and same-origin iframe bodies may render after the host script.
-  const cleanup = () => { observer.disconnect(); clearInterval(poll); clearTimeout(timer); };
-  const observer = new MutationObserver(() => {
-    visit(startDocument);
-    if (mounted) cleanup();
+  visit(hostDocument);
+  // Tavern Helper loads once, while swiping away and back recreates the HTML iframe.
+  const hostWindow=hostDocument.defaultView || window;
+  const observer = new hostWindow.MutationObserver(() => {
+    visit(hostDocument);
   });
-  if (startDocument.body) observer.observe(startDocument.body, { childList: true, subtree: true });
-  const poll = setInterval(() => { visit(startDocument); if (mounted) cleanup(); }, 500);
-  const timer = setTimeout(cleanup, 30000);
-  return 0;
+  if (hostDocument.body) observer.observe(hostDocument.body, { childList: true, subtree: true });
+  const poll = hostWindow.setInterval(() => visit(hostDocument), 1200);
+  const api={version:OPENING_SELECTOR_VERSION,scan:()=>visit(hostDocument),close:()=>{observer.disconnect();hostWindow.clearInterval(poll);delete hostDocument.__uosObserver}};
+  hostDocument.__uosObserver=api;
+  return api;
 }
