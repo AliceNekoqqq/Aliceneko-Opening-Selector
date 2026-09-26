@@ -41,7 +41,7 @@ export function mountInDocument(doc = document) {
         label:String(e?.label||'').slice(0,60),
         image:String(e?.image||''),
       })):[],
-      music:{title:String(x.music?.title||''),audio:String(x.music?.audio||''),lyrics:String(x.music?.lyrics||'')},
+      music:{enabled:x.music?.enabled == null ? Boolean(x.music?.audio) : Boolean(x.music.enabled),title:String(x.music?.title||''),audio:String(x.music?.audio||''),lyrics:String(x.music?.lyrics||'')},
     };
   }
   function greetingList(){
@@ -68,7 +68,9 @@ export function mountInDocument(doc = document) {
     for(let i=0;i<8;i++){try{if(viewport.parent===viewport)break;void viewport.parent.document;viewport=viewport.parent}catch{break}}
     if (viewport.document === doc || !viewport.document?.body) return;
     const wrap=viewport.document.createElement('div');wrap.setAttribute('data-uos-portal','');
+    Object.assign(wrap.style,{position:'fixed',inset:'0',zIndex:'2147483647',pointerEvents:'none'});
     const shadow=wrap.attachShadow({mode:'open'});
+    const fallback=viewport.document.createElement('style');fallback.textContent='.uos-dialog{position:fixed;inset:0;z-index:1;display:grid;place-items:center;padding:12px;background:#000b;pointer-events:auto}.uos-dialog[hidden]{display:none!important}.uos-sheet{box-sizing:border-box;width:min(740px,100%);max-height:88dvh;overflow:auto;padding:20px;border-radius:16px;background:var(--bg,#111a20);color:var(--text,#f4ecda);border:1px solid var(--accent,#c99d67)}';shadow.append(fallback);
     const link=viewport.document.createElement('link');link.rel='stylesheet';link.href=doc.querySelector('link[rel="stylesheet"]')?.href||'';shadow.append(link);
     portaled=[$('[data-theme-dialog]'),$('[data-settings-dialog]')];
     for(const dlg of portaled)shadow.append(dlg);
@@ -104,8 +106,10 @@ export function mountInDocument(doc = document) {
   }
   function renderMusic(music){
     const player=$('[data-player]'),audio=$('audio',player),box=$('[data-lyrics]');
-    player.hidden=!music.audio;
-    if(audio.getAttribute('src')!==music.audio){audio.pause();if(music.audio)audio.src=music.audio;else audio.removeAttribute('src');audio.load()}
+    player.hidden=!music.enabled;
+    const source=music.enabled?music.audio:'';
+    if(audio.getAttribute('src')!==source){audio.pause();if(source)audio.src=source;else audio.removeAttribute('src');audio.load()}
+    $('[data-play]').disabled=!source;
     $('[data-music-title]').textContent=music.title||'开场音乐';
     box.replaceChildren();
     const rows=lyricRows(music.lyrics);
@@ -138,6 +142,7 @@ export function mountInDocument(doc = document) {
   }
   function openThemes(){const dlg=$('[data-theme-dialog]');dlg.hidden=false;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice',name);b.type='button';b.setAttribute('aria-pressed',String(id===displayTheme));b.onclick=()=>{setTheme(id);dlg.hidden=true};grid.append(b)});}
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
+  function toggleField(label,value,change){const wrap=el('label','uos-toggle');const input=el('input');input.type='checkbox';input.checked=Boolean(value);input.onchange=()=>change(input.checked);wrap.append(input,el('span','',label));return wrap}
   function fileField(label,accept,max,onload){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el('input');input.type='file';input.accept=accept;input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>max){status(`${label}超过 ${Math.round(max/1048576)} MB 限制`);input.value='';return}try{const result=await readFile(file);await onload(result,file);status(`${label}已载入，点击保存后随角色卡导出。`)}catch(e){status(`文件读取失败：${e.message}`)}};wrap.append(input);return wrap}
   const readFile=file=>new Promise((ok,fail)=>{const reader=new FileReader();reader.onload=()=>ok(String(reader.result));reader.onerror=()=>fail(reader.error);reader.readAsDataURL(file)});
   async function lyricsText(file){const text=await file.text();return text.slice(0,300000)}
@@ -156,11 +161,11 @@ export function mountInDocument(doc = document) {
       box.append(group);const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{draft.entries[i].image='';status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
     const music=$('[data-bgm-fields]');music.replaceChildren();
-    music.append(field('曲名',draft.music.title,v=>draft.music.title=v),
-      fileField('上传音乐（8 MB 内）','audio/mpeg,audio/mp4,audio/ogg,audio/wav',8*1048576,v=>{draft.music.audio=v;renderMusic(draft.music);$('[data-bgm-loaded]').textContent='音乐已载入，可在选择页预览；点击保存写入角色卡。'}),
+    music.append(toggleField('启用 BGM 播放器',draft.music.enabled,v=>{draft.music.enabled=v;renderMusic(draft.music);loaded.textContent=v?'BGM 已启用，保存后生效。':'BGM 已关闭，播放器已隐藏；保存后生效。'}),field('曲名',draft.music.title,v=>draft.music.title=v),
+      fileField('上传音乐（8 MB 内）','audio/mpeg,audio/mp4,audio/ogg,audio/wav',8*1048576,v=>{draft.music.audio=v;renderMusic(draft.music);$('[data-bgm-loaded]').textContent=draft.music.enabled?'音乐已载入，可在选择页预览；点击保存写入角色卡。':'音乐已载入。勾选启用 BGM 后显示播放器，点击保存写入角色卡。'}),
       fileField('上传歌词（LRC 或 TXT）','.lrc,.txt,text/plain',300000,async(_data,file)=>{draft.music.lyrics=await lyricsText(file);renderMusic(draft.music);$('[data-bgm-loaded]').textContent='歌词已载入；点击保存写入角色卡。'}));
     const loaded=el('p','uos-help');loaded.dataset.bgmLoaded='';loaded.textContent=draft.music.audio?'已载入音乐'+(draft.music.lyrics?'及歌词':'')+'。保存后随卡导出。':'尚未上传音乐';music.append(loaded);
-    const clearMusic=el('button','uos-icon','移除音乐');clearMusic.type='button';clearMusic.onclick=()=>{draft.music={title:'',audio:'',lyrics:''};renderMusic(draft.music);loaded.textContent='音乐已移除，点击保存生效'};music.append(clearMusic);
+    const clearMusic=el('button','uos-icon','移除音乐');clearMusic.type='button';clearMusic.onclick=()=>{draft.music={enabled:false,title:'',audio:'',lyrics:''};renderMusic(draft.music);loaded.textContent='音乐已移除，点击保存生效'};music.append(clearMusic);
     music.append(el('p','uos-help','请仅上传你有权分享的歌曲及歌词。下载与非商用不自动授予再分发许可。'));
     dlg.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{
       dlg.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b===button)));
