@@ -16,18 +16,18 @@
 - 作者设置保存在 `data.extensions.universal_opening_selector`。SillyTavern 的 `writeExtensionField` 将修改写回角色卡，正常导出后随卡分享。
 - 封面、音频用 Data URL 内嵌在卡内；歌词存为文本。这样不会引用作者本机文件。每张封面限 1 MB，音频限 8 MB；角色卡体积会显著增加。
 - 无封面时显示当前主题的编号、渐变与排版，不依赖默认图片。
-- 音乐需手动播放；支持 LRC 时间标签及 TXT（TXT 仅作文件存储，播放器不会逐行同步）。作者应确认分享媒体的权利。
+- BGM 设置在独立标签页，上传后可预览，点击保存写回角色卡；播放器参考《丧尸少年》的唱片、进度条和歌词布局，并跟随主题变色。音乐需手动播放；支持 LRC 时间标签及 TXT（TXT 显示全文，不逐行同步）。作者应确认分享媒体的权利。
 - 作者默认主题随卡保存；玩家临时切换的主题单独存于本机。
 
 ## 实现与限制
 
-打包后的 JSON 在 `data.extensions.regex_scripts` 中包含开场选择页正则，在 `data.extensions.tavern_helper.scripts` 中包含启用的仓库加载脚本。玩家的 SillyTavern 环境仍需安装并启用支持角色卡脚本的酒馆助手扩展；导入角色卡不会自动安装扩展。选择页以 `import()` 从仓库固定版本读取 `index.js`，依次尝试三个 jsDelivr 入口；样式由同一版本读取。点击开场调用酒馆首条消息原生翻页控件。保存需要 `SillyTavern.getContext().writeExtensionField`。不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
+打包后的 JSON 在 `data.extensions.regex_scripts` 中包含开场选择页正则，在 `data.extensions.tavern_helper.scripts` 中包含启用的仓库加载脚本。玩家的 SillyTavern 环境仍需安装并启用支持角色卡脚本的酒馆助手扩展；导入角色卡不会自动安装扩展。选择页以 `import()` 从仓库固定版本读取 `index.js`，依次尝试三个 jsDelivr 入口；样式由同一版本读取。点击开场调用酒馆助手的 `setChatMessages` 切到对应首条消息页。保存需要 `SillyTavern.getContext().writeExtensionField`。不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
 
 第一版从现有开场确定数量，用正文前段生成待编辑的标题和简介，不调用模型；原生开场正文保持原样。新聊天才能选择，避免改写已经开始的剧情。
 
 ## 主题
 
-旧档案、霓虹夜、纸与墨、黑白电影、林间信。主题按钮在设置按钮左侧。
+旧档案、霓虹夜、纸与墨、黑白电影、林间信。主题按钮在设置按钮左侧；弹窗优先挂载到酒馆顶层页面，在手机屏幕中央显示。
 
 ## 开发
 
@@ -36,7 +36,7 @@
 已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
 
 ```js
-const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.5/index.js');
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.6/index.js');
 mountOpeningSelector();
 ```
 
