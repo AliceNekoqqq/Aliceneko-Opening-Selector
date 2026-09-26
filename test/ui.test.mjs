@@ -11,7 +11,10 @@ const input=path.join(dir,'input.json'), output=path.join(dir,'output.json');
 fs.writeFileSync(input,JSON.stringify({name:'测试卡',data:{name:'测试卡',first_mes:'钟楼的清晨。',alternate_greetings:['雨夜车站，最后一次相见。'],extensions:{regex_scripts:[]}}}));
 execFileSync(process.execPath,[path.resolve('pack.mjs'),input,output]);
 const card=JSON.parse(fs.readFileSync(output));
-const html=card.data.extensions.regex_scripts[0].replaceString.replace(/^```html\n/,'').replace(/\n```$/,'');
+let html=card.data.extensions.regex_scripts[0].replaceString.replace(/^```html\n/,'').replace(/\n```$/,'');
+html=html.replace(/<link rel="stylesheet"[^>]+>/,`<style>${fs.readFileSync(path.resolve('src/selector.css'),'utf8')}</style>`)
+  .replace(/<script type="module">import\([^<]+<\/script>/,
+    `<script type="module">${fs.readFileSync(path.resolve('src/selector.js'),'utf8')}\nmountInDocument(document);</script>`);
 const browser=await chromium.launch({headless:true});
 try{
   const page=await browser.newPage({viewport:{width:1100,height:850}});
