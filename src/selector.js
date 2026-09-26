@@ -1,11 +1,9 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
-  'use strict';
   const KEY = 'universal_opening_selector';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosMounted === '1') return false;
-  root.dataset.uosMounted = '1';
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -135,5 +133,6 @@ export function mountInDocument(doc = document) {
   audio.ontimeupdate=()=>{$('[data-lyric]').textContent=currentLyric(audio.currentTime)};
   audio.onplay=()=>{$('[data-play]').textContent='暂停'};audio.onpause=()=>{$('[data-play]').textContent='播放'};
   render();
+  root.dataset.uosMounted = '1';
   return true;
 }
