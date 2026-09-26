@@ -7,7 +7,7 @@
 1. 在角色卡中写好主开场和备用开场，导出为 JSON。
 2. 执行 `node pack.mjs 原卡.json 配置好入口的卡.json`。
 3. 导入输出卡，新建聊天。在选择页右上角点 **设置**，修改标题、简介、封面和音乐；点 **保存到角色卡**。
-4. **从酒馆重新导出这张角色卡**，再分发给玩家。玩家导入最终卡即可使用。
+4. **从酒馆重新导出这张角色卡**，再分发给玩家。玩家导入最终卡即可使用。仓库仅保留源码、测试和说明；示例角色卡作为独立下载文件提供。
 
 打包器把原主开场移至第一条备用开场，首条消息改为选择页。每张卡只运行一次；再次运行可更新内嵌脚本并保留已经保存在扩展字段的配置。不要对含有其他开场选择器的卡直接运行，先备份原卡。
 
@@ -21,7 +21,7 @@
 
 ## 实现与限制
 
-选择页由随卡导出的角色卡正则脚本渲染（与 SillyTavern 的 HTML 代码块渲染兼容）；页面以 `import()` 从仓库固定版本读取 `index.js`，样式由同一版本读取。点击开场调用酒馆首条消息原生翻页控件。保存需要 `SillyTavern.getContext().writeExtensionField`。因此不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
+打包后的 JSON 在 `data.extensions.regex_scripts` 中包含开场选择页正则，在 `data.extensions.tavern_helper.scripts` 中包含启用的仓库加载脚本。玩家的 SillyTavern 环境仍需安装并启用支持角色卡脚本的酒馆助手扩展；导入角色卡不会自动安装扩展。选择页以 `import()` 从仓库固定版本读取 `index.js`，样式由同一版本读取。点击开场调用酒馆首条消息原生翻页控件。保存需要 `SillyTavern.getContext().writeExtensionField`。不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
 
 第一版从现有开场确定数量，用正文前段生成待编辑的标题和简介，不调用模型；原生开场正文保持原样。新聊天才能选择，避免改写已经开始的剧情。
 
@@ -36,7 +36,7 @@
 已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
 
 ```js
-const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.3/index.js');
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.4/index.js');
 mountOpeningSelector();
 ```
 
