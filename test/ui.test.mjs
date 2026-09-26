@@ -13,7 +13,7 @@ execFileSync(process.execPath,[path.resolve('pack.mjs'),input,output]);
 const card=JSON.parse(fs.readFileSync(output));
 let html=card.data.extensions.regex_scripts[0].replaceString.replace(/^```html\n/,'').replace(/\n```$/,'');
 html=html.replace(/<link rel="stylesheet"[^>]+>/,`<style>${fs.readFileSync(path.resolve('src/selector.css'),'utf8')}</style>`)
-  .replace(/<script type="module">import\([^<]+<\/script>/,
+  .replace(/<script type="module">[\s\S]*?<\/script>/,
     `<script type="module">${fs.readFileSync(path.resolve('src/selector.js'),'utf8')}\nmountInDocument(document);</script>`);
 const browser=await chromium.launch({headless:true});
 try{
@@ -23,6 +23,11 @@ try{
     state.characters[0].data=state.characters[0];
     state.writeExtensionField=async (_id,key,value)=>{state.characters[0].extensions[key]=value};
     window.SillyTavern={getContext:()=>state};
+    window.TavernHelper={
+      getChatMessages:()=>[{role:'assistant',swipe_id:state.chat[0].swipe_id,swipes:[card.data.first_mes,...card.data.alternate_greetings]}],
+      getLastMessageId:()=>0,
+      setChatMessages:async([{swipe_id}])=>{state.chat[0].swipe_id=swipe_id},
+    };
     window.__state=state;
   },{card});
   await page.setContent(html);
@@ -33,18 +38,20 @@ try{
   await page.locator('[data-settings-button]').click();
   await page.getByText('第 1 条开场').waitFor();
   await page.locator('[data-settings-fields] input').first().fill('新的起点');
+  await page.locator('[data-tab="bgm"]').click();
+  await page.locator('[data-bgm-fields] input[type=file]').first().setInputFiles({name:'sample.mp3',mimeType:'audio/mpeg',buffer:Buffer.from('ID3test')});
+  await page.getByText('音乐已载入，可在选择页预览',{exact:false}).waitFor();
+  assert.equal(await page.locator('[data-player]').isVisible(),true);
   await page.locator('[data-save]').click();
   assert.equal(await page.locator('h1').innerText(),'新的起点');
   const stored=await page.evaluate(()=>window.__state.characters[0].extensions.universal_opening_selector);
   assert.equal(stored.title,'新的起点');assert.equal(stored.theme,'neon');
-  // Native swipe is the only way to switch; the selector never overwrites story text.
-  await page.evaluate(()=>{
-    const mes=document.createElement('div');mes.className='mes';mes.setAttribute('mesid','0');
-    const swipe=document.createElement('button');swipe.className='swipe_right';
-    swipe.onclick=()=>window.__state.chat[0].swipe_id++;
-    mes.append(swipe);document.body.append(mes);
-  });
+  assert.match(stored.music.audio,/^data:audio\/mpeg;base64,/);
+  await page.locator('[data-settings-button]').click();
+  await page.locator('[data-tab="bgm"]').click();
+  await page.getByText('已载入音乐',{exact:false}).waitFor();
+  await page.locator('[data-close="[data-settings-dialog]"]').click();
   await page.locator('.uos-card').nth(1).click();
   await page.waitForFunction(()=>window.__state.chat[0].swipe_id===2);
-  console.log('UI, theme, save, and native swipe checks passed');
+  console.log('UI, theme, music save, and Tavern Helper swipe checks passed');
 }finally{await browser.close();fs.rmSync(dir,{recursive:true,force:true})}
