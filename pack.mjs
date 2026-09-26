@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const VERSION = 'v0.1.0-beta.6';
+const VERSION = 'v0.1.0-beta.7';
 const CDN = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}`;
 const LOADER_NAME = '红豆粉开场白选择器 Loader';
 
@@ -31,7 +31,7 @@ const config = {
   subtitle: previous.subtitle || '选择一个开场，故事将从那里继续。',
   theme: previous.theme || 'archive',
   entries: greetings.map((s,i) => previous.entries?.[i] || infer(s,i)),
-  music: previous.music || {title:'',audio:'',lyrics:''},
+  music: {enabled:previous.music?.enabled ?? Boolean(previous.music?.audio),title:previous.music?.title||'',audio:previous.music?.audio||'',lyrics:previous.music?.lyrics||''},
 };
 
 const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="${CDN}/src/selector.css"></head><body>
