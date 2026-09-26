@@ -1,6 +1,6 @@
 # 红豆粉开场白选择器 · Aliceneko Opening Selector
 
-红豆粉（Aliceneko）制作的独立源码项目。为 SillyTavern 角色卡添加带五套主题的开场选择页，配置与上传素材写入角色卡本身。玩家只需导入导出的角色卡；不需要另行导入配置包。与《丧尸少年》专用选择器无关。
+红豆粉（Aliceneko）制作的独立源码项目。为 SillyTavern 角色卡添加带五套主题的开场选择页，配置与上传素材写入角色卡本身。运行脚本和样式从本仓库固定版本加载；玩家只需导入导出的角色卡，不需要另行导入配置包，但首次打开需要能访问 jsDelivr。与《丧尸少年》专用选择器无关。
 
 ## 制作角色卡
 
@@ -21,7 +21,7 @@
 
 ## 实现与限制
 
-选择页由随卡导出的角色卡正则脚本渲染（与 SillyTavern 的 HTML 代码块渲染兼容）；点击开场调用酒馆首条消息原生翻页控件。保存需要 `SillyTavern.getContext().writeExtensionField`。因此不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
+选择页由随卡导出的角色卡正则脚本渲染（与 SillyTavern 的 HTML 代码块渲染兼容）；页面以 `import()` 从仓库固定版本读取 `index.js`，样式由同一版本读取。点击开场调用酒馆首条消息原生翻页控件。保存需要 `SillyTavern.getContext().writeExtensionField`。因此不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
 
 第一版从现有开场确定数量，用正文前段生成待编辑的标题和简介，不调用模型；原生开场正文保持原样。新聊天才能选择，避免改写已经开始的剧情。
 
@@ -31,4 +31,13 @@
 
 ## 开发
 
-`src/selector.css`、`src/selector.js` 是独立源码；`pack.mjs` 把它们嵌入角色卡。`node test/pack.test.mjs` 检查打包及二次打包不重复增加开场。
+`index.js` 是公开入口，`src/selector.css`、`src/selector.js` 是源码；`pack.mjs` 把轻量选择页和固定版本加载地址写入角色卡。`node test/pack.test.mjs` 检查打包及二次打包不重复增加开场。
+
+已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
+
+```js
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.3/index.js');
+mountOpeningSelector();
+```
+
+该宿主加载方式仍需角色卡有 `<UniversalOpeningSelector/>` 入口及对应正则页面；单独粘贴上述两行不会修改角色卡的开场结构。它会扫描当前文档及同源 iframe，发现页面后挂载。
