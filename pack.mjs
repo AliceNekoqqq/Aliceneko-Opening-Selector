@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const VERSION = 'v0.1.0-beta.4';
+const VERSION = 'v0.1.0-beta.5';
 const CDN = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}`;
 const LOADER_NAME = '红豆粉开场白选择器 Loader';
 
@@ -40,7 +40,23 @@ const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><met
 <p class="uos-footer">选择后进入对应的正式开场。也可使用酒馆首条消息的翻页箭头。当前聊天开始后不能重新选择。</p><div class="uos-status" data-status role="status"></div>
 <div class="uos-dialog" data-theme-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>切换主题</h2><button type="button" class="uos-icon" data-close="[data-theme-dialog]">关闭</button></div><div class="uos-theme-grid" data-theme-grid></div></div></div>
 <div class="uos-dialog" data-settings-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>作者设置</h2><button type="button" class="uos-icon" data-close="[data-settings-dialog]">关闭</button></div><p class="uos-help">已读取 ${greetings.length} 条正式开场。标题、封面和音乐保存进角色卡；玩家导入角色卡即可使用。请在保存后从酒馆导出更新后的角色卡。</p><div data-settings-fields></div><button type="button" class="uos-save" data-save>保存到角色卡</button><p class="uos-help">音乐以内嵌数据保存，会增加角色卡体积。建议先压缩音频。可访问 https://www.gequhai.com/ 查找曲目，但分享前请确认使用权。</p></div></div>
-</main><script type="application/json" id="uos-seed">${JSON.stringify(config).replace(/</g,'\\u003c')}</script><script type="module">import('${CDN}/index.js').then(m=>m.mountOpeningSelector()).catch(()=>{document.querySelector('[data-status]').textContent='选择器加载失败，请使用酒馆首条消息的翻页箭头。'});</script></body></html>`;
+</main><script type="application/json" id="uos-seed">${JSON.stringify(config).replace(/</g,'\\u003c')}</script><script type="module">
+const urls = [
+  '${CDN}/index.js',
+  'https://testingcf.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}/index.js',
+  'https://fastly.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}/index.js'
+];
+const errors = [];
+for (const url of urls) {
+  try {
+    const module = await import(url);
+    if (module.OPENING_SELECTOR_VERSION !== '${VERSION.slice(1)}') throw new Error('版本不符');
+    if (module.mountOpeningSelector()) break;
+    throw new Error('页面未挂载');
+  } catch (error) { errors.push(error?.message || String(error)); }
+}
+if (errors.length === urls.length) document.querySelector('[data-status]').textContent = '选择器加载失败：' + errors.join(' | ');
+</script></body></html>`;
 
 data.first_mes = '<UniversalOpeningSelector/>\n\n【请选择开场】如果选择页没有出现，请使用酒馆首条消息的翻页箭头。';
 data.alternate_greetings = greetings;
