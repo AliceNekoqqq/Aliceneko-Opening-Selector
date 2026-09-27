@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.11';
+  const VERSION = '0.1.0-beta.12';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -78,9 +78,9 @@ export function mountInDocument(doc = document) {
     if(activePopup)return null;
     const original=$(selector),sheet=original?.querySelector('.uos-sheet');
     if(!sheet){status('设置界面尚未就绪，请刷新页面重试。');return null}
-    let hostDoc;
-    try{hostDoc=doc.defaultView.$?.('body')?.[0]?.ownerDocument}catch{}
+    let hostDoc=root.__uosHostDocument;
     if(!hostDoc){let w=doc.defaultView;try{while(w.parent!==w){void w.parent.document;w=w.parent}}catch{}hostDoc=w.document}
+    if(hostDoc===doc){status('无法在酒馆页面打开弹窗：请确认角色卡内的酒馆助手 Loader 已启用。');return null}
     const frame=hostDoc.createElement('iframe');
     frame.setAttribute('title',selector.includes('theme')?'切换主题':'作者设置');
     frame.setAttribute('data-uos-frame','');
