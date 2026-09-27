@@ -36,7 +36,7 @@
 已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
 
 ```js
-const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.15/index.js');
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.16/index.js');
 mountOpeningSelector();
 ```
 
