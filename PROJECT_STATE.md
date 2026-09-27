@@ -9,7 +9,7 @@
 - `src/selector.js` / `src/selector.css`：作者可视化设置、主题、媒体、切换开场及保存。
 - `src/author-template.js`：由开发脚本生成的内嵌 HTML/CSS 模板。
 - `scripts/build-author-script.mjs`：维护者把玩家与作者模式生成仓库运行模块与轻量加载脚本；内部复用旧版打包资源作为模板，生成 `remote.js` 与轻量 JSON Loader。
-- `dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.34.json`：玩家与作者导入的同一轻量文件；版本固定到 GitHub 标签。
+- `dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.34.json`：玩家与作者导入的同一轻量文件；版本固定到 GitHub 版本分支。
 - `remote.js`：发布到 GitHub 的自包含运行模块；不会自动执行，由 Loader 导入并挂载。
 - `pack.mjs`：仅保留为开发和旧卡回归工具。
 
@@ -35,4 +35,4 @@
 `node scripts/build-author-script.mjs`，随后运行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`。有 Playwright 的环境还运行 `node test/author.ui.test.mjs`，检查统一脚本两种模式和作者 iframe 在宿主禁用 pointer events 时的真实点击。现场检查：全局与角色脚本导入、手填标记、配置媒体、保存、导出重导、选择开场、切换角色与替换脚本。
 
 ## 发布规则
-发布新版本时运行构建与回归，将 `remote.js`、`index.js`、轻量 JSON 及源码推送 GitHub，并创建对应不可变标签。Loader 必须校验远程模块版本；标签版更新需替换轻量 JSON。已有作者媒体保存到角色卡扩展字段，更新 Loader 不得清空该字段。
+发布新版本时运行构建与回归，将 `remote.js`、`index.js`、轻量 JSON 及源码推送 GitHub，并创建对应版本分支，发布后不再移动该引用。Loader 必须校验远程模块版本；版本更新需替换轻量 JSON。已有作者媒体保存到角色卡扩展字段，更新 Loader 不得清空该字段。
