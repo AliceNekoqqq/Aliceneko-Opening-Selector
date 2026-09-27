@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const VERSION = 'v0.1.0-beta.12';
+const VERSION = 'v0.1.0-beta.13';
 const CDN = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}`;
 const LOADER_NAME = '红豆粉开场白选择器 Loader';
 
@@ -76,7 +76,7 @@ data.extensions.regex_scripts.push({
 data.extensions.tavern_helper ||= {};
 data.extensions.tavern_helper.scripts ||= [];
 data.extensions.tavern_helper.variables ||= {};
-const loaderContent = `const urls = [\n  '${CDN}/index.js',\n  'https://testingcf.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}/index.js',\n  'https://fastly.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}/index.js'\n];\nlet selector, errors = [];\nfor (const url of urls) {\n  try {\n    selector = await import(url);\n    if (selector.OPENING_SELECTOR_VERSION === '${VERSION.slice(1)}') break;\n    throw new Error('版本不符');\n  } catch (error) { errors.push(error?.message || String(error)); selector = null; }\n}\nif (!selector) throw new Error('红豆粉开场白选择器加载失败：' + errors.join(' | '));\nselector.mountOpeningSelector();`;
+const loaderContent = `const urls = [\n  '${CDN}/index.js',\n  'https://testingcf.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}/index.js',\n  'https://fastly.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}/index.js'\n];\nlet selector, errors = [];\nfor (const url of urls) {\n  try {\n    selector = await import(url);\n    if (selector.OPENING_SELECTOR_VERSION === '${VERSION.slice(1)}') break;\n    throw new Error('版本不符');\n  } catch (error) { errors.push(error?.message || String(error)); selector = null; }\n}\nif (!selector) throw new Error('红豆粉开场白选择器加载失败：' + errors.join(' | '));\nselector.mountOpeningSelector(globalThis.$?.('body')?.[0]?.ownerDocument || document);`;
 const scripts = data.extensions.tavern_helper.scripts;
 const existing = scripts.find(x => x.name?.startsWith(LOADER_NAME));
 const loader = {
