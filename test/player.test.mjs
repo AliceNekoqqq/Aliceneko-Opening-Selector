@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {readPlayerState} from '../index.js';
+
+const character={avatar:'example.png',data:{first_mes:'第一条开场。',alternate_greetings:['第二条开场。','第三条开场。']}};
+const context={characters:[character],characterId:0,groupId:null};
+let swipeId=0,lastId=0;
+const helper={getChatMessages:()=>[{role:'assistant',swipe_id:swipeId,swipes:[character.data.first_mes,...character.data.alternate_greetings]}],getLastMessageId:()=>lastId,setChatMessages:async()=>{}};
+const state=readPlayerState(context,helper);
+assert.deepEqual(state.entries.map(x=>x.index),[0,1,2]);
+assert.equal(state.entries[0].body,'第一条开场。');
+assert.equal(state.entries[2].body,'第三条开场。');
+swipeId=2;
+assert.equal(readPlayerState(context,helper).swipeId,2);
+lastId=1;
+assert.equal(readPlayerState(context,helper),null);
+lastId=0;
+character.data.first_mes='<UniversalOpeningSelector/>';
+assert.equal(readPlayerState(context,helper),null);
+character.data.first_mes='第一条开场。';
+context.groupId=1;
+assert.equal(readPlayerState(context,helper),null);
+console.log('Player mode maps ordinary greetings and guards active chats');
