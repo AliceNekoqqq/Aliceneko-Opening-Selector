@@ -47,7 +47,7 @@ try{
   assert.equal(await page.locator('.uos-user-trigger').count(),0);
   assert.match(await selector.locator('.uos-card-names').nth(1).textContent(),/张子薇/);
   assert.equal(await selector.locator('.uos-card-details').count(),2);
-  assert.match(await selector.locator('.uos-version-badge').textContent(),/beta\.34/);
+  assert.match(await selector.locator('.uos-version-badge').textContent(),/beta\.36/);
   await selector.locator('.uos-card-details summary').first().click();
   assert.match(await selector.locator('.uos-card-details pre').first().textContent(),/原主开场/);
   assert.equal(await page.locator('iframe[data-uos-author-frame]').evaluate(node=>getComputedStyle(node).pointerEvents),'auto');
