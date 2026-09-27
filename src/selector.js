@@ -1,9 +1,19 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
+  const VERSION = '0.1.0-beta.9';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
-  if (!root || root.dataset.uosMounted === '1') return false;
+  if (!root || root.dataset.uosVersion === VERSION) return false;
+  if (root.dataset.uosMounted === '1') {
+    let top=doc.defaultView;
+    try { while(top.parent!==top){void top.parent.document;top=top.parent} } catch {}
+    for(const wrap of top.document.querySelectorAll('[data-uos-portal]')) {
+      const dialogs=wrap.shadowRoot?.querySelectorAll('[data-theme-dialog],[data-settings-dialog]');
+      if(dialogs?.length===2){for(const dialog of dialogs){dialog.hidden=true;root.append(dialog)}wrap.remove()}
+    }
+    delete root.dataset.uosMounted;
+  }
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -68,15 +78,14 @@ export function mountInDocument(doc = document) {
     for(let i=0;i<8;i++){try{if(viewport.parent===viewport)break;void viewport.parent.document;viewport=viewport.parent}catch{break}}
     if (viewport.document === doc || !viewport.document?.body) return;
     const wrap=viewport.document.createElement('div');wrap.setAttribute('data-uos-portal','');
-    Object.assign(wrap.style,{position:'fixed',zIndex:'2147483647',pointerEvents:'none',overflow:'hidden'});
-    const place=()=>{const view=viewport.visualViewport;Object.assign(wrap.style,{left:`${view?.offsetLeft||0}px`,top:`${view?.offsetTop||0}px`,width:`${view?.width||viewport.innerWidth}px`,height:`${view?.height||viewport.innerHeight}px`})};
-    place();viewport.visualViewport?.addEventListener('resize',place);viewport.visualViewport?.addEventListener('scroll',place);
+    Object.assign(wrap.style,{position:'fixed',inset:'0',zIndex:'2147483647',pointerEvents:'none'});
     const shadow=wrap.attachShadow({mode:'open'});
+    const fallback=viewport.document.createElement('style');fallback.textContent='.uos-dialog{position:fixed;inset:0;z-index:1;display:grid;place-items:center;padding:12px;background:#000b;pointer-events:auto}.uos-dialog[hidden]{display:none!important}.uos-sheet{box-sizing:border-box;width:min(740px,100%);max-height:calc(100dvh - 24px);overflow:auto;padding:20px;border-radius:16px;background:var(--bg,#111a20);color:var(--text,#f4ecda);border:1px solid var(--accent,#c99d67)}';shadow.append(fallback);
     const style=viewport.document.createElement('style');style.textContent=doc.getElementById('uos-css')?.textContent||'';shadow.append(style);
     portaled=[$('[data-theme-dialog]'),$('[data-settings-dialog]')];
     for(const dlg of portaled)shadow.append(dlg);
     viewport.document.body.append(wrap);syncDialogTheme();
-    doc.defaultView.addEventListener('unload',()=>{viewport.visualViewport?.removeEventListener('resize',place);viewport.visualViewport?.removeEventListener('scroll',place);wrap.remove()},{once:true});
+    doc.defaultView.addEventListener('unload',()=>wrap.remove(),{once:true});
   }
   function status(message){$('[data-status]').textContent=message;const inDialog=$('[data-save-state]');if(inDialog)inDialog.textContent=message}
   function render(){
@@ -194,5 +203,6 @@ export function mountInDocument(doc = document) {
   audio.ontimeupdate=updatePlayer;audio.onloadedmetadata=updatePlayer;audio.onplay=updatePlayer;audio.onpause=updatePlayer;
   render();
   root.dataset.uosMounted = '1';
+  root.dataset.uosVersion = VERSION;
   return true;
 }
