@@ -14,7 +14,7 @@ const card=JSON.parse(fs.readFileSync(output));
 let html=card.data.extensions.regex_scripts[0].replaceString.replace(/^```html\n/,'').replace(/\n```$/,'');
 const freshMarkup=html.match(/<main class="uos"[\s\S]*?<\/main>/)?.[0];
 assert.ok(freshMarkup);
-const entry=fs.readFileSync(path.resolve('index.js'),'utf8').replace(/^import .*?;\s*/,'');
+const entry=fs.readFileSync(path.resolve('index.js'),'utf8').replace(/^import .*?;\s*/,'').replace(/^export \{ mountPlayerSelector.*?;\s*/m,'');
 html=html.replace(/<link rel="stylesheet"[^>]+>/,`<style>${fs.readFileSync(path.resolve('src/selector.css'),'utf8')}</style>`)
   .replace(/<script type="module">[\s\S]*?<\/script>/,
     `<script type="module">${fs.readFileSync(path.resolve('src/selector.js'),'utf8')}\n${entry}\nmountOpeningSelector(document);</script>`);
