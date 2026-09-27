@@ -3,6 +3,7 @@ const KEY='universal_opening_selector';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
 const CSS=`
 .uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
+.uos-user-trigger[data-floating=true]{position:fixed;z-index:2147483645;margin:0;touch-action:none}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
 dialog.uos-user-overlay{position:fixed;inset:0;z-index:2147483646;box-sizing:border-box;width:min(620px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:calc(100dvh - 28px);margin:auto;padding:0;border:0;border-radius:18px;background:transparent;color:inherit;overflow:hidden;box-shadow:0 20px 60px #0008}
 dialog.uos-user-overlay::backdrop{background:#08141b55}
@@ -39,12 +40,46 @@ export function readPlayerState(context,helper){
 export function mountPlayerSelector(startDocument=document,helperApi){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
-  if(doc.__uosPlayer?.version==='0.1.0-beta.21')return doc.__uosPlayer;
+  if(doc.__uosPlayer?.version==='0.1.0-beta.22')return doc.__uosPlayer;
   doc.__uosPlayer?.close?.();
   const host=doc.defaultView||globalThis;
   const helper=helperApi||host.TavernHelper||host;
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS;(doc.head||doc.documentElement).append(style);
-  let trigger=null,overlay=null,updating=false;
+  let trigger=null,overlay=null,updating=false,suppressClickUntil=0;
+  const positionKey='uos_player_button_position';
+  function clampButton(left,top){
+    if(!trigger)return;
+    const width=trigger.offsetWidth,height=trigger.offsetHeight;
+    const x=Math.max(8,Math.min(left,host.innerWidth-width-8));
+    const y=Math.max(8,Math.min(top,host.innerHeight-height-8));
+    trigger.style.left=`${x}px`;trigger.style.top=`${y}px`;
+  }
+  function applySavedPosition(){
+    try{const saved=JSON.parse(host.localStorage.getItem(positionKey));
+      if(!Number.isFinite(saved?.x)||!Number.isFinite(saved?.y))return;
+      trigger.dataset.floating='true';clampButton(saved.x*host.innerWidth,saved.y*host.innerHeight);
+    }catch{}
+  }
+  function enableDrag(button){
+    let gesture=null;
+    button.onpointerdown=e=>{if(e.button!==0 && e.pointerType==='mouse')return;
+      const rect=button.getBoundingClientRect();gesture={id:e.pointerId,startX:e.clientX,startY:e.clientY,left:rect.left,top:rect.top,moved:false};
+      button.setPointerCapture?.(e.pointerId);
+    };
+    button.onpointermove=e=>{if(!gesture||e.pointerId!==gesture.id)return;
+      const dx=e.clientX-gesture.startX,dy=e.clientY-gesture.startY;
+      if(!gesture.moved && Math.hypot(dx,dy)<8)return;
+      gesture.moved=true;button.dataset.floating='true';clampButton(gesture.left+dx,gesture.top+dy);
+      e.preventDefault();
+    };
+    const finish=e=>{if(!gesture||e.pointerId!==gesture.id)return;
+      if(gesture.moved){suppressClickUntil=Date.now()+500;
+        const rect=button.getBoundingClientRect();try{host.localStorage.setItem(positionKey,JSON.stringify({x:rect.left/host.innerWidth,y:rect.top/host.innerHeight}))}catch{}
+      }
+      gesture=null;
+    };
+    button.onpointerup=finish;button.onpointercancel=finish;
+  }
   const el=(tag,className,text)=>{const node=doc.createElement(tag);node.className=className;if(text!=null)node.textContent=String(text);return node};
   const state=()=>readPlayerState(host.SillyTavern?.getContext?.(),helper);
   const removeTrigger=()=>{trigger?.remove();trigger=null};
@@ -53,10 +88,12 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     try{
       const snapshot=state(),first=doc.querySelector('#chat .mes[mesid="0"],#chat .mes[data-mesid="0"]');
       if(!snapshot||!first){removeTrigger();closePanel();return}
-      if(!trigger){trigger=el('button','uos-user-trigger');trigger.type='button';trigger.onclick=openPanel}
+      if(!trigger){trigger=el('button','uos-user-trigger');trigger.type='button';trigger.style.touchAction='none';
+        trigger.onclick=()=>{if(Date.now()>=suppressClickUntil)openPanel()};enableDrag(trigger);
+      }
       const label=`◈ 预览开场 · ${snapshot.swipeId+1}/${snapshot.entries.length}`;
       if(trigger.textContent!==label)trigger.textContent=label;
-      if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode)first.before(trigger);
+      if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode){first.before(trigger);applySavedPosition()}
     }finally{updating=false}
   }
   function closePanel(){const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
@@ -93,7 +130,9 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   }
   const observer=new host.MutationObserver(scan);
   if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
+  const onResize=()=>{if(trigger?.dataset.floating==='true')clampButton(parseFloat(trigger.style.left)||8,parseFloat(trigger.style.top)||8)};
+  host.addEventListener('resize',onResize);
   const timer=host.setInterval(scan,1500);scan();
-  const api={version:'0.1.0-beta.21',scan,close:()=>{observer.disconnect();host.clearInterval(timer);closePanel();removeTrigger();style.remove();delete doc.__uosPlayer}};
+  const api={version:'0.1.0-beta.22',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);closePanel();removeTrigger();style.remove();delete doc.__uosPlayer}};
   doc.__uosPlayer=api;return api;
 }
