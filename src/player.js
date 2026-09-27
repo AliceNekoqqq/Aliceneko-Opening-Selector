@@ -14,6 +14,7 @@ dialog.uos-user-overlay::backdrop{background:#08141b55}
 .uos-user-panel[data-theme=meadow]{--bg:#122a24;--surface:#254037;--text:#f3f4e1;--muted:#c2d1bf;--accent:#d2e5a0;--line:#afc28980}
 .uos-user-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.uos-user-head h2{margin:0;color:var(--text);font:600 22px/1.3 Georgia,"Noto Serif SC",serif}.uos-user-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
 .uos-user-panel button,.uos-user-panel select{font:inherit}.uos-user-close,.uos-user-select{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}.uos-user-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--muted);font-size:12px}.uos-user-tools select{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
+.uos-user-label-settings{margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.uos-user-label-settings summary{color:var(--accent);cursor:pointer}.uos-user-label-settings label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:12px}.uos-user-label-settings input{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}.uos-user-label-settings button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--accent);color:var(--bg);font-weight:700}
 .uos-user-list{display:grid;gap:12px;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 3px 12px}.uos-user-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.uos-user-card h3{margin:0 0 6px;color:var(--text);font:600 17px/1.4 Georgia,"Noto Serif SC",serif}.uos-user-card p{margin:0 0 9px;color:var(--muted);font-size:12px}.uos-user-card details{margin-bottom:10px}.uos-user-card summary{color:var(--accent);cursor:pointer}.uos-user-card pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:9px 0 0;padding:10px;border:1px solid var(--line);border-radius:7px;color:var(--text);font-size:12px;line-height:1.6;font-family:inherit}.uos-user-select{background:var(--accent);color:var(--bg);font-weight:700}.uos-user-select:disabled{opacity:.65;cursor:default}.uos-user-status{min-height:18px;margin:8px 0 0;color:var(--accent);font-size:12px}
 @media(max-width:600px){.uos-user-panel{max-height:72dvh;padding:15px}.uos-user-head h2{font-size:20px}}
 `;
@@ -36,6 +37,11 @@ function greetingTitle(body,index){
   const content=narrativeStart(body),sentence=content.match(/^.{1,64}?[。！？!?]/)?.[0];
   return sentence||(`${content.slice(0,56)}${content.length>56?'…':''}`)||`开场 ${index+1}`;
 }
+function labelKey(snapshot){
+  const identity=`${snapshot.avatar}\u0000${snapshot.entries.map(entry=>entry.body).join('\u0000')}`;
+  let hash=2166136261;for(let i=0;i<identity.length;i++)hash=Math.imul(hash^identity.charCodeAt(i),16777619);
+  return `uos_player_labels_${(hash>>>0).toString(16)}`;
+}
 
 export function readPlayerState(context,helper){
   const c=context?.characters?.[context.characterId];
@@ -57,7 +63,7 @@ export function readPlayerState(context,helper){
 export function mountPlayerSelector(startDocument=document,helperApi){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
-  if(doc.__uosPlayer?.version==='0.1.0-beta.24')return doc.__uosPlayer;
+  if(doc.__uosPlayer?.version==='0.1.0-beta.25')return doc.__uosPlayer;
   doc.__uosPlayer?.close?.();
   const host=doc.defaultView||globalThis;
   const helper=helperApi||host.TavernHelper||host;
@@ -124,6 +130,8 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   function closePanel(){const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
   function openPanel(){
     const snapshot=state();if(!snapshot)return;
+    const storageKey=labelKey(snapshot);let customLabels={};
+    try{const saved=JSON.parse(host.localStorage.getItem(storageKey));if(saved && typeof saved==='object' && !Array.isArray(saved))customLabels=saved}catch{}
     closePanel();overlay=el('dialog','uos-user-overlay');
     const panel=el('section','uos-user-panel');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','预览和选择开场');
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
@@ -133,9 +141,25 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     const tools=el('div','uos-user-tools');tools.append(el('span','','主题'));
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};tools.append(select);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');status.setAttribute('role','status');
+    const labelSettings=el('details','uos-user-label-settings');labelSettings.append(el('summary','','自定义开场标签（仅保存在本机）'));
+    const labelInputs=[],labelTexts=[];
+    for(const entry of snapshot.entries){const field=el('label');field.append(el('span','',`第 ${entry.index+1} 条开场`));
+      const input=el('input');input.type='text';input.maxLength=60;input.value=typeof customLabels[entry.index]==='string'?customLabels[entry.index]:entry.label;
+      input.setAttribute('aria-label',`第 ${entry.index+1} 条开场标签`);field.append(input);labelInputs.push(input);labelSettings.append(field)}
+    const saveLabels=el('button','','保存标签');saveLabels.type='button';saveLabels.onclick=()=>{
+      const next={};for(const entry of snapshot.entries){const value=labelInputs[entry.index].value.trim().slice(0,60);
+        if(value && value!==entry.label)next[entry.index]=value;
+        labelTexts[entry.index].textContent=(value||entry.label)+(entry.description?` · ${entry.description}`:'');
+      }
+      try{if(Object.keys(next).length)host.localStorage.setItem(storageKey,JSON.stringify(next));else host.localStorage.removeItem(storageKey);
+        status.textContent='标签已保存在本机。';customLabels=next
+      }catch{status.textContent='本机存储不可用，标签仅在本次预览中有效。'}
+    };labelSettings.append(saveLabels);
     for(const entry of snapshot.entries){
       const card=el('article','uos-user-card');card.dataset.current=String(entry.index===snapshot.swipeId);
-      card.append(el('h3','',entry.title),el('p','',entry.label+(entry.description?' · '+entry.description:'')));
+      const labelText=el('p','',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
+      if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
+      labelTexts[entry.index]=labelText;card.append(el('h3','',entry.title),labelText);
       const details=el('details','');details.append(el('summary','','查看完整开场'),el('pre','',entry.body));card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{
@@ -148,7 +172,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       };
       card.append(choose);list.append(card);
     }
-    panel.append(head,tools,list,status);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
+    panel.append(head,tools,labelSettings,list,status);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const active=overlay;
     try{active.showModal()}catch(error){closePanel();console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error);return}
     active.onclick=e=>{if(e.target===active)closePanel()};active.onclose=()=>{active.remove();if(overlay===active)overlay=null};close.focus();
@@ -158,6 +182,6 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const onResize=()=>{if(trigger?.dataset.floating==='true')clampButton(parseFloat(trigger.style.left)||8,parseFloat(trigger.style.top)||8)};
   host.addEventListener('resize',onResize);
   const timer=host.setInterval(scan,1500);scan();
-  const api={version:'0.1.0-beta.24',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);closePanel();removeTrigger();style.remove();delete doc.__uosPlayer}};
+  const api={version:'0.1.0-beta.25',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);closePanel();removeTrigger();style.remove();delete doc.__uosPlayer}};
   doc.__uosPlayer=api;return api;
 }
