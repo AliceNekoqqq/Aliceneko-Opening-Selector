@@ -2,7 +2,7 @@ import {greetingTitle,greetingNames,narrativeStart,excludedTags,isLegacyGenerate
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.34';
+  const VERSION = '0.1.0-beta.35';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆沙丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风']];
   const root = doc.querySelector('[data-uos]');

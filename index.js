@@ -2,7 +2,7 @@ export {mountUniversalSelector} from './remote.js';
 import { mountInDocument } from './src/selector.js';
 export { mountPlayerSelector, readPlayerState } from './src/player.js';
 
-export const OPENING_SELECTOR_VERSION = '0.1.0-beta.34';
+export const OPENING_SELECTOR_VERSION = '0.1.0-beta.35';
 
 // Works when imported inside the selector iframe or from a Tavern Helper host script.
 export function mountOpeningSelector(startDocument = document) {
