@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.12';
+  const VERSION = '0.1.0-beta.13';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -90,7 +90,7 @@ export function mountInDocument(doc = document) {
       const frameDoc=frame.contentDocument;
       if(!frameDoc)throw Error('设置 iframe 无法访问');
       const css=doc.getElementById('uos-css')?.textContent||'';
-      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:grid!important;position:fixed!important;inset:0!important;z-index:1!important;pointer-events:auto!important}.uos-sheet{max-height:calc(100dvh - 24px)!important}@media(max-width:600px){.uos-dialog{padding:0!important}.uos-sheet{width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;padding:16px!important}}body[data-kind="theme"] .uos-sheet{height:auto!important}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}</style></head><body data-kind="${selector.includes('theme')?'theme':'settings'}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
+      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:grid!important;position:fixed!important;inset:0!important;z-index:1!important;pointer-events:auto!important}.uos-sheet{max-height:calc(100dvh - 24px)!important}@media(max-width:600px){.uos-dialog{padding:0!important}.uos-sheet{width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;padding:16px!important}}body[data-kind="theme"] .uos-dialog{background:#08141b55!important}body[data-kind="theme"] .uos-sheet{height:auto!important}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}</style></head><body data-kind="${selector.includes('theme')?'theme':'settings'}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
       const close=()=>{original.append(sheet);portaled=[];frame.remove();activePopup=null};
@@ -199,6 +199,12 @@ export function mountInDocument(doc = document) {
       const button=$('[data-save]');button.disabled=true;button.textContent='正在保存…';
       try{
         draft.theme=displayTheme;
+        // ST may update the in-memory character while a failed server merge is
+        // only logged. Verify persistence before reporting export readiness.
+        if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');
+        const card=character();if(!card?.avatar)throw Error('无法确认当前角色卡的文件名');
+        const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:draft}}})});
+        if(!response.ok)throw Error(`角色卡写入失败（HTTP ${response.status}），请检查卡片大小或酒馆日志`);
         await c.writeExtensionField(c.characterId,KEY,draft);
         config=normalize(draft);draft=null;render();activePopup?.complete(null);status('已保存到角色卡。导出角色卡时会带上配置和素材。');
       }catch(e){status(`保存失败：${e.message||e}`)}
