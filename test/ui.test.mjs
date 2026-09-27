@@ -24,6 +24,9 @@ try{
   await page.addInitScript(({card})=>{
     const state={characters:[card.data],characterId:0,chat:[{swipe_id:0}]};
     state.characters[0].data=state.characters[0];
+    state.characters[0].avatar='test.png';
+    state.getRequestHeaders=()=>({'Content-Type':'application/json'});
+    window.fetch=async(url,options)=>{if(url==='/api/characters/merge-attributes'){state.savedOnServer=JSON.parse(options.body);return {ok:true,status:200}};throw Error('Unexpected request')};
     state.writeExtensionField=async (_id,key,value)=>{state.characters[0].extensions[key]=value};
     window.SillyTavern={getContext:()=>state};
     window.TavernHelper={
@@ -53,6 +56,7 @@ try{
   assert.equal(stored.title,'新的起点');assert.equal(stored.theme,'neon');
   assert.match(stored.music.audio,/^data:audio\/mpeg;base64,/);
   assert.equal(stored.music.enabled,true);
+  assert.equal(await page.evaluate(()=>window.__state.savedOnServer.data.extensions.universal_opening_selector.title),'新的起点');
   await page.locator('[data-settings-button]').click();
   await dialog.locator('[data-tab="bgm"]').click();
   await dialog.getByText('已载入音乐',{exact:false}).waitFor();
