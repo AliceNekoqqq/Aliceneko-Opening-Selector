@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const VERSION = 'v0.1.0-beta.14';
+const VERSION = 'v0.1.0-beta.15';
 const CDN = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}`;
 const LOADER_NAME = '红豆粉开场白选择器 Loader';
 
@@ -35,8 +35,9 @@ const config = {
 };
 
 const css = fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8').replace(/<\/style/gi,'<\\/style');
+const fallbackRuntime = fs.readFileSync(new URL('./src/selector.js',import.meta.url),'utf8').replace('export function mountInDocument','function mountInDocument').replace(/<\/script/gi,'<\\/script');
 const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style id="uos-css">${css}</style></head><body>
-<main class="uos" data-uos data-theme="archive"><div class="uos-top"><span class="uos-kicker">CHOOSE YOUR BEGINNING</span><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div>
+<main class="uos" data-uos data-theme="archive"><div class="uos-top"><span class="uos-kicker">CHOOSE YOUR BEGINNING</span><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div><p class="uos-status uos-top-status" data-top-status role="status"></p>
 <h1 data-title></h1><p class="uos-intro" data-subtitle></p><section class="uos-player" data-player hidden aria-label="开场音乐播放器"><div class="uos-player-head"><span class="uos-player-record" aria-hidden="true"></span><div class="uos-player-meta"><span class="uos-player-kicker">SOUNDTRACK · 开场音乐</span><strong data-music-title></strong></div><div class="uos-player-controls"><button type="button" data-skip="-10" aria-label="快退10秒">↶</button><button type="button" data-play aria-label="播放">▶</button><button type="button" data-skip="10" aria-label="快进10秒">↷</button></div></div><div class="uos-player-track"><input type="range" data-seek min="0" max="1000" value="0" aria-label="音乐播放进度"><span data-clock>0:00 / 0:00</span></div><div class="uos-lyrics" data-lyrics>♫</div><audio preload="metadata"></audio></section><div class="uos-grid" data-grid></div>
 <p class="uos-footer">选择后进入对应的正式开场。也可使用酒馆首条消息的翻页箭头。当前聊天开始后不能重新选择。</p><div class="uos-status" data-status role="status"></div>
 <div class="uos-dialog" data-theme-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>切换主题</h2><button type="button" class="uos-icon" data-close="[data-theme-dialog]">关闭</button></div><div class="uos-theme-grid" data-theme-grid></div></div></div>
@@ -56,7 +57,11 @@ for (const url of urls) {
     throw new Error('页面未挂载');
   } catch (error) { errors.push(error?.message || String(error)); }
 }
-if (errors.length === urls.length) document.querySelector('[data-status]').textContent = '选择器加载失败：' + errors.join(' | ');
+if (errors.length === urls.length) {
+  try { ${fallbackRuntime}
+    if (!mountInDocument(document)) throw new Error('卡内脚本未挂载');
+  } catch (error) { document.querySelector('[data-top-status]').textContent = '选择器加载失败：' + errors.join(' | ') + ' | ' + (error?.message || error); }
+}
 </script></body></html>`;
 
 data.first_mes = '<UniversalOpeningSelector/>\n\n【请选择开场】如果选择页没有出现，请使用酒馆首条消息的翻页箭头。';
