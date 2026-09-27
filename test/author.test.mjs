@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {readAuthorState,inspectAuthorState,authorHtml,AUTHOR_MARKER} from '../src/author.js';
+import {optimizeCoverData} from '../src/selector.js';
 
 const card={avatar:'demo.png',data:{first_mes:`${AUTHOR_MARKER}\n\n【请选择开场】`,alternate_greetings:['原主开场。','备用开场甲。','备用开场乙。']}};
 let swipe=0,last=0;
@@ -22,7 +23,7 @@ assert.match(inspectAuthorState(context,helper).reason,/主开场第一行/);
 last=1;assert.equal(inspectAuthorState(context,helper).reason,null);last=0;
 card.data.first_mes=AUTHOR_MARKER;card.data.alternate_greetings=[];
 assert.match(inspectAuthorState(context,helper).reason,/备用开场为空/);
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.36.json'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.37.json'));
 const remote=fs.readFileSync('remote.js','utf8');
 assert.equal(payload.export_with.data,true);
 assert.ok(payload.content.length<3000,'import-only loader remains small');
@@ -44,6 +45,19 @@ assert.match(remote,/预览完整正文/);
 assert.match(remote,/uos-card-names/);
 assert.match(remote,/uos-user-version/);
 assert.match(remote,/uos-version/);
+for(const theme of ['starmap','rose','wasteland']){
+  assert.match(remote,new RegExp(`data-theme=${theme}`));
+  assert.match(remote,new RegExp(`'${theme}'`));
+}
+assert.match(remote,/搜索作者开场/);
+const original='data:image/png;base64,'+'x'.repeat(2000);
+class MockImage{naturalWidth=1920;naturalHeight=1080;set src(_value){queueMicrotask(()=>this.onload())}}
+let dimensions;
+const mockDoc={defaultView:{Image:MockImage},createElement:()=>({getContext(){return {drawImage(_image,_x,_y,w,h){dimensions=[w,h]}}},toDataURL(){return 'data:image/webp;base64,YWJj'}})};
+assert.equal(await optimizeCoverData(original,{type:'image/png'},mockDoc),'data:image/webp;base64,YWJj');
+assert.deepEqual(dimensions,[960,540]);
+assert.equal(await optimizeCoverData(original,{type:'image/gif'},mockDoc),original);
+assert.equal(await optimizeCoverData('data:image/png;base64,YWJj',{type:'image/png'},mockDoc),'data:image/png;base64,YWJj');
 const source=fs.readFileSync('src/selector.js','utf8');
 assert.match(source,/excludedTags:String/);
 assert.match(source,/field\('登场人物/);

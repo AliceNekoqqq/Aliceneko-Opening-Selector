@@ -1,9 +1,9 @@
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆沙丨本插件完全免费';
-const VERSION='0.1.0-beta.36';
-const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风']];
-const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风'};
+const VERSION='0.1.0-beta.37';
+const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
+const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const CSS=`
 .uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
 .uos-user-trigger[data-floating=true]{position:fixed;z-index:2147483645;margin:0;touch-action:none}
@@ -94,6 +94,11 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-version-badge{align-self:start;margin:auto 0 0;color:var(--accent);font:10px/1.3 Georgia,serif;white-space:nowrap}
 .uos-user-version{position:absolute;right:0;bottom:0;color:var(--accent);font:10px/1.5 Georgia,serif;white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.uos-user-panel button,.uos-user-panel select,.uos-user-search input{transition:none}}
+
+.uos-user-panel[data-theme=starmap]{--bg:#09182c;--surface:#102b43;--text:#e5f5f9;--muted:#abc6d2;--accent:#9bdbe9;--line:#64a9c286;--glow:#286d9270;--wash:#27527648;--frame:#78bed1}.uos-user-panel[data-theme=starmap] .uos-user-card{border-radius:18px 4px 18px 4px;background:radial-gradient(circle at 86% 24%,transparent 0 35px,#9bdbe935 36px 37px,transparent 38px),linear-gradient(135deg,#173b59,#0d2036)}.uos-user-panel[data-theme=starmap] .uos-user-card::before{font-family:system-ui,sans-serif;font-weight:300;letter-spacing:-.12em}.uos-user-trigger[data-theme=starmap]{background:#123048;border-color:#9bdbe9;color:#e5f5f9}
+.uos-user-panel[data-theme=rose]{--bg:#31232d;--surface:#503743;--text:#fff0e7;--muted:#e4c9ca;--accent:#f2c5b5;--line:#dea5ac88;--glow:#d3829665;--wash:#965c6b55;--frame:#e1a6ad}.uos-user-panel[data-theme=rose] .uos-user-card{border-radius:24px 24px 6px 6px;background:radial-gradient(circle at 85% 18%,#eaa6a353,transparent 38%),linear-gradient(135deg,#694658,#3b2935)}.uos-user-panel[data-theme=rose] .uos-user-card::before{font-style:italic;opacity:.2}.uos-user-panel[data-theme=rose] .uos-user-head h2{font-family:Georgia,"Noto Serif SC",serif}.uos-user-trigger[data-theme=rose]{background:#503743;border-color:#f2c5b5;color:#fff0e7}
+.uos-user-panel[data-theme=wasteland]{--bg:#1c2225;--surface:#292c2d;--text:#f5ece2;--muted:#c9bcb2;--accent:#f3a969;--line:#c9805488;--glow:#a75b3c65;--wash:#78524044;--frame:#d18a5e;border-radius:5px}.uos-user-panel[data-theme=wasteland] .uos-user-card{border-radius:3px;border-left:5px solid var(--accent);background:repeating-linear-gradient(135deg,#f3a96916 0 5px,transparent 6px 19px),#292c2d}.uos-user-panel[data-theme=wasteland] .uos-user-card::before{font-family:system-ui,sans-serif;font-weight:800}.uos-user-trigger[data-theme=wasteland]{background:#292c2d;border-color:#f3a969;color:#f5ece2}
+
 `;
 
 function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
@@ -376,7 +381,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:'0.1.0-beta.36',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:'0.1.0-beta.37',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});

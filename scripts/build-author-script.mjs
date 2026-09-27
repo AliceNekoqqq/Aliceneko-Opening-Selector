@@ -14,10 +14,10 @@ try{
   const regex=card.data.extensions.regex_scripts.at(-1).replaceString;
   const html=regex.replace(/^```html\n/,'').replace(/\n```$/,'').replace(/<script type="module">[\s\S]*?<\/script>/,'');
   fs.writeFileSync('src/author-template.js',`/* Generated from legacy pack template assets. */\nexport const AUTHOR_HTML=${JSON.stringify(html)};\n`);
-  const runtime=fs.readFileSync('src/selector.js','utf8').replace(/^import .*;\n/gm,'').replace('export function mountInDocument','function mountInDocument');
+  const runtime=fs.readFileSync('src/selector.js','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
   const author=fs.readFileSync('src/author.js','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
   const player=fs.readFileSync('src/player.js','utf8').replace(/^export /gm,'');
-  const version='0.1.0-beta.36';
+  const version='0.1.0-beta.37';
   const runtimeBody=`const AUTHOR_HTML=${JSON.stringify(html).replace(/</g,'\\u003c')};\n${runtime}\n${author}\n${player}`;
   const moduleSource=`${runtimeBody}\nexport const OPENING_SELECTOR_VERSION='${version}';\nexport function mountUniversalSelector(startDocument=document,helperApi=null){const doc=startDocument?.nodeType===9?startDocument:document;const helper=helperApi||globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null);mountPlayerSelector(doc,helper);mountAuthorSelector(doc,helper);return {player:doc.__uosPlayer,author:doc.__uosAuthor}};\n`;
   fs.writeFileSync('remote.js',moduleSource);

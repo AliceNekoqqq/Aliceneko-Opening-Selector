@@ -1,10 +1,26 @@
 import {greetingTitle,greetingNames,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
+export async function optimizeCoverData(source,file,doc=document){
+  if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
+  try{
+    const ImageClass=doc.defaultView?.Image||Image;
+    const image=new ImageClass();
+    await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=source});
+    const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+    if(!width||!height)return source;
+    const scale=Math.min(1,960/Math.max(width,height));
+    const canvas=doc.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+    const context=canvas.getContext('2d');if(!context)return source;
+    context.drawImage(image,0,0,canvas.width,canvas.height);
+    const optimized=canvas.toDataURL('image/webp',.82);
+    return optimized.startsWith('data:image/webp;base64,')&&optimized.length<source.length?optimized:source;
+  }catch{return source}
+}
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.36';
+  const VERSION = '0.1.0-beta.37';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆沙丨本插件完全免费';
-  const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风']];
+  const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
   if (root.dataset.uosMounted === '1') {
@@ -102,7 +118,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       const frameDoc=frame.contentDocument;
       if(!frameDoc)throw Error('设置 iframe 无法访问');
       const css=doc.getElementById('uos-css')?.textContent||'';
-      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:block!important;position:static!important;width:100%!important;height:100%!important;padding:3px!important;overflow:hidden!important;background:transparent!important}.uos-sheet{width:100%!important;height:100%!important;max-height:100%!important;max-width:100%!important;overflow:auto!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0;cursor:grab;touch-action:none;user-select:none}.uos-sheet-head:active{cursor:grabbing}.uos-sheet-head button{cursor:pointer;touch-action:auto}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:600px){.uos-sheet{border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}}</style></head><body data-kind="${kind}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
+      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:block!important;position:static!important;width:100%!important;height:100%!important;padding:0!important;overflow:hidden!important;background:transparent!important}.uos-sheet{width:100%!important;height:100%!important;max-height:100%!important;max-width:100%!important;overflow:auto!important;box-shadow:none!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0;cursor:grab;touch-action:none;user-select:none}.uos-sheet-head:active{cursor:grabbing}.uos-sheet-head button{cursor:pointer;touch-action:auto}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:600px){.uos-sheet{border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}}</style></head><body data-kind="${kind}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
       const drag=sheet.querySelector('.uos-sheet-head');
@@ -123,8 +139,19 @@ export function mountInDocument(doc = document, helperApi = null) {
     setTheme(displayTheme,false);
     $('[data-title]').textContent=config.title;
     $('[data-subtitle]').textContent=config.subtitle;
-    const grid=$('[data-grid]'); grid.replaceChildren();
-    entries().forEach((entry,i)=>{
+    const grid=$('[data-grid]');grid.replaceChildren();
+    let filters=root.querySelector('.uos-search');
+    if(!filters){filters=el('div','uos-search');const input=el('input'),person=el('select');input.type='search';input.placeholder='搜索标题、人物或正文';input.setAttribute('aria-label','搜索作者开场');person.setAttribute('aria-label','按人物筛选作者开场');input.oninput=()=>render();person.onchange=()=>render();filters.append(input,person);grid.before(filters)}
+    const query=filters.querySelector('input').value.trim().toLocaleLowerCase(),person=filters.querySelector('select'),selected=person.value;
+    const items=entries(),greetings=greetingList(),people=new Set();
+    for(const entry of items)for(const name of String(entry.names||'').split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean))people.add(name);
+    person.replaceChildren();const all=el('option','','全部人物');all.value='';person.append(all);for(const name of people){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
+    let visible=0;
+    items.forEach((entry,i)=>{
+      const names=typeof entry.names==='string'?entry.names.trim():'';
+      if(person.value&&!names.split(/[、，,\/]/).map(x=>x.trim()).includes(person.value))return;
+      if(query&&![entry.title,entry.description,entry.label,names,greetings[i]].some(x=>String(x||'').toLocaleLowerCase().includes(query)))return;
+      visible++;
       const shell=el('article','uos-card-shell');
       const card=el('button','uos-card');card.type='button';card.setAttribute('aria-label',`选择 ${entry.title}`);
       const cover=el('div','uos-cover');
@@ -134,13 +161,13 @@ export function mountInDocument(doc = document, helperApi = null) {
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
       const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title));
       if(entry.description)body.append(el('div','uos-description',entry.description));
-      const names=typeof entry.names==='string'?entry.names.trim():'';
       body.append(el('p','uos-card-names',`登场人物 · ${names?names.replace(/[,，]/g,' / '):'未识别'}`));
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
-      const source=greetingList()[i];
+      const source=greetings[i];
       if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'),el('pre','',source));shell.append(details)}
       grid.append(shell);
     });
+    if(!visible)grid.append(el('p','uos-search-empty','没有匹配的开场，请换个关键词或人物。'));
     renderMusic(config.music);
     const kicker=root.querySelector('.uos-kicker');if(kicker&&!kicker.querySelector('.uos-version-badge'))kicker.append(el('small','uos-version-badge',`v${VERSION}`));
     let watermark=root.querySelector('[data-uos-watermark]');
@@ -202,7 +229,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
   function toggleField(label,value,change){const wrap=el('label','uos-toggle');const input=el('input');input.type='checkbox';input.checked=Boolean(value);input.onchange=()=>change(input.checked);wrap.append(input,el('span','',label));return wrap}
-  function fileField(label,accept,max,onload){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el('input');input.type='file';input.accept=accept;input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>max){status(`${label}超过 ${Math.round(max/1048576)} MB 限制`);input.value='';return}try{const result=await readFile(file);await onload(result,file);status(`${label}已载入，点击保存后随角色卡导出。`)}catch(e){status(`文件读取失败：${e.message}`)}};wrap.append(input);return wrap}
+  function fileField(label,accept,max,onload){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el('input');input.type='file';input.accept=accept;input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>max){status(`${label}超过 ${Math.round(max/1048576)} MB 限制`);input.value='';return}try{const result=await readFile(file);const message=await onload(result,file);status(message||`${label}已载入，点击保存后随角色卡导出。`)}catch(e){status(`文件读取失败：${e.message}`)}};wrap.append(input);return wrap}
   const readFile=file=>new Promise((ok,fail)=>{const reader=new FileReader();reader.onload=()=>ok(String(reader.result));reader.onerror=()=>fail(reader.error);reader.readAsDataURL(file)});
   async function lyricsText(file){const text=await file.text();return text.slice(0,300000)}
   function openSettings(){
@@ -223,7 +250,7 @@ export function mountInDocument(doc = document, helperApi = null) {
         field('标签',entry.label,v=>{entry.label=v;updatePreview()}),
         field('登场人物（逗号分隔，输入“无”可隐藏误判）',entry.names===''?'无':entry.names||'',v=>{entry.names=v.trim()==='无'?'':v;updatePreview()}),
         field('简介',entry.description,v=>{entry.description=v;updatePreview()},true),
-        fileField('上传封面（1 MB 内）','image/png,image/jpeg,image/webp,image/gif',1048576,v=>{entry.image=v;updatePreview()}));
+        fileField('上传封面（原图 8 MB 内）','image/png,image/jpeg,image/webp,image/gif',8*1048576,async(v,file)=>{const next=await optimizeCoverData(v,file,doc);if(next.length>1400000)throw Error('压缩后仍超过约 1 MB，请换更小的图片；GIF 动图不会压缩');entry.image=next;updatePreview();return next.length<v.length?`封面已压缩：${Math.round(v.length/1024)} KB → ${Math.round(next.length/1024)} KB，保存后随卡导出。`:'封面已载入；原图更小或不支持压缩，保存后随卡导出。'}));
       box.append(group);
       if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[3].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
       const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
