@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.9';
+  const VERSION = '0.1.0-beta.10';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -37,6 +37,7 @@ export function mountInDocument(doc = document) {
   let draft = null;
   let displayTheme = localTheme() || config.theme;
   let portaled = [];
+  let activePopup = null;
   const $ = (s, base=root) => base.querySelector(s) || (base === root ? portaled.find(x=>x.matches(s)) || portaled.map(x=>x.querySelector(s)).find(Boolean) : null);
   const el = (tag, cls, content) => { const n=doc.createElement(tag); if(cls)n.className=cls; if(content!=null)n.textContent=String(content); return n; };
   function normalize(input) {
@@ -73,19 +74,27 @@ export function mountInDocument(doc = document) {
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
   function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled)for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art'])dlg.style.setProperty(key,style.getPropertyValue(key));}
-  function portalDialogs(){
-    let viewport=doc.defaultView;
-    for(let i=0;i<8;i++){try{if(viewport.parent===viewport)break;void viewport.parent.document;viewport=viewport.parent}catch{break}}
-    if (viewport.document === doc || !viewport.document?.body) return;
-    const wrap=viewport.document.createElement('div');wrap.setAttribute('data-uos-portal','');
-    Object.assign(wrap.style,{position:'fixed',inset:'0',zIndex:'2147483647',pointerEvents:'none'});
-    const shadow=wrap.attachShadow({mode:'open'});
-    const fallback=viewport.document.createElement('style');fallback.textContent='.uos-dialog{position:fixed;inset:0;z-index:1;display:grid;place-items:center;padding:12px;background:#000b;pointer-events:auto}.uos-dialog[hidden]{display:none!important}.uos-sheet{box-sizing:border-box;width:min(740px,100%);max-height:calc(100dvh - 24px);overflow:auto;padding:20px;border-radius:16px;background:var(--bg,#111a20);color:var(--text,#f4ecda);border:1px solid var(--accent,#c99d67)}';shadow.append(fallback);
-    const style=viewport.document.createElement('style');style.textContent=doc.getElementById('uos-css')?.textContent||'';shadow.append(style);
-    portaled=[$('[data-theme-dialog]'),$('[data-settings-dialog]')];
-    for(const dlg of portaled)shadow.append(dlg);
-    viewport.document.body.append(wrap);syncDialogTheme();
-    doc.defaultView.addEventListener('unload',()=>wrap.remove(),{once:true});
+  function showSheet(selector){
+    if(activePopup)return null;
+    const original=$(selector),sheet=original?.querySelector('.uos-sheet');
+    const {Popup,POPUP_TYPE}=context()||{};
+    if(!sheet || !Popup || !POPUP_TYPE){status('酒馆弹窗接口尚未就绪，请稍后再试。');return null}
+    let popupWindow=doc.defaultView;
+    try{while(popupWindow.parent!==popupWindow){void popupWindow.parent.document;popupWindow=popupWindow.parent}}catch{}
+    const hostDoc=popupWindow.document;
+    const container=hostDoc.createElement('div');container.className='uos-popup-host';
+    const shadow=container.attachShadow({mode:'open'});
+    const style=hostDoc.createElement('style');style.textContent=(doc.getElementById('uos-css')?.textContent||'')+'\n.uos-sheet{width:100%;max-height:calc(100dvh - 100px)}';shadow.append(style,sheet);
+    portaled=[sheet];syncDialogTheme();
+    let popup;
+    try{
+      popup=new Popup(container,POPUP_TYPE.DISPLAY,'',{wide:true,allowVerticalScrolling:true,onClose:()=>{
+        original.append(sheet);portaled=[];activePopup=null;
+      }});
+      activePopup=popup;
+      popup.show().catch(e=>{status(`弹窗打开失败：${e.message||e}`);original.append(sheet);portaled=[];activePopup=null});
+    }catch(e){original.append(sheet);portaled=[];activePopup=null;status(`弹窗打开失败：${e.message||e}`);return null}
+    return sheet;
   }
   function status(message){$('[data-status]').textContent=message;const inDialog=$('[data-save-state]');if(inDialog)inDialog.textContent=message}
   function render(){
@@ -150,14 +159,14 @@ export function mountInDocument(doc = document) {
       if(current?.swipe_id!==target)throw new Error('消息页未切换');
     }catch(e){status(`切换失败：${e?.message||e}。可使用首条消息翻页箭头。`);root.querySelectorAll('.uos-card').forEach(b=>b.disabled=false)}
   }
-  function openThemes(){const dlg=$('[data-theme-dialog]');dlg.hidden=false;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice',name);b.type='button';b.setAttribute('aria-pressed',String(id===displayTheme));b.onclick=()=>{setTheme(id);dlg.hidden=true};grid.append(b)});}
+  function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice',name);b.type='button';b.setAttribute('aria-pressed',String(id===displayTheme));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
   function toggleField(label,value,change){const wrap=el('label','uos-toggle');const input=el('input');input.type='checkbox';input.checked=Boolean(value);input.onchange=()=>change(input.checked);wrap.append(input,el('span','',label));return wrap}
   function fileField(label,accept,max,onload){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el('input');input.type='file';input.accept=accept;input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>max){status(`${label}超过 ${Math.round(max/1048576)} MB 限制`);input.value='';return}try{const result=await readFile(file);await onload(result,file);status(`${label}已载入，点击保存后随角色卡导出。`)}catch(e){status(`文件读取失败：${e.message}`)}};wrap.append(input);return wrap}
   const readFile=file=>new Promise((ok,fail)=>{const reader=new FileReader();reader.onload=()=>ok(String(reader.result));reader.onerror=()=>fail(reader.error);reader.readAsDataURL(file)});
   async function lyricsText(file){const text=await file.text();return text.slice(0,300000)}
   function openSettings(){
-    const dlg=$('[data-settings-dialog]');dlg.hidden=false;
+    const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
     fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));
     const list=el('div');fields.append(list);
@@ -187,15 +196,14 @@ export function mountInDocument(doc = document) {
       try{
         draft.theme=displayTheme;
         await c.writeExtensionField(c.characterId,KEY,draft);
-        config=normalize(draft);draft=null;render();dlg.hidden=true;status('已保存到角色卡。导出角色卡时会带上配置和素材。');
+        config=normalize(draft);draft=null;render();activePopup?.complete(null);status('已保存到角色卡。导出角色卡时会带上配置和素材。');
       }catch(e){status(`保存失败：${e.message||e}`)}
       finally{button.disabled=false;button.textContent='保存到角色卡'}
     };
   }
-  try{portalDialogs()}catch(e){console.warn('[Aliceneko Opening Selector] 弹窗挂载失败',e)}
   $('[data-theme-button]').onclick=openThemes;
   $('[data-settings-button]').onclick=openSettings;
-  [root,...portaled].flatMap(base=>Array.from(base.querySelectorAll('[data-close]'))).forEach(b=>b.onclick=()=>$(b.dataset.close).hidden=true);
+  root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>activePopup?.complete(null));
   const audio=$('[data-player] audio');
   $('[data-play]').onclick=()=>{if(audio.paused)audio.play().catch(()=>status('无法播放该音乐文件'));else audio.pause()};
   $('[data-player]').querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>{audio.currentTime=Math.max(0,Math.min(audio.duration||Infinity,audio.currentTime+Number(b.dataset.skip)));updatePlayer()});
