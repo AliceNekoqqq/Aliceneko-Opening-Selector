@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const VERSION = 'v0.1.0-beta.8';
+const VERSION = 'v0.1.0-beta.9';
 const CDN = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${VERSION}`;
 const LOADER_NAME = '红豆粉开场白选择器 Loader';
 
