@@ -2,7 +2,7 @@ const AUTHOR_HTML="\u003c!doctype html>\u003chtml lang=\"zh-CN\">\u003chead>\u00
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.35';
+  const VERSION = '0.1.0-beta.36';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆沙丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风']];
   const root = doc.querySelector('[data-uos]');
@@ -364,7 +364,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
   }
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;
-  const api={version:'0.1.0-beta.35',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
+  const api={version:'0.1.0-beta.36',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
   const onPageHide=()=>{if(doc.__uosAuthor===api)api.close()};doc.__uosAuthor=api;
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   scan();return api;
@@ -373,7 +373,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆沙丨本插件完全免费';
-const VERSION='0.1.0-beta.35';
+const VERSION='0.1.0-beta.36';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风'};
 const CSS=`
@@ -748,12 +748,12 @@ function mountPlayerSelector(startDocument=document,helperApi){
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:'0.1.0-beta.35',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:'0.1.0-beta.36',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   return api;
 }
 
-export const OPENING_SELECTOR_VERSION='0.1.0-beta.35';
+export const OPENING_SELECTOR_VERSION='0.1.0-beta.36';
 export function mountUniversalSelector(startDocument=document,helperApi=null){const doc=startDocument?.nodeType===9?startDocument:document;const helper=helperApi||globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null);mountPlayerSelector(doc,helper);mountAuthorSelector(doc,helper);return {player:doc.__uosPlayer,author:doc.__uosAuthor}};

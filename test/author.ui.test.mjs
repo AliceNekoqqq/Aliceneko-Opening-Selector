@@ -4,10 +4,10 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.35.json','utf8'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.36.json','utf8'));
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
-const loader=payload.content.replace(/https:\/\/cdn\.jsdelivr\.net\/gh\/AliceNekoqqq\/Aliceneko-Opening-Selector@v0\.1\.0-beta\.34\/remote\.js/,localUrl);
+const loader=payload.content.replace(/https:\/\/cdn\.jsdelivr\.net\/gh\/AliceNekoqqq\/Aliceneko-Opening-Selector@[^\"\\]+\/remote\.js/,localUrl);
 const first='<UniversalOpeningSelector/>\n\n【请选择开场】';
 const card={avatar:'test.png',data:{first_mes:'原主开场。',alternate_greetings:['<SceneInfo>在场角色：\n- 张子薇制服</SceneInfo>\n<content>雨夜车站的重逢。</content>'],extensions:{}}};
 const browser=await chromium.launch({headless:true});
