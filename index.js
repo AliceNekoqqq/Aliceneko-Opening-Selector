@@ -1,6 +1,6 @@
 import { mountInDocument } from './src/selector.js';
 
-export const OPENING_SELECTOR_VERSION = '0.1.0-beta.11';
+export const OPENING_SELECTOR_VERSION = '0.1.0-beta.12';
 
 // Works when imported inside the selector iframe or from a Tavern Helper host script.
 export function mountOpeningSelector(startDocument = document) {
@@ -13,6 +13,9 @@ export function mountOpeningSelector(startDocument = document) {
   let mounted = 0;
   const visit = (doc, depth = 0) => {
     if (!doc || depth > 8) return;
+    // The Tavern Helper loader owns the outer document. Pass it explicitly to
+    // the card iframe, whose own window may be sandboxed or expose local `$`.
+    try { const root=doc.querySelector('[data-uos]'); if(root) root.__uosHostDocument=hostDocument; } catch {}
     try { if (mountInDocument(doc)) mounted++; } catch (error) { console.warn('[Aliceneko Opening Selector]', error); }
     for (const frame of doc.querySelectorAll('iframe')) {
       try { visit(frame.contentDocument, depth + 1); } catch { /* cross-origin iframe */ }
