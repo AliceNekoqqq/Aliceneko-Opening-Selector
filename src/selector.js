@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.13';
+  const VERSION = '0.1.0-beta.14';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -90,7 +90,7 @@ export function mountInDocument(doc = document) {
       const frameDoc=frame.contentDocument;
       if(!frameDoc)throw Error('设置 iframe 无法访问');
       const css=doc.getElementById('uos-css')?.textContent||'';
-      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:grid!important;position:fixed!important;inset:0!important;z-index:1!important;pointer-events:auto!important}.uos-sheet{max-height:calc(100dvh - 24px)!important}@media(max-width:600px){.uos-dialog{padding:0!important}.uos-sheet{width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;padding:16px!important}}body[data-kind="theme"] .uos-dialog{background:#08141b55!important}body[data-kind="theme"] .uos-sheet{height:auto!important}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}</style></head><body data-kind="${selector.includes('theme')?'theme':'settings'}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
+      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:grid!important;position:fixed!important;inset:0!important;z-index:1!important;pointer-events:auto!important;background:#08141b44!important}.uos-sheet{max-height:calc(100dvh - 24px)!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}@media(max-width:600px){.uos-dialog{padding:12px!important}.uos-sheet{width:min(88vw,620px)!important;height:auto!important;max-height:min(72dvh,650px)!important;border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}body[data-kind="theme"] .uos-sheet{width:min(84vw,420px)!important;max-height:55dvh!important}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style></head><body data-kind="${selector.includes('theme')?'theme':'settings'}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
       const close=()=>{original.append(sheet);portaled=[];frame.remove();activePopup=null};
