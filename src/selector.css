@@ -21,3 +21,4 @@
 :host{font-family:system-ui,"Noto Sans SC",sans-serif}.uos-dialog{position:fixed;inset:0;box-sizing:border-box;z-index:1;pointer-events:auto;overflow:hidden}.uos-sheet{box-sizing:border-box;min-height:0;max-height:calc(100dvh - 24px);max-width:100%;overscroll-behavior:contain}.uos-dialog button,.uos-dialog input,.uos-dialog textarea{font:inherit}
 
 .uos-top-status{min-height:0;margin:10px 0 0}.uos-top-status:empty{display:none}
+.uos-cover-preview{height:88px;margin:10px 0;border:1px solid var(--line);border-radius:10px}.uos-cover-preview .uos-number{font-size:45px}
