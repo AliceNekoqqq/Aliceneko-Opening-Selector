@@ -18,7 +18,7 @@ async function optimizeCoverData(source,file,doc=document){
 }
 function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.37';
+  const VERSION = '0.1.0-beta.38';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -391,7 +391,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
   }
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;
-  const api={version:'0.1.0-beta.37',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
+  const api={version:'0.1.0-beta.38',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
   const onPageHide=()=>{if(doc.__uosAuthor===api)api.close()};doc.__uosAuthor=api;
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   scan();return api;
@@ -400,7 +400,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='0.1.0-beta.37';
+const VERSION='0.1.0-beta.38';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const CSS=`
@@ -780,7 +780,7 @@ function mountPlayerSelector(startDocument=document,helperApi){
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:'0.1.0-beta.37',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:'0.1.0-beta.38',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
