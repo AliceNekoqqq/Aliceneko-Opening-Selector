@@ -22,3 +22,4 @@
 
 .uos-top-status{min-height:0;margin:10px 0 0}.uos-top-status:empty{display:none}
 .uos-cover-preview{height:88px;margin:10px 0;border:1px solid var(--line);border-radius:10px}.uos-cover-preview .uos-number{font-size:45px}
+.uos-source{margin:10px 0;color:var(--muted);font-size:12px}.uos-source summary{cursor:pointer;color:var(--accent);padding:8px 0}.uos-source pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;margin:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);font-size:12px;line-height:1.6;font-family:inherit}
