@@ -23,12 +23,6 @@ try{
   const page=await browser.newPage({viewport:{width:1100,height:850}});
   await page.addInitScript(({card})=>{
     const state={characters:[card.data],characterId:0,chat:[{swipe_id:0}]};
-    state.POPUP_TYPE={DISPLAY:4};
-    state.Popup=class {
-      constructor(content,_type,_input,options){this.content=content;this.options=options}
-      show(){document.body.append(this.content);return new Promise(resolve=>{this.resolve=resolve})}
-      complete(value){this.options.onClose?.();this.content.remove();this.resolve?.(value)}
-    };
     state.characters[0].data=state.characters[0];
     state.writeExtensionField=async (_id,key,value)=>{state.characters[0].extensions[key]=value};
     window.SillyTavern={getContext:()=>state};
@@ -41,32 +35,33 @@ try{
   },{card});
   await page.setContent(html);
   assert.equal(await page.locator('.uos-card').count(),2);
+  const dialog=page.frameLocator('iframe[data-uos-frame]');
   await page.locator('[data-theme-button]').click();
-  await page.getByText('霓虹夜',{exact:true}).click();
+  await dialog.getByText('霓虹夜',{exact:true}).click();
   assert.equal(await page.locator('.uos').getAttribute('data-theme'),'neon');
   await page.locator('[data-settings-button]').click();
-  await page.getByText('第 1 条开场').waitFor();
-  await page.locator('[data-settings-fields] input').first().fill('新的起点');
-  await page.locator('[data-tab="bgm"]').click();
-  await page.locator('.uos-toggle input').check();
-  await page.locator('[data-bgm-fields] input[type=file]').first().setInputFiles({name:'sample.mp3',mimeType:'audio/mpeg',buffer:Buffer.from('ID3test')});
-  await page.getByText('音乐已载入，可在选择页预览',{exact:false}).waitFor();
+  await dialog.getByText('第 1 条开场').waitFor();
+  await dialog.locator('[data-settings-fields] input').first().fill('新的起点');
+  await dialog.locator('[data-tab="bgm"]').click();
+  await dialog.locator('.uos-toggle input').check();
+  await dialog.locator('[data-bgm-fields] input[type=file]').first().setInputFiles({name:'sample.mp3',mimeType:'audio/mpeg',buffer:Buffer.from('ID3test')});
+  await dialog.getByText('音乐已载入，可在选择页预览',{exact:false}).waitFor();
   assert.equal(await page.locator('[data-player]').isVisible(),true);
-  await page.locator('[data-save]').click();
+  await dialog.locator('[data-save]').click();
   assert.equal(await page.locator('h1').innerText(),'新的起点');
   const stored=await page.evaluate(()=>window.__state.characters[0].extensions.universal_opening_selector);
   assert.equal(stored.title,'新的起点');assert.equal(stored.theme,'neon');
   assert.match(stored.music.audio,/^data:audio\/mpeg;base64,/);
   assert.equal(stored.music.enabled,true);
   await page.locator('[data-settings-button]').click();
-  await page.locator('[data-tab="bgm"]').click();
-  await page.getByText('已载入音乐',{exact:false}).waitFor();
-  await page.locator('[data-close="[data-settings-dialog]"]').click();
+  await dialog.locator('[data-tab="bgm"]').click();
+  await dialog.getByText('已载入音乐',{exact:false}).waitFor();
+  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
   await page.locator('.uos-card').nth(1).click();
   await page.waitForFunction(()=>window.__state.chat[0].swipe_id===2);
   await page.evaluate(markup=>{document.querySelector('[data-uos]').outerHTML=markup;window.__state.chat[0].swipe_id=0},freshMarkup);
   await page.locator('.uos-card').first().waitFor();
   await page.locator('[data-theme-button]').click();
-  await page.getByText('霓虹夜',{exact:true}).waitFor();
+  await dialog.getByText('霓虹夜',{exact:true}).waitFor();
   console.log('UI, music save, swipe, and selector re-entry checks passed');
 }finally{await browser.close();fs.rmSync(dir,{recursive:true,force:true})}
