@@ -1,48 +1,31 @@
 # PROJECT_STATE.md
 
-## 项目简介与阶段
-红豆粉开场白选择器；当前统一发行版 v0.1.0-beta.38，玩家功能以已有 beta.31 脚本为基线。发行版使用一份纯 GitHub import 的轻量统一脚本：普通卡进入玩家预览，主开场以显式标记开头的卡进入作者选择页。玩家把同一文件放在全局脚本库；作者把它放进角色脚本随卡导出。
+## 项目与发行阶段
+红豆粉开场白选择器，当前正式版 v1.0.0。玩家和作者使用同一份纯 import 脚本。普通多开场卡显示玩家预览；主开场以 `<UniversalOpeningSelector/>` 开头的角色卡显示作者选择页。
 
-## 文件职责
-- `src/player.js`：普通卡玩家模式。
-- `src/author.js`：识别作者手填的主开场标记，读取备用开场，在首条消息挂载选择页并管理生命周期。
-- `src/selector.js` / `src/selector.css`：作者可视化设置、主题、媒体、切换开场及保存。
-- `src/author-template.js`：由开发脚本生成的内嵌 HTML/CSS 模板。
-- `scripts/build-author-script.mjs`：维护者把玩家与作者模式生成仓库运行模块与轻量导入脚本；内部复用旧版打包资源作为模板，生成 `remote.js` 与轻量 JSON Loader。
-- `dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.38.json`：玩家与作者导入的同一导入文件；版本固定到 GitHub 提交 SHA。
-- `remote.js`：发布到 GitHub 的自包含运行模块；不会自动执行，由 Loader 导入并挂载。
-- `pack.mjs`：仅保留为开发和旧卡回归工具。
+## 核心文件
+- `src/player.js`：普通玩家模式、标题/人物解析、搜索和本机设置。
+- `src/author.js`：识别作者标记、读取备用开场、挂载作者选择页和管理生命周期。
+- `src/selector.js` / `src/selector.css`：作者预设、九套主题、媒体、选择、保存和封面压缩。
+- `src/author-template.js`：生成的作者页面模板。
+- `scripts/build-author-script.mjs`：生成远程运行模块及轻量 import JSON；版本号和 `scripts/runtime-ref.txt` 决定发行信息。
+- `remote.js`：固定 SHA 发布的自包含运行模块，由 Loader 导入并挂载。
+- `dist/红豆粉开场白选择器_通用脚本_v1.0.0.json`：正式版玩家/作者通用导入文件。
+- `pack.mjs`：仅作为维护者开发、测试及旧卡回归工具。
 
-## 已确认的作者流程与规则
-作者手动将主开场写成 `<UniversalOpeningSelector/>`（可附回退提示），将原主开场移动到备用开场首位，其他备用开场顺序不变；将通用脚本导入并启用为角色脚本，配置后保存并从酒馆正常导出。插件不自动改写主开场、不迁移备用开场、不注入 Regex 或第二个 Loader。角色脚本自身随卡导出；玩家端仍需要启用酒馆助手并能访问发布源。上传的封面、音乐和歌词以数据 URI 保存于角色卡扩展字段，与 GitHub 代码分离。
+## 使用规则
+作者自行把主开场改成 `<UniversalOpeningSelector/>`，把原主开场移至备用开场第一条，保持其他开场原顺序；在酒馆助手角色脚本中导入通用脚本并启用随卡导出。作者设置写入 `data.extensions.universal_opening_selector`。上传的封面、BGM 与歌词以内嵌数据保存在角色卡。普通用户将同一脚本导入全局脚本库；不带标记的普通多开场卡进入玩家模式。酒馆助手和可访问 GitHub 发布源是运行前提。
 
-只在标记位于主开场开头、当前是未继续的新聊天、首条消息位于选择页时挂载。保存配置到 `data.extensions.universal_opening_selector`，检查写入响应并从 `/api/characters/get` 复核后才提示成功。不得因旧方案恢复自动初始化和迁移逻辑。
-普通多开场卡没有标记时进入玩家模式，显示“预览开场”入口；有标记时进入作者模式。不得向无标记的玩家卡显示作者配置提示。两种模式由同一脚本分流，作者仍须手工填写标记和搬移原主开场。
+不得自动迁移开场、自动初始化作者卡、注入 Regex 或修改开场正文。群聊和已开始的聊天不显示选择入口。玩家个人主题/标签/修正仅保存在本机。
 
-## 玩家功能基线
-保留 beta.31 的五套精细主题视觉、搜索和人物筛选、自定义 `<字段>` 排除、人物识别与修正、标题修正、本机标签及入口拖动。作者端同样可保存登场人物和排除字段，标题与人物识别共享玩家解析规则。玩家窗口整体滚动；作者卡片只展示摘要并可展开完整正文。脚本页眉及页脚显示版本号；作者帧重新注入时移除旧帧、还原首条消息后重新挂载。旧自动生成的标题与简介可被识别并重新按正文解析，手动填写的字段保留。旧版 beta.26 发行文件已移除，以免误导导入。
+## 当前功能
+- 玩家与作者均可预览完整正文、识别和筛选人物、搜索开场。
+- 作者可编辑标题、简介、人物、标签、排除字段、主题、封面、音乐和歌词；保存时检查酒馆服务端写入并重新读取复核。
+- 上传封面尝试最长边 960 px WebP 压缩；只在生成结果更小时使用；GIF 保留，压缩后限制约 1 MB。
+- 九套主题：旧档案、霓虹夜、纸与墨、黑白电影、林间信、锦书古风、星海航图、绯色契约、末日警报。主题和设置为可拖动窗口，无全屏遮罩。
+- Loader 仅含 import 逻辑，固定至已验证的 GitHub 提交 SHA。媒体配置和模块缓存相互独立。
 
-## 主题与弹窗
-九套主题：旧档案、霓虹夜（仅紫粉光）、纸与墨、黑白电影、林间信、锦书古风、星海航图、绯色契约、末日警报。作者页主题与设置在主页面使用独立、无全屏遮罩的可拖动浮窗；玩家预览保留浮窗且背景透明可见。修改 CSS 或脚本后重新构建远程模块和轻量导入脚本。
+## 验证与限制
+构建后运行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`。浏览器 UI 测试 `node test/author.ui.test.mjs` 需要 Playwright Chromium。酒馆主题、角色脚本导入/导出及手机实际交互仍须现场验收。
 
-## 已知限制与后续验证
-- 酒馆不同版本、第三方消息渲染、角色脚本导入与导出需要现场验收；本工作区有 Puppeteer + Chromium 可做浏览器交互回归；酒馆现场仍需验证。
-- 旧打包卡的 Regex/Loader 路径保留，`pack.mjs` 仍可回归测试。
-- 作者脚本模板有一次生成步骤，仅维护者执行；修改 `selector.js` 或 `selector.css` 后须重跑 `node scripts/build-author-script.mjs`。
-- 部分聊天主题会给消息内的 iframe 设置 `pointer-events:none!important`，导致作者页显示但所有按钮无响应。作者挂载 iframe 必须显式覆盖为 `pointer-events:auto!important`；浏览器回归须用同一脚本从普通卡玩家模式切到标记卡作者模式，在这种宿主样式下点击主题、设置和开场，并用旧版 beta.32 → beta.33 的重复导入检验旧帧被替换。
-
-## 回归方式
-`node scripts/build-author-script.mjs`，随后运行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`。有 Playwright 的环境还运行 `node test/author.ui.test.mjs`，检查统一脚本两种模式和作者 iframe 在宿主禁用 pointer events 时的真实点击。现场检查：全局与角色脚本导入、手填标记、配置媒体、保存、导出重导、选择开场、切换角色与替换脚本。
-
-## 发布规则
-发布新版本时运行构建与回归，将 `remote.js`、`index.js`、轻量 JSON 及源码推送 GitHub，并固定到已发布的提交 SHA，版本分支仅作源码归档。Loader 必须校验远程模块版本；版本更新需替换导入 JSON。已有作者媒体保存到角色卡扩展字段，更新 Loader 不得清空该字段。
-
-## beta.37 修复
-beta.35 内嵌完整备用代码与用户要求的纯 import 冲突。jsDelivr 对版本分支 `@v0.1.0-beta.34` 返回 404，但 `@main` 及不可变提交 SHA 返回 200。beta.37 仅保留 import，导入文件固定到已发布运行模块的提交 SHA；先发布运行模块再生成最终 JSON，发布前逐地址验证。角色卡设置与内嵌媒体仍独立保存在扩展字段。
-
-## beta.37 升级
-作者上传封面时在浏览器内尝试最长边 960 px 的 WebP 压缩，仅更小时采用，GIF 不压缩；结果超过约 1 MB 时不替换旧封面。主题和设置浮窗去除黑色外围阴影与内边。新增三套主题，玩家与作者共用同一主题 ID；作者页支持搜索标题、正文、人物及按人物筛选。BGM 保存方式不变。
-
-
-## beta.38 更正
-作者显示名和插件水印统一使用“红豆粉”，包括源码、README、测试、历史发行文件与 beta.38 轻量导入脚本。远程模块固定到 GitHub 提交 SHA `dbfb267835ae9052f08f08cf11f5ea5744363900`；修改水印不改变作者配置字段和角色卡数据格式。
+修改源码后先执行 `node scripts/build-author-script.mjs`。正式发布时先发布 `remote.js` 并验证 CDN 返回与 SHA，再把提交 SHA 写入 `scripts/runtime-ref.txt`，构建最终轻量 JSON，最后更新 `main` 和版本分支。分支名不用于 CDN；Loader 必须固定提交 SHA 和校验模块版本。
