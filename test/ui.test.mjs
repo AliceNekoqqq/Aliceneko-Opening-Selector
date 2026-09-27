@@ -23,6 +23,12 @@ try{
   const page=await browser.newPage({viewport:{width:1100,height:850}});
   await page.addInitScript(({card})=>{
     const state={characters:[card.data],characterId:0,chat:[{swipe_id:0}]};
+    state.POPUP_TYPE={DISPLAY:4};
+    state.Popup=class {
+      constructor(content,_type,_input,options){this.content=content;this.options=options}
+      show(){document.body.append(this.content);return new Promise(resolve=>{this.resolve=resolve})}
+      complete(value){this.options.onClose?.();this.content.remove();this.resolve?.(value)}
+    };
     state.characters[0].data=state.characters[0];
     state.writeExtensionField=async (_id,key,value)=>{state.characters[0].extensions[key]=value};
     window.SillyTavern={getContext:()=>state};
