@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import {readPlayerState} from '../index.js';
 import {resolveDisplayEntry,isLegacyGeneratedEntry} from '../src/player.js';
 
-assert.match(fs.readFileSync('src/player.js','utf8'),/唯一来源Discord:♡Aliceneko♡\/红豆沙丨本插件完全免费/);
+assert.match(fs.readFileSync('src/player.js','utf8'),/唯一来源Discord:♡Aliceneko♡\/红豆粉丨本插件完全免费/);
 
 const character={avatar:'example.png',data:{first_mes:'第一条开场。',alternate_greetings:['第二条开场。','第三条开场。']}};
 const context={characters:[character],characterId:0,groupId:null};
