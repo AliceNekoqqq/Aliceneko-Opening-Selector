@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.15';
+  const VERSION = '0.1.0-beta.16';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -94,7 +94,7 @@ export function mountInDocument(doc = document) {
       frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:grid!important;position:fixed!important;inset:0!important;z-index:1!important;pointer-events:auto!important;background:#08141b44!important}.uos-sheet{max-height:calc(100dvh - 24px)!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}@media(max-width:600px){.uos-dialog{padding:12px!important}.uos-sheet{width:min(88vw,620px)!important;height:auto!important;max-height:min(72dvh,650px)!important;border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}body[data-kind="theme"] .uos-sheet{width:min(84vw,420px)!important;max-height:55dvh!important}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style></head><body data-kind="${selector.includes('theme')?'theme':'settings'}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
-      const close=()=>{original.append(sheet);portaled=[];frame.remove();activePopup=null};
+      const close=()=>{original.append(sheet);portaled=[];frame.remove();activePopup=null;if(selector.includes('settings') && draft){draft=null;renderMusic(config.music);status('未保存的设置已撤销。')}};
       activePopup={complete:close,frame,original,sheet};
       overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
       frameDoc.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
@@ -177,12 +177,15 @@ export function mountInDocument(doc = document) {
     const list=el('div');fields.append(list);
     const items=entries();items.forEach((entry,i)=>{
       draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
+      const preview=el('div','uos-cover uos-cover-preview');
+      const previewImage=()=>{preview.classList.toggle('has-image',Boolean(entry.image));preview.style.backgroundImage=entry.image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};
+      preview.append(el('span','uos-number',String(i+1).padStart(2,'0')));previewImage();box.append(preview);
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>draft.entries[i].title=v),
         field('标签',entry.label,v=>draft.entries[i].label=v),
         field('简介',entry.description,v=>draft.entries[i].description=v,true),
-        fileField('上传封面（1 MB 内）','image/png,image/jpeg,image/webp,image/gif',1048576,v=>draft.entries[i].image=v));
-      box.append(group);const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{draft.entries[i].image='';status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
+        fileField('上传封面（1 MB 内）','image/png,image/jpeg,image/webp,image/gif',1048576,v=>{draft.entries[i].image=v;previewImage()}));
+      box.append(group);const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{draft.entries[i].image='';previewImage();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
     const music=$('[data-bgm-fields]');music.replaceChildren();
     music.append(toggleField('启用 BGM 播放器',draft.music.enabled,v=>{draft.music.enabled=v;renderMusic(draft.music);loaded.textContent=v?'BGM 已启用，保存后生效。':'BGM 已关闭，播放器已隐藏；保存后生效。'}),field('曲名',draft.music.title,v=>draft.music.title=v),
