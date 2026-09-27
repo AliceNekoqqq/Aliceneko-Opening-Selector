@@ -9,7 +9,7 @@
 - `src/selector.js` / `src/selector.css`：作者可视化设置、主题、媒体、切换开场及保存。
 - `src/author-template.js`：由开发脚本生成的内嵌 HTML/CSS 模板。
 - `scripts/build-author-script.mjs`：维护者把玩家与作者模式生成仓库运行模块与轻量导入脚本；内部复用旧版打包资源作为模板，生成 `remote.js` 与轻量 JSON Loader。
-- `dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.37.json`：玩家与作者导入的同一导入文件；版本固定到 GitHub 提交 SHA。
+- `dist/红豆粉开场白选择器_通用脚本_v0.1.0-beta.38.json`：玩家与作者导入的同一导入文件；版本固定到 GitHub 提交 SHA。
 - `remote.js`：发布到 GitHub 的自包含运行模块；不会自动执行，由 Loader 导入并挂载。
 - `pack.mjs`：仅保留为开发和旧卡回归工具。
 
