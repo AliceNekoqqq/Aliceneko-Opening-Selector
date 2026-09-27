@@ -1,6 +1,6 @@
 import { mountInDocument } from './src/selector.js';
 
-export const OPENING_SELECTOR_VERSION = '0.1.0-beta.8';
+export const OPENING_SELECTOR_VERSION = '0.1.0-beta.9';
 
 // Works when imported inside the selector iframe or from a Tavern Helper host script.
 export function mountOpeningSelector(startDocument = document) {
@@ -9,6 +9,7 @@ export function mountOpeningSelector(startDocument = document) {
     void win.parent.document;win=win.parent;hostDocument=win.document;
   }} catch { /* sandbox boundary: scan the current document */ }
   if (hostDocument.__uosObserver?.version === OPENING_SELECTOR_VERSION) return hostDocument.__uosObserver;
+  hostDocument.__uosObserver?.close?.();
   let mounted = 0;
   const visit = (doc, depth = 0) => {
     if (!doc || depth > 8) return;
