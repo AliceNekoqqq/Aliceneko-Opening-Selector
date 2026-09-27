@@ -19,6 +19,10 @@ dialog.uos-user-overlay::backdrop{background:#08141b55}
 `;
 
 function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
+function greetingTitle(body,index){
+  const content=clean(body),sentence=content.match(/^.{1,64}?[。！？!?]/)?.[0];
+  return sentence||(`${content.slice(0,56)}${content.length>56?'…':''}`)||`开场 ${index+1}`;
+}
 
 export function readPlayerState(context,helper){
   const c=context?.characters?.[context.characterId];
@@ -34,13 +38,13 @@ export function readPlayerState(context,helper){
   const all=[first,...alternates],count=Math.min(all.length,message.swipes.length);
   if(count<2)return null;
   const metadata=data.extensions?.[KEY]?.entries||[];
-  return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:all.slice(0,count).map((body,i)=>({index:i,body,title:metadata[i]?.title||clean(body).slice(0,32)||`开场 ${i+1}`,description:metadata[i]?.description||clean(body).slice(32,110),label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
+  return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:all.slice(0,count).map((body,i)=>({index:i,body,title:metadata[i]?.title||greetingTitle(body,i),description:metadata[i]?.description||'',label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
 }
 
 export function mountPlayerSelector(startDocument=document,helperApi){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
-  if(doc.__uosPlayer?.version==='0.1.0-beta.22')return doc.__uosPlayer;
+  if(doc.__uosPlayer?.version==='0.1.0-beta.23')return doc.__uosPlayer;
   doc.__uosPlayer?.close?.();
   const host=doc.defaultView||globalThis;
   const helper=helperApi||host.TavernHelper||host;
@@ -133,6 +137,6 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const onResize=()=>{if(trigger?.dataset.floating==='true')clampButton(parseFloat(trigger.style.left)||8,parseFloat(trigger.style.top)||8)};
   host.addEventListener('resize',onResize);
   const timer=host.setInterval(scan,1500);scan();
-  const api={version:'0.1.0-beta.22',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);closePanel();removeTrigger();style.remove();delete doc.__uosPlayer}};
+  const api={version:'0.1.0-beta.23',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);closePanel();removeTrigger();style.remove();delete doc.__uosPlayer}};
   doc.__uosPlayer=api;return api;
 }
