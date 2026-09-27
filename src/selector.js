@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.10';
+  const VERSION = '0.1.0-beta.11';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -77,23 +77,27 @@ export function mountInDocument(doc = document) {
   function showSheet(selector){
     if(activePopup)return null;
     const original=$(selector),sheet=original?.querySelector('.uos-sheet');
-    const {Popup,POPUP_TYPE}=context()||{};
-    if(!sheet || !Popup || !POPUP_TYPE){status('酒馆弹窗接口尚未就绪，请稍后再试。');return null}
-    let popupWindow=doc.defaultView;
-    try{while(popupWindow.parent!==popupWindow){void popupWindow.parent.document;popupWindow=popupWindow.parent}}catch{}
-    const hostDoc=popupWindow.document;
-    const container=hostDoc.createElement('div');container.className='uos-popup-host';
-    const shadow=container.attachShadow({mode:'open'});
-    const style=hostDoc.createElement('style');style.textContent=(doc.getElementById('uos-css')?.textContent||'')+'\n.uos-sheet{width:100%;max-height:calc(100dvh - 100px)}';shadow.append(style,sheet);
-    portaled=[sheet];syncDialogTheme();
-    let popup;
+    if(!sheet){status('设置界面尚未就绪，请刷新页面重试。');return null}
+    let hostDoc;
+    try{hostDoc=doc.defaultView.$?.('body')?.[0]?.ownerDocument}catch{}
+    if(!hostDoc){let w=doc.defaultView;try{while(w.parent!==w){void w.parent.document;w=w.parent}}catch{}hostDoc=w.document}
+    const frame=hostDoc.createElement('iframe');
+    frame.setAttribute('title',selector.includes('theme')?'切换主题':'作者设置');
+    frame.setAttribute('data-uos-frame','');
+    frame.style.cssText='position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;border:0!important;margin:0!important;padding:0!important;z-index:2147483647!important;background:transparent!important;display:block!important';
     try{
-      popup=new Popup(container,POPUP_TYPE.DISPLAY,'',{wide:true,allowVerticalScrolling:true,onClose:()=>{
-        original.append(sheet);portaled=[];activePopup=null;
-      }});
-      activePopup=popup;
-      popup.show().catch(e=>{status(`弹窗打开失败：${e.message||e}`);original.append(sheet);portaled=[];activePopup=null});
-    }catch(e){original.append(sheet);portaled=[];activePopup=null;status(`弹窗打开失败：${e.message||e}`);return null}
+      (hostDoc.body||hostDoc.documentElement).append(frame);
+      const frameDoc=frame.contentDocument;
+      if(!frameDoc)throw Error('设置 iframe 无法访问');
+      const css=doc.getElementById('uos-css')?.textContent||'';
+      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:grid!important;position:fixed!important;inset:0!important;z-index:1!important;pointer-events:auto!important}.uos-sheet{max-height:calc(100dvh - 24px)!important}@media(max-width:600px){.uos-dialog{padding:0!important}.uos-sheet{width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;padding:16px!important}}body[data-kind="theme"] .uos-sheet{height:auto!important}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}</style></head><body data-kind="${selector.includes('theme')?'theme':'settings'}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
+      const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
+      portaled=[sheet];syncDialogTheme();
+      const close=()=>{original.append(sheet);portaled=[];frame.remove();activePopup=null};
+      activePopup={complete:close};
+      overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+      frameDoc.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+    }catch(e){original.append(sheet);portaled=[];frame.remove();activePopup=null;status(`弹窗打开失败：${e.message||e}`);return null}
     return sheet;
   }
   function status(message){$('[data-status]').textContent=message;const inDialog=$('[data-save-state]');if(inDialog)inDialog.textContent=message}
