@@ -9,6 +9,8 @@ const state=readPlayerState(context,helper);
 assert.deepEqual(state.entries.map(x=>x.index),[0,1,2]);
 assert.equal(state.entries[0].body,'第一条开场。');
 assert.equal(state.entries[2].body,'第三条开场。');
+assert.equal(state.entries[0].title,'第一条开场。');
+assert.equal(state.entries[0].description,'');
 swipeId=2;
 assert.equal(readPlayerState(context,helper).swipeId,2);
 lastId=1;
