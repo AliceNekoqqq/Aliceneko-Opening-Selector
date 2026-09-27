@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.18';
+  const VERSION = '0.1.0-beta.19';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
