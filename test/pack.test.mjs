@@ -26,7 +26,7 @@ assert.match(regex.replaceString,/data-tab="diagnostics"/);
 assert.match(regex.replaceString,/data-diagnostics/);
 assert.match(regex.replaceString,/<style id="uos-css">[\s\S]*?\.uos-fields/);
 assert.match(regex.replaceString,/\.uos\{border-radius:0!important;box-shadow:none!important\}/);
-for(const theme of ['archive','neon','paper','noir','meadow'])assert.match(regex.replaceString,new RegExp(`\\.uos\\[data-theme=${theme}\\]`));
+for(const theme of ['archive','neon','paper','noir','meadow','ancient'])assert.match(regex.replaceString,new RegExp(`\\.uos\\[data-theme=${theme}\\]`));
 assert.match(regex.replaceString,/data-music-title/);
 assert.match(regex.replaceString,/function mountInDocument/);
 assert.match(regex.replaceString,/查看原开场正文/);

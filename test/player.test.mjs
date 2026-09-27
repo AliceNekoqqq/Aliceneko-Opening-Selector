@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {readPlayerState} from '../index.js';
+import {resolveDisplayEntry,isLegacyGeneratedEntry} from '../src/player.js';
+
+assert.match(fs.readFileSync('src/player.js','utf8'),/唯一来源Discord:♡Aliceneko♡\/红豆沙丨本插件完全免费/);
 
 const character={avatar:'example.png',data:{first_mes:'第一条开场。',alternate_greetings:['第二条开场。','第三条开场。']}};
 const context={characters:[character],characterId:0,groupId:null};
@@ -35,7 +39,28 @@ assert.equal(readPlayerState(context,helper),null);
 lastId=0;
 character.data.first_mes='<UniversalOpeningSelector/>';
 assert.equal(readPlayerState(context,helper),null);
+character.data.first_mes='正文里引用 <UniversalOpeningSelector/> 这个字符串。';
+assert.ok(readPlayerState(context,helper));
 character.data.first_mes='第一条开场。';
 context.groupId=1;
 assert.equal(readPlayerState(context,helper),null);
 console.log('Player mode maps ordinary greetings and guards active chats');
+
+// beta.31 的搜索、人物修正与标签排除逻辑不得丢失。
+const taggedBody='<SceneInfo>\n在场角色：\n- 张子薇制服\n</SceneInfo>\n<content>她走进走廊。</content>';
+const sceneCard={avatar:'scene.png',data:{first_mes:taggedBody,alternate_greetings:['另一幕。']}};
+const scene=readPlayerState({characters:[sceneCard],characterId:0,groupId:null},helper);
+assert.deepEqual(scene.entries[0].names,['张子薇']);
+assert.equal(scene.entries[0].title,'她走进走廊。');
+assert.equal(resolveDisplayEntry(scene.entries[0],{title:'作者标题',names:'李明、王小雨'}).namesSource,'作者填写');
+assert.deepEqual(resolveDisplayEntry(scene.entries[0],{title:'作者标题',names:'李明'},{title:'玩家标题',names:''}).names,[]);
+assert.equal(resolveDisplayEntry({index:0,body:'<跳过>元信息。</跳过><content>正文标题。</content>',names:[]},{},{},['跳过']).title,'正文标题。');
+const playerSource=fs.readFileSync('src/player.js','utf8');
+for(const feature of ['uos-user-search','修正标题和登场人物','排除标题中的 <字段>','自定义开场标签','预览完整正文','data-number','THEME_CAPTIONS'])assert.ok(playerSource.includes(feature),feature);
+
+const oldBody='<SceneInfo>地点：车站</SceneInfo>\n<content>她走到站台。</content>';
+const oldPlain=oldBody.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+const oldAuto={title:oldPlain.slice(0,20),description:oldPlain.slice(20,88)};
+assert.equal(isLegacyGeneratedEntry(oldBody,oldAuto,0),true);
+const oldCard={avatar:'old.png',data:{first_mes:oldBody,alternate_greetings:['另一幕。'],extensions:{universal_opening_selector:{entries:[oldAuto]}}}};
+assert.equal(readPlayerState({characters:[oldCard],characterId:0,groupId:null},helper).entries[0].title,'她走到站台。');

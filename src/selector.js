@@ -1,8 +1,10 @@
+import {greetingTitle,greetingNames,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
-export function mountInDocument(doc = document) {
+export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.26';
-  const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
+  const VERSION = '0.1.0-beta.34';
+  const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆沙丨本插件完全免费';
+  const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
   if (root.dataset.uosMounted === '1') {
@@ -22,6 +24,7 @@ export function mountInDocument(doc = document) {
   }
   const context = () => host.SillyTavern?.getContext?.();
   const helper = () => {
+    if (typeof helperApi?.setChatMessages === 'function') return helperApi;
     let w = doc.defaultView;
     for (let i=0;w && i<8;i++) {
       try { if (typeof w.TavernHelper?.setChatMessages === 'function') return w.TavernHelper;
@@ -46,10 +49,12 @@ export function mountInDocument(doc = document) {
       version:1, title:String(x.title||'选择故事的起点').slice(0,100),
       subtitle:String(x.subtitle||'选择一个开场，故事将从那里继续。').slice(0,400),
       theme:THEMES.some(t=>t[0]===x.theme)?x.theme:'archive',
+      excludedTags:String(x.excludedTags||'').slice(0,500),
       entries:Array.isArray(x.entries)?x.entries.map((e,i)=>({
         title:String(e?.title||`开场 ${i+1}`).slice(0,100),
         description:String(e?.description||'').slice(0,300),
         label:String(e?.label||'').slice(0,60),
+        ...(typeof e?.names==='string'?{names:e.names.slice(0,200)}:{}),
         image:String(e?.image||''),
       })):[],
       music:{enabled:x.music?.enabled == null ? Boolean(x.music?.audio) : Boolean(x.music.enabled),title:String(x.music?.title||''),audio:String(x.music?.audio||''),lyrics:String(x.music?.lyrics||'')},
@@ -63,18 +68,15 @@ export function mountInDocument(doc = document) {
     return String(first).includes('<UniversalOpeningSelector/>') ? alts : [];
   }
   function infer(text,i){
-    const clean=String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim();
-    return {title:clean.slice(0,20)||`开场 ${i+1}`,description:clean.slice(20,88)};
+    const source=String(text||''),excluded=excludedTags(config.excludedTags);
+    const title=greetingTitle(source,i,excluded),body=narrativeStart(source,excluded);
+    return {title,description:body.slice(title.length).trim().slice(0,140),names:greetingNames(source).join('、')};
   }
-  function suggest(text,i){
-    const plain=String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim();
-    const first=plain.match(/^[^。！？!?；;]{1,80}[。！？!?；;]?/)?.[0]?.trim()||plain;
-    return {title:first.slice(0,24)||`开场 ${i+1}`,description:(plain.slice(first.length).trim()||plain).slice(0,100)};
-  }
+  function suggest(text,i){return infer(text,i)}
   function entries(){
     const greetings=greetingList();
     const count=greetings.length || config.entries.length;
-    return Array.from({length:count},(_,i)=>({...infer(greetings[i],i),...(config.entries[i]||{})}));
+    return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
@@ -86,22 +88,32 @@ export function mountInDocument(doc = document) {
     if(!sheet){status('设置界面尚未就绪，请刷新页面重试。');return null}
     let hostDoc=root.__uosHostDocument;
     if(!hostDoc){let w=doc.defaultView;try{while(w.parent!==w){void w.parent.document;w=w.parent}}catch{}hostDoc=w.document}
-    if(hostDoc===doc){status('无法在酒馆页面打开弹窗：请确认角色卡内的酒馆助手 Loader 已启用。');return null}
+    if(hostDoc===doc){status('无法在酒馆页面打开弹窗：请确认角色卡内的作者脚本已启用。');return null}
     const frame=hostDoc.createElement('iframe');
     frame.setAttribute('title',selector.includes('theme')?'切换主题':'作者设置');
     frame.setAttribute('data-uos-frame','');
-    frame.style.cssText='position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;border:0!important;margin:0!important;padding:0!important;z-index:2147483647!important;background:transparent!important;display:block!important';
+    const kind=selector.includes('theme')?'theme':'settings';
+    const viewport=hostDoc.defaultView;
+    const width=Math.min(kind==='theme'?460:780,Math.max(260,viewport.innerWidth-24));
+    const height=Math.min(kind==='theme'?520:740,Math.max(260,viewport.innerHeight-24));
+    frame.style.cssText=`position:fixed!important;left:${Math.max(12,(viewport.innerWidth-width)/2)}px!important;top:${Math.max(12,(viewport.innerHeight-height)/2)}px!important;width:${width}px!important;height:${height}px!important;border:0!important;margin:0!important;padding:0!important;z-index:2147483647!important;background:transparent!important;display:block!important;pointer-events:auto!important`;
     try{
       (hostDoc.body||hostDoc.documentElement).append(frame);
       const frameDoc=frame.contentDocument;
       if(!frameDoc)throw Error('设置 iframe 无法访问');
       const css=doc.getElementById('uos-css')?.textContent||'';
-      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:grid!important;position:fixed!important;inset:0!important;z-index:1!important;pointer-events:auto!important;background:#08141b44!important}.uos-sheet{max-height:calc(100dvh - 24px)!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}@media(max-width:600px){.uos-dialog{padding:12px!important}.uos-sheet{width:min(88vw,620px)!important;height:auto!important;max-height:min(72dvh,650px)!important;border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}body[data-kind="theme"] .uos-sheet{width:min(84vw,420px)!important;max-height:55dvh!important}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style></head><body data-kind="${selector.includes('theme')?'theme':'settings'}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
+      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:block!important;position:static!important;width:100%!important;height:100%!important;padding:3px!important;overflow:hidden!important;background:transparent!important}.uos-sheet{width:100%!important;height:100%!important;max-height:100%!important;max-width:100%!important;overflow:auto!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0;cursor:grab;touch-action:none;user-select:none}.uos-sheet-head:active{cursor:grabbing}.uos-sheet-head button{cursor:pointer;touch-action:auto}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:600px){.uos-sheet{border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}}</style></head><body data-kind="${kind}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
-      const close=()=>{original.append(sheet);portaled=[];frame.remove();activePopup=null;if(selector.includes('settings') && draft){draft=null;renderMusic(config.music);status('未保存的设置已撤销。')}};
+      const drag=sheet.querySelector('.uos-sheet-head');
+      let origin=null;
+      const move=e=>{if(!origin)return;const left=Math.max(0,Math.min(viewport.innerWidth-frame.offsetWidth,origin.left+e.screenX-origin.x));const top=Math.max(0,Math.min(viewport.innerHeight-frame.offsetHeight,origin.top+e.screenY-origin.y));frame.style.setProperty('left',`${left}px`,'important');frame.style.setProperty('top',`${top}px`,'important')};
+      const stop=()=>{origin=null;drag?.removeEventListener('pointermove',move);drag?.removeEventListener('pointerup',stop)};
+      drag?.addEventListener('pointerdown',e=>{if(e.target.closest('button,input,textarea,select,a'))return;origin={x:e.screenX,y:e.screenY,left:frame.offsetLeft,top:frame.offsetTop};drag.setPointerCapture(e.pointerId);drag.addEventListener('pointermove',move);drag.addEventListener('pointerup',stop);e.preventDefault()});
+      const clampWindow=()=>{frame.style.setProperty('left',`${Math.max(0,Math.min(viewport.innerWidth-frame.offsetWidth,frame.offsetLeft))}px`,'important');frame.style.setProperty('top',`${Math.max(0,Math.min(viewport.innerHeight-frame.offsetHeight,frame.offsetTop))}px`,'important')};
+      viewport.addEventListener('resize',clampWindow);
+      const close=()=>{stop();viewport.removeEventListener('resize',clampWindow);original.append(sheet);portaled=[];frame.remove();activePopup=null;if(selector.includes('settings') && draft){draft=null;renderMusic(config.music);status('未保存的设置已撤销。')}};
       activePopup={complete:close,frame,original,sheet};
-      overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
       frameDoc.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
     }catch(e){original.append(sheet);portaled=[];frame.remove();activePopup=null;status(`弹窗打开失败：${e.message||e}`);return null}
     return sheet;
@@ -113,16 +125,26 @@ export function mountInDocument(doc = document) {
     $('[data-subtitle]').textContent=config.subtitle;
     const grid=$('[data-grid]'); grid.replaceChildren();
     entries().forEach((entry,i)=>{
+      const shell=el('article','uos-card-shell');
       const card=el('button','uos-card');card.type='button';card.setAttribute('aria-label',`选择 ${entry.title}`);
       const cover=el('div','uos-cover');
       if (/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image)) {
         cover.classList.add('has-image');cover.style.backgroundImage=`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`;
       }
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
-      const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title),el('div','uos-description',entry.description));
-      card.append(cover,body);card.addEventListener('click',()=>choose(i+1));grid.append(card);
+      const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title));
+      if(entry.description)body.append(el('div','uos-description',entry.description));
+      const names=typeof entry.names==='string'?entry.names.trim():'';
+      body.append(el('p','uos-card-names',`登场人物 · ${names?names.replace(/[,，]/g,' / '):'未识别'}`));
+      card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
+      const source=greetingList()[i];
+      if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'),el('pre','',source));shell.append(details)}
+      grid.append(shell);
     });
     renderMusic(config.music);
+    const kicker=root.querySelector('.uos-kicker');if(kicker&&!kicker.querySelector('.uos-version-badge'))kicker.append(el('small','uos-version-badge',`v${VERSION}`));
+    let watermark=root.querySelector('[data-uos-watermark]');
+    if(!watermark){watermark=el('p','uos-watermark',WATERMARK);watermark.dataset.uosWatermark='';watermark.append(el('span','uos-version',`v${VERSION}`));root.append(watermark)}
   }
   function formatTime(s){const n=Math.max(0,Math.floor(Number(s)||0));return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`}
   function lyricRows(source){
@@ -172,11 +194,11 @@ export function mountInDocument(doc = document) {
   function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice');b.type='button';b.setAttribute('aria-label',`切换到${name}`);b.setAttribute('aria-pressed',String(id===displayTheme));const swatch=el('span','uos-theme-swatch');swatch.dataset.theme=id;swatch.append(el('span','uos-theme-swatch-cover','01'),el('span','uos-theme-swatch-lines','Aa · 故事开场'));b.append(swatch,el('span','',name));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
   function diagnostics(){
     const card=character(),data=card?.data||card||{},ext=data.extensions||{},greetings=greetingList();
-    const regex=Array.isArray(ext.regex_scripts)&&ext.regex_scripts.some(x=>x.findRegex==='<UniversalOpeningSelector/>'&&!x.disabled);
-    const loader=Array.isArray(ext.tavern_helper?.scripts)&&ext.tavern_helper.scripts.some(x=>x.name?.startsWith('红豆粉开场白选择器 Loader')&&x.enabled&&x.export_with?.data);
+    const roleScript=Array.isArray(ext.tavern_helper?.scripts)&&ext.tavern_helper.scripts.some(x=>/红豆粉开场白选择器 · (?:通用脚本|作者角色脚本)/.test(x.name||'')&&x.enabled&&x.export_with?.data);
+    const legacy=Array.isArray(ext.regex_scripts)&&ext.regex_scripts.some(x=>x.findRegex==='<UniversalOpeningSelector/>'&&!x.disabled);
     const saved=Boolean(ext[KEY]);let size=0;try{size=new Blob([JSON.stringify(card||{})]).size}catch{}
     const media=entries().reduce((n,e)=>n+(e.image?.length||0),0)+(config.music.audio?.length||0);
-    return [['正式开场',`${greetings.length} 条`],['选择页正则',regex?'已启用':'缺失或停用'],['酒馆助手 Loader',loader?'已启用且随卡导出':'缺失或未设置随卡导出'],['作者配置',saved?'已载入角色卡扩展字段':'当前仅使用打包初始配置'],['当前角色数据大小',size?`${(size/1048576).toFixed(2)} MB`:'无法估算'],['其中封面与音频数据',`${(media/1048576).toFixed(2)} MB`]];
+    return [['正式开场',`${greetings.length} 条`],['选择页运行方式',roleScript?'作者角色脚本随卡导出':legacy?'旧版打包卡':'未检测到可导出的作者脚本'],['作者配置',saved?'已载入角色卡扩展字段':'当前使用默认配置'],['当前角色数据大小',size?`${(size/1048576).toFixed(2)} MB`:'无法估算'],['其中封面与音频数据',`${(media/1048576).toFixed(2)} MB`]];
   }
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
   function toggleField(label,value,change){const wrap=el('label','uos-toggle');const input=el('input');input.type='checkbox';input.checked=Boolean(value);input.onchange=()=>change(input.checked);wrap.append(input,el('span','',label));return wrap}
@@ -186,7 +208,7 @@ export function mountInDocument(doc = document) {
   function openSettings(){
     const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
-    fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));
+    fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));
     const list=el('div');fields.append(list);
     const greetings=greetingList();const items=entries();items.forEach((entry,i)=>{
       draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
@@ -194,15 +216,16 @@ export function mountInDocument(doc = document) {
       box.append(el('p','uos-help','卡片实时预览 · 保存后才会写入角色卡'));
       const preview=el('div','uos-card uos-card-preview'),cover=el('div','uos-cover'),body=el('div','uos-card-body');
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
-      const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description');body.append(label,title,description);preview.append(cover,body);box.append(preview);
-      const updatePreview=()=>{label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;const image=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image);cover.classList.toggle('has-image',image);cover.style.backgroundImage=image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};updatePreview();
+      const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description'),namesPreview=el('p','uos-card-names');body.append(label,title,description,namesPreview);preview.append(cover,body);box.append(preview);
+      const updatePreview=()=>{label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${entry.names||'未识别'}`;const image=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image);cover.classList.toggle('has-image',image);cover.style.backgroundImage=image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};updatePreview();
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
         field('标签',entry.label,v=>{entry.label=v;updatePreview()}),
+        field('登场人物（逗号分隔，输入“无”可隐藏误判）',entry.names===''?'无':entry.names||'',v=>{entry.names=v.trim()==='无'?'':v;updatePreview()}),
         field('简介',entry.description,v=>{entry.description=v;updatePreview()},true),
         fileField('上传封面（1 MB 内）','image/png,image/jpeg,image/webp,image/gif',1048576,v=>{entry.image=v;updatePreview()}));
       box.append(group);
-      if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[2].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
+      if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[3].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
       const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
     const music=$('[data-bgm-fields]');music.replaceChildren();
@@ -222,14 +245,21 @@ export function mountInDocument(doc = document) {
       const button=$('[data-save]');button.disabled=true;button.textContent='正在保存…';
       try{
         draft.theme=displayTheme;
+        draft.entries=draft.entries.slice(0,greetingList().length);
         // ST may update the in-memory character while a failed server merge is
         // only logged. Verify persistence before reporting export readiness.
         if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');
         const card=character();if(!card?.avatar)throw Error('无法确认当前角色卡的文件名');
         const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:draft}}})});
         if(!response.ok)throw Error(`角色卡写入失败（HTTP ${response.status}），请检查卡片大小或酒馆日志`);
+        const verified=await host.fetch('/api/characters/get',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar_url:card.avatar})});
+        if(!verified.ok)throw Error(`角色卡复核失败（HTTP ${verified.status}），请重新打开角色卡检查保存结果`);
+        const persisted=await verified.json();
+        const saved=persisted?.data?.extensions?.[KEY]??persisted?.extensions?.[KEY];
+        const same=(actual,expected)=>{if(expected&&typeof expected==='object'){if(!actual||typeof actual!=='object')return false;return Object.keys(expected).every(key=>same(actual[key],expected[key]))}return actual===expected};
+        if(!same(saved,draft))throw Error('角色卡复核未找到刚保存的设置，请重新打开角色卡检查');
         await c.writeExtensionField(c.characterId,KEY,draft);
-        config=normalize(draft);draft=null;render();activePopup?.complete(null);status('已保存到角色卡。导出角色卡时会带上配置和素材。');
+        config=normalize(draft);draft=null;render();activePopup?.complete(null);status('已保存并复核角色卡。导出角色卡时会带上配置和素材。');
       }catch(e){status(`保存失败：${e.message||e}`)}
       finally{button.disabled=false;button.textContent='保存到角色卡'}
     };
