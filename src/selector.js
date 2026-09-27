@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.16';
+  const VERSION = '0.1.0-beta.17';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -175,8 +175,9 @@ export function mountInDocument(doc = document) {
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
     fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));
     const list=el('div');fields.append(list);
-    const items=entries();items.forEach((entry,i)=>{
+    const greetings=greetingList();const items=entries();items.forEach((entry,i)=>{
       draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
+      if(greetings[i]){const source=el('details','uos-source');source.append(el('summary','','查看原开场正文'),el('pre','',greetings[i]));box.append(source)}
       const preview=el('div','uos-cover uos-cover-preview');
       const previewImage=()=>{preview.classList.toggle('has-image',Boolean(entry.image));preview.style.backgroundImage=entry.image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};
       preview.append(el('span','uos-number',String(i+1).padStart(2,'0')));previewImage();box.append(preview);
