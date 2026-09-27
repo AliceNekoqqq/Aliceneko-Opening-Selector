@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.14';
+  const VERSION = '0.1.0-beta.15';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -75,7 +75,8 @@ export function mountInDocument(doc = document) {
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
   function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled)for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art'])dlg.style.setProperty(key,style.getPropertyValue(key));}
   function showSheet(selector){
-    if(activePopup)return null;
+    if(activePopup && !activePopup.frame?.isConnected){activePopup.original.append(activePopup.sheet);activePopup=null;portaled=[]}
+    if(activePopup){status('弹窗已打开，请先关闭当前窗口。');return null}
     const original=$(selector),sheet=original?.querySelector('.uos-sheet');
     if(!sheet){status('设置界面尚未就绪，请刷新页面重试。');return null}
     let hostDoc=root.__uosHostDocument;
@@ -94,13 +95,13 @@ export function mountInDocument(doc = document) {
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
       const close=()=>{original.append(sheet);portaled=[];frame.remove();activePopup=null};
-      activePopup={complete:close};
+      activePopup={complete:close,frame,original,sheet};
       overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
       frameDoc.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
     }catch(e){original.append(sheet);portaled=[];frame.remove();activePopup=null;status(`弹窗打开失败：${e.message||e}`);return null}
     return sheet;
   }
-  function status(message){$('[data-status]').textContent=message;const inDialog=$('[data-save-state]');if(inDialog)inDialog.textContent=message}
+  function status(message){$('[data-status]').textContent=message;const top=$('[data-top-status]');if(top)top.textContent=message;const inDialog=$('[data-save-state]');if(inDialog)inDialog.textContent=message}
   function render(){
     setTheme(displayTheme,false);
     $('[data-title]').textContent=config.title;
