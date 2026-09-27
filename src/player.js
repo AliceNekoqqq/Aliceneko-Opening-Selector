@@ -16,6 +16,7 @@ dialog.uos-user-overlay::backdrop{background:#08141b55}
 .uos-user-panel button,.uos-user-panel select{font:inherit}.uos-user-close,.uos-user-select{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}.uos-user-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--muted);font-size:12px}.uos-user-tools select{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
 .uos-user-label-settings{flex:0 1 auto;min-height:0;max-height:min(35dvh,240px);overflow:auto;margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.uos-user-label-settings summary{color:var(--accent);cursor:pointer}.uos-user-label-settings label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:12px}.uos-user-label-settings input{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}.uos-user-label-settings button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--accent);color:var(--bg);font-weight:700}
 .uos-user-list{display:grid;gap:12px;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 3px 12px}.uos-user-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.uos-user-card h3{margin:0 0 6px;color:var(--text);font:600 17px/1.4 Georgia,"Noto Serif SC",serif}.uos-user-card p{margin:0 0 9px;color:var(--muted);font-size:12px}.uos-user-card details{margin-bottom:10px}.uos-user-card summary{color:var(--accent);cursor:pointer}.uos-user-card pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:9px 0 0;padding:10px;border:1px solid var(--line);border-radius:7px;color:var(--text);font-size:12px;line-height:1.6;font-family:inherit}.uos-user-select{background:var(--accent);color:var(--bg);font-weight:700}.uos-user-select:disabled{opacity:.65;cursor:default}.uos-user-status{min-height:18px;margin:8px 0 0;color:var(--accent);font-size:12px}
+.uos-user-card .uos-user-names{color:var(--accent);font-size:13px}
 @media(max-width:600px){.uos-user-panel{max-height:72dvh;padding:15px}.uos-user-head h2{font-size:20px}}
 `;
 
@@ -37,6 +38,22 @@ function greetingTitle(body,index){
   const content=narrativeStart(body),sentence=content.match(/^.{1,64}?[。！？!?]/)?.[0];
   return sentence||(`${content.slice(0,56)}${content.length>56?'…':''}`)||`开场 ${index+1}`;
 }
+function greetingNames(body){
+  const text=String(body||'').replace(/<!--[^]*?-->/g,'').replace(/```[^]*?```/g,'');
+  const found=[];
+  const add=name=>{const value=name?.trim();if(value && !found.includes(value) && found.length<3)found.push(value)};
+  // Explicit name fields can sit in the metadata tags excluded from the story title.
+  for(const match of text.matchAll(/(?:姓名|人物姓名|角色名|角色姓名|登场人物|角色|主角)[：:]\s*([\p{Script=Han}]{2,4})(?=$|[\s，,。；;|<])/gmu))add(match[1]);
+  for(const match of text.matchAll(/<(姓名|角色名|人物姓名)>\s*([\p{Script=Han}]{2,4})\s*<\/\1>/gmu))add(match[2]);
+  // Speaker names have a narrow line-start pattern; ordinary narration is not guessed.
+  const narratives=[...text.matchAll(/<(正文|content)(?:\s[^<>]*)?>([^]*?)<\/\1>/gi)].map(match=>match[2]);
+  const story=narratives.length?narratives.join('\n'):text.replace(/<([^\s<>/]+)(?:\s[^<>]*)?>[^]*?<\/\1>/gi,'');
+  for(const match of story.matchAll(/(?:^|\n)\s*(?:【|\[)?([\p{Script=Han}]{2,4})(?:】|\])?\s*[：:]\s*(?=[^\n]{1,80})/gmu)){
+    if(/^(?:时间|地点|日期|天气|姓名|人物|角色|正文|内容|旁白|系统|状态|说明|剧情|备注|你|我|她|他|玩家|用户)$/.test(match[1]))continue;
+    add(match[1]);
+  }
+  return found;
+}
 function labelKey(snapshot){
   const identity=`${snapshot.avatar}\u0000${snapshot.entries.map(entry=>entry.body).join('\u0000')}`;
   let hash=2166136261;for(let i=0;i<identity.length;i++)hash=Math.imul(hash^identity.charCodeAt(i),16777619);
@@ -57,13 +74,13 @@ export function readPlayerState(context,helper){
   const all=[first,...alternates],count=Math.min(all.length,message.swipes.length);
   if(count<2)return null;
   const metadata=data.extensions?.[KEY]?.entries||[];
-  return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:all.slice(0,count).map((body,i)=>({index:i,body,title:metadata[i]?.title||greetingTitle(body,i),description:metadata[i]?.description||'',label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
+  return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:all.slice(0,count).map((body,i)=>({index:i,body,title:metadata[i]?.title||greetingTitle(body,i),description:metadata[i]?.description||'',names:greetingNames(body),label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
 }
 
 export function mountPlayerSelector(startDocument=document,helperApi){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
-  if(doc.__uosPlayer?.version==='0.1.0-beta.25')return doc.__uosPlayer;
+  // Script replacement rebinds the helper API even if the same version runs again.
   doc.__uosPlayer?.close?.();
   const host=doc.defaultView||globalThis;
   const helper=helperApi||host.TavernHelper||host;
@@ -160,6 +177,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       const labelText=el('p','',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
       labelTexts[entry.index]=labelText;card.append(el('h3','',entry.title),labelText);
+      if(entry.names.length)card.append(el('p','uos-user-names',`登场人物 · ${entry.names.join(' / ')}`));
       const details=el('details','');details.append(el('summary','','查看完整开场'),el('pre','',entry.body));card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{
@@ -182,6 +200,11 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const onResize=()=>{if(trigger?.dataset.floating==='true')clampButton(parseFloat(trigger.style.left)||8,parseFloat(trigger.style.top)||8)};
   host.addEventListener('resize',onResize);
   const timer=host.setInterval(scan,1500);scan();
-  const api={version:'0.1.0-beta.25',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);closePanel();removeTrigger();style.remove();delete doc.__uosPlayer}};
-  doc.__uosPlayer=api;return api;
+  const runnerWindow=startDocument.defaultView;
+  const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
+  const api={version:'0.1.0-beta.26',scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  doc.__uosPlayer=api;
+  // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
+  if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
+  return api;
 }
