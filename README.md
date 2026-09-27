@@ -16,6 +16,7 @@
 - 作者设置保存在 `data.extensions.universal_opening_selector`。保存时检查酒馆服务端的角色卡写入响应，再由 `writeExtensionField` 同步当前角色数据；失败会在界面提示，不会误报已保存。导出更新后的角色卡可随卡分享。
 - 封面、音频用 Data URL 内嵌在卡内；歌词存为文本。这样不会引用作者本机文件。每张封面限 1 MB，音频限 8 MB；角色卡体积会显著增加。
 - 无封面时显示当前主题的编号、渐变与排版，不依赖默认图片。
+- 作者设置可展开查看每条原开场正文，对照填写标题和简介；这里只读，原文不会被改写。封面上传后立即预览，关闭未保存的设置会撤销播放器预览。
 - BGM 设置在独立标签页，启用开关控制播放器显示与播放，上传后可预览，点击保存写回角色卡；播放器参考《丧尸少年》的唱片、进度条和歌词布局，并跟随主题变色。音乐需手动播放；支持 LRC 时间标签及 TXT（TXT 显示全文，不逐行同步）。作者应确认分享媒体的权利。
 - 作者默认主题随卡保存；玩家临时切换的主题单独存于本机。
 
@@ -36,7 +37,7 @@
 已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
 
 ```js
-const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.16/index.js');
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.17/index.js');
 mountOpeningSelector();
 ```
 
