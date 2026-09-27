@@ -4,10 +4,10 @@
 
 ## 普通用户：原卡直接使用
 
-在酒馆助手的**全局脚本**中添加并启用以下代码，不需要修改或重新打包别人的角色卡：
+在酒馆助手的**全局脚本库**导入发行版提供的 `红豆粉开场白选择器_普通玩家全局脚本_v0.1.0-beta.21.json` 并启用，不需要修改或重新打包别人的角色卡。若需要手动新建脚本，其内容为：
 
 ```js
-const { mountPlayerSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.20/index.js');
+const { mountPlayerSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.21/index.js');
 mountPlayerSelector(globalThis.$?.('body')?.[0]?.ownerDocument || document, globalThis.TavernHelper || globalThis);
 ```
 
