@@ -1,7 +1,7 @@
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export function mountInDocument(doc = document) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '0.1.0-beta.17';
+  const VERSION = '0.1.0-beta.18';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
@@ -65,6 +65,11 @@ export function mountInDocument(doc = document) {
   function infer(text,i){
     const clean=String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim();
     return {title:clean.slice(0,20)||`开场 ${i+1}`,description:clean.slice(20,88)};
+  }
+  function suggest(text,i){
+    const plain=String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim();
+    const first=plain.match(/^[^。！？!?；;]{1,80}[。！？!?；;]?/)?.[0]?.trim()||plain;
+    return {title:first.slice(0,24)||`开场 ${i+1}`,description:(plain.slice(first.length).trim()||plain).slice(0,100)};
   }
   function entries(){
     const greetings=greetingList();
@@ -164,7 +169,15 @@ export function mountInDocument(doc = document) {
       if(current?.swipe_id!==target)throw new Error('消息页未切换');
     }catch(e){status(`切换失败：${e?.message||e}。可使用首条消息翻页箭头。`);root.querySelectorAll('.uos-card').forEach(b=>b.disabled=false)}
   }
-  function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice',name);b.type='button';b.setAttribute('aria-pressed',String(id===displayTheme));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
+  function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice');b.type='button';b.setAttribute('aria-label',`切换到${name}`);b.setAttribute('aria-pressed',String(id===displayTheme));const swatch=el('span','uos-theme-swatch');swatch.dataset.theme=id;swatch.append(el('span','uos-theme-swatch-cover','01'),el('span','uos-theme-swatch-lines','Aa · 故事开场'));b.append(swatch,el('span','',name));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
+  function diagnostics(){
+    const card=character(),data=card?.data||card||{},ext=data.extensions||{},greetings=greetingList();
+    const regex=Array.isArray(ext.regex_scripts)&&ext.regex_scripts.some(x=>x.findRegex==='<UniversalOpeningSelector/>'&&!x.disabled);
+    const loader=Array.isArray(ext.tavern_helper?.scripts)&&ext.tavern_helper.scripts.some(x=>x.name?.startsWith('红豆粉开场白选择器 Loader')&&x.enabled&&x.export_with?.data);
+    const saved=Boolean(ext[KEY]);let size=0;try{size=new Blob([JSON.stringify(card||{})]).size}catch{}
+    const media=entries().reduce((n,e)=>n+(e.image?.length||0),0)+(config.music.audio?.length||0);
+    return [['正式开场',`${greetings.length} 条`],['选择页正则',regex?'已启用':'缺失或停用'],['酒馆助手 Loader',loader?'已启用且随卡导出':'缺失或未设置随卡导出'],['作者配置',saved?'已载入角色卡扩展字段':'当前仅使用打包初始配置'],['当前角色数据大小',size?`${(size/1048576).toFixed(2)} MB`:'无法估算'],['其中封面与音频数据',`${(media/1048576).toFixed(2)} MB`]];
+  }
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
   function toggleField(label,value,change){const wrap=el('label','uos-toggle');const input=el('input');input.type='checkbox';input.checked=Boolean(value);input.onchange=()=>change(input.checked);wrap.append(input,el('span','',label));return wrap}
   function fileField(label,accept,max,onload){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el('input');input.type='file';input.accept=accept;input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>max){status(`${label}超过 ${Math.round(max/1048576)} MB 限制`);input.value='';return}try{const result=await readFile(file);await onload(result,file);status(`${label}已载入，点击保存后随角色卡导出。`)}catch(e){status(`文件读取失败：${e.message}`)}};wrap.append(input);return wrap}
@@ -178,15 +191,19 @@ export function mountInDocument(doc = document) {
     const greetings=greetingList();const items=entries();items.forEach((entry,i)=>{
       draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
       if(greetings[i]){const source=el('details','uos-source');source.append(el('summary','','查看原开场正文'),el('pre','',greetings[i]));box.append(source)}
-      const preview=el('div','uos-cover uos-cover-preview');
-      const previewImage=()=>{preview.classList.toggle('has-image',Boolean(entry.image));preview.style.backgroundImage=entry.image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};
-      preview.append(el('span','uos-number',String(i+1).padStart(2,'0')));previewImage();box.append(preview);
+      box.append(el('p','uos-help','卡片实时预览 · 保存后才会写入角色卡'));
+      const preview=el('div','uos-card uos-card-preview'),cover=el('div','uos-cover'),body=el('div','uos-card-body');
+      cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
+      const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description');body.append(label,title,description);preview.append(cover,body);box.append(preview);
+      const updatePreview=()=>{label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;const image=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image);cover.classList.toggle('has-image',image);cover.style.backgroundImage=image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};updatePreview();
       const group=el('div','uos-fields');group.append(
-        field('标题',entry.title,v=>draft.entries[i].title=v),
-        field('标签',entry.label,v=>draft.entries[i].label=v),
-        field('简介',entry.description,v=>draft.entries[i].description=v,true),
-        fileField('上传封面（1 MB 内）','image/png,image/jpeg,image/webp,image/gif',1048576,v=>{draft.entries[i].image=v;previewImage()}));
-      box.append(group);const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{draft.entries[i].image='';previewImage();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
+        field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
+        field('标签',entry.label,v=>{entry.label=v;updatePreview()}),
+        field('简介',entry.description,v=>{entry.description=v;updatePreview()},true),
+        fileField('上传封面（1 MB 内）','image/png,image/jpeg,image/webp,image/gif',1048576,v=>{entry.image=v;updatePreview()}));
+      box.append(group);
+      if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[2].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
+      const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
     const music=$('[data-bgm-fields]');music.replaceChildren();
     music.append(toggleField('启用 BGM 播放器',draft.music.enabled,v=>{draft.music.enabled=v;renderMusic(draft.music);loaded.textContent=v?'BGM 已启用，保存后生效。':'BGM 已关闭，播放器已隐藏；保存后生效。'}),field('曲名',draft.music.title,v=>draft.music.title=v),
@@ -195,6 +212,7 @@ export function mountInDocument(doc = document) {
     const loaded=el('p','uos-help');loaded.dataset.bgmLoaded='';loaded.textContent=draft.music.audio?'已载入音乐'+(draft.music.lyrics?'及歌词':'')+'。保存后随卡导出。':'尚未上传音乐';music.append(loaded);
     const clearMusic=el('button','uos-icon','移除音乐');clearMusic.type='button';clearMusic.onclick=()=>{draft.music={enabled:false,title:'',audio:'',lyrics:''};renderMusic(draft.music);loaded.textContent='音乐已移除，点击保存生效'};music.append(clearMusic);
     music.append(el('p','uos-help','请仅上传你有权分享的歌曲及歌词。下载与非商用不自动授予再分发许可。'));
+    const diag=$('[data-diagnostics]');diag.replaceChildren();for(const [key,value] of diagnostics()){const row=el('div','uos-diagnostic-row');row.append(el('span','',key),el('strong','',value));diag.append(row)}
     dlg.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{
       dlg.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b===button)));
       dlg.querySelectorAll('[data-tab-panel]').forEach(panel=>panel.hidden=panel.dataset.tabPanel!==button.dataset.tab);
