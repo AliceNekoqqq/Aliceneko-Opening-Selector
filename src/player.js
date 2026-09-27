@@ -21,12 +21,12 @@ dialog.uos-user-overlay::backdrop{background:#08141b55}
 function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
 function narrativeStart(body){
   let text=String(body||'').replace(/\r\n?/g,'\n').trim();
-  const metadata=/^(?:status|state|meta(?:data)?|thinking|thought|ooc|system|状态(?:栏|信息)?|角色(?:状态|信息)|世界(?:状态|信息)|思考|设定|面板|数据|时间|地点)$/i;
+  const narrativeTag=/^(?:正文|content)$/i;
   for(let i=0;i<12 && text;i++){
     const before=text;
     text=text.replace(/^<!--[\s\S]*?-->\s*/,'').replace(/^(?:```|~~~)[^\n]*\n[\s\S]*?\n(?:```|~~~)\s*/,'').trimStart();
     const pair=text.match(/^<([^\s<>/]+)(?:\s[^<>]*)?>\s*([\s\S]*?)\s*<\/\1>\s*/i);
-    if(pair){text=metadata.test(pair[1])?text.slice(pair[0].length).trimStart():(pair[2]+text.slice(pair[0].length)).trimStart()}
+    if(pair){text=(narrativeTag.test(pair[1])?pair[2]:'')+text.slice(pair[0].length);text=text.trimStart()}
     else text=text.replace(/^<[^<>\n]{1,120}\/?>\s*/,'').trimStart();
     if(text===before)break;
   }
