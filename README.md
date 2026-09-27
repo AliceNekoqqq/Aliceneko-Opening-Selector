@@ -21,7 +21,7 @@
 
 ## 实现与限制
 
-打包后的 JSON 在 `data.extensions.regex_scripts` 中包含开场选择页正则，在 `data.extensions.tavern_helper.scripts` 中包含启用的仓库加载脚本。玩家的 SillyTavern 环境仍需安装并启用支持角色卡脚本的酒馆助手扩展；导入角色卡不会自动安装扩展。选择页以 `import()` 从仓库固定版本读取 `index.js`，依次尝试三个 jsDelivr 入口；样式直接内嵌于角色卡，弹窗参照 MR-87 收音机，由酒馆助手 Loader 指定酒馆主文档，在该文档创建独立 iframe；避免消息内的 iframe 裁切弹窗。点击开场调用酒馆助手的 `setChatMessages` 切到对应首条消息页。保存需要 `SillyTavern.getContext().writeExtensionField`。不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
+打包后的 JSON 在 `data.extensions.regex_scripts` 中包含开场选择页正则，在 `data.extensions.tavern_helper.scripts` 中包含启用的仓库加载脚本。玩家的 SillyTavern 环境仍需安装并启用支持角色卡脚本的酒馆助手扩展；导入角色卡不会自动安装扩展。选择页优先以 `import()` 从仓库固定版本读取 `index.js`，依次尝试三个 jsDelivr 入口；加载失败时运行角色卡内嵌的同版备用脚本，并在页首显示运行错误。弹窗参照 MR-87 收音机，由酒馆助手 Loader 指定酒馆主文档，在该文档创建独立 iframe；避免消息内的 iframe 裁切弹窗。点击开场调用酒馆助手的 `setChatMessages` 切到对应首条消息页。保存需要 `SillyTavern.getContext().writeExtensionField`。不同酒馆版本、HTML iframe 策略或第三方渲染方式须现场验收。即使页面未渲染，首条消息仍提示玩家使用原生翻页。
 
 第一版从现有开场确定数量，用正文前段生成待编辑的标题和简介，不调用模型；原生开场正文保持原样。新聊天才能选择，避免改写已经开始的剧情。
 
@@ -36,7 +36,7 @@
 已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
 
 ```js
-const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.14/index.js');
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.15/index.js');
 mountOpeningSelector();
 ```
 
