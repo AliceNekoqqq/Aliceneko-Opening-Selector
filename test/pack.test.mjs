@@ -20,7 +20,7 @@ assert.equal(card.data.extensions.universal_opening_selector.music.enabled,false
 const regex=card.data.extensions.regex_scripts[0];
 assert.match(regex.replaceString,/data-settings-button/);
 assert.match(regex.replaceString,/data-theme-button/);
-assert.match(regex.replaceString,/Aliceneko-Opening-Selector@v0\.1\.0-beta\.13\/index\.js/);
+assert.match(regex.replaceString,/Aliceneko-Opening-Selector@v0\.1\.0-beta\.14\/index\.js/);
 assert.match(regex.replaceString,/data-tab="bgm"/);
 assert.match(regex.replaceString,/<style id="uos-css">[\s\S]*?\.uos-fields/);
 assert.match(regex.replaceString,/data-music-title/);
@@ -35,7 +35,7 @@ assert.equal(regex.disabled,false);
 const helper=card.data.extensions.tavern_helper;
 assert.equal(helper.scripts.length,1);
 assert.equal(helper.scripts[0].enabled,true);
-assert.match(helper.scripts[0].content,/Aliceneko-Opening-Selector@v0\.1\.0-beta\.13\/index\.js/);
+assert.match(helper.scripts[0].content,/Aliceneko-Opening-Selector@v0\.1\.0-beta\.14\/index\.js/);
 assert.match(helper.scripts[0].content,/mountOpeningSelector\(globalThis\.\$\?\.\('body'\)/);
 assert.equal(helper.scripts[0].export_with.data,true);
 card.data.extensions.universal_opening_selector.entries[0].image='data:image/png;base64,YWJj';
