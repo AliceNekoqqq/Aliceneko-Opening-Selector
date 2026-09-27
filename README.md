@@ -27,7 +27,7 @@
 
 ## 主题
 
-旧档案、霓虹夜、纸与墨、黑白电影、林间信。主题按钮在设置按钮左侧；主题和设置参照 MR-87 收音机，在酒馆主页面的独立 iframe 中显示；手机端设置为全屏，主题居中。切换开场再返回选择页时会重新挂载。
+旧档案、霓虹夜、纸与墨、黑白电影、林间信。主题按钮在设置按钮左侧；主题和设置参照 MR-87 收音机，在酒馆主页面的独立 iframe 中显示；手机端使用居中卡片、浅色遮罩、内部滚动和固定可见的关闭／保存按钮。切换开场再返回选择页时会重新挂载。
 
 ## 开发
 
@@ -36,7 +36,7 @@
 已内置选择页的角色卡会自动加载。若在 Tavern Helper 宿主脚本中手动加载，可用：
 
 ```js
-const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.13/index.js');
+const { mountOpeningSelector } = await import('https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@v0.1.0-beta.14/index.js');
 mountOpeningSelector();
 ```
 
