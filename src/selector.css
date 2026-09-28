@@ -50,7 +50,7 @@
 .uos[data-theme=meadow]:before{opacity:.12;background:repeating-radial-gradient(ellipse at 85% 10%,transparent 0 19px,#d2e5a0 20px 21px,transparent 22px 48px)}.uos[data-theme=meadow] .uos-card{border-radius:22px 6px 22px 6px}.uos[data-theme=meadow] .uos-cover{border-bottom:1px solid #d2e5a083}.uos[data-theme=meadow] .uos-number{font-style:italic}.uos[data-theme=meadow] h1{font-weight:500}
 .uos-theme-swatch[data-theme=archive]{--sw-bg:#111a21;--sw-art:#334b50;--sw-accent:#deb47c}.uos-theme-swatch[data-theme=neon]{--sw-bg:#080e22;--sw-art:#392657;--sw-accent:#fa74bf}.uos-theme-swatch[data-theme=paper]{--sw-bg:#f4eee2;--sw-art:#d5b29d;--sw-accent:#a64d3c}.uos-theme-swatch[data-theme=noir]{--sw-bg:#121314;--sw-art:#525455;--sw-accent:#e4e1d5}.uos-theme-swatch[data-theme=meadow]{--sw-bg:#122a24;--sw-art:#688775;--sw-accent:#d2e5a0}.uos-theme-swatch[data-theme=ancient]{--sw-bg:#201a20;--sw-art:#684d51;--sw-accent:#dbb77c}
 .uos[data-theme=ancient]{--bg:#201a20;--panel:#302329;--surface:#38292d;--text:#f5ead5;--muted:#d4c1ae;--accent:#dbb77c;--line:#b98d6c99;--art:#684d51;--display:"Noto Serif SC","Songti SC",serif;--cover:radial-gradient(circle at 75% 32%,#d9ae7e55,transparent 34%),repeating-linear-gradient(135deg,transparent 0 15px,#e9c59316 16px 17px),linear-gradient(125deg,#6b4247,#241e28 75%);background:radial-gradient(circle at 100% 0%,#a56b5940,transparent 45%),linear-gradient(145deg,#2a2025,#19171d 78%)}
-.uos[data-theme=ancient]:before{opacity:.17;background:repeating-linear-gradient(90deg,transparent 0 23px,#d6ac711f 24px 25px)}.uos[data-theme=ancient] .uos-card{border-radius:3px;border:1px solid #ba8d6c;outline:1px solid #b98d6c70;outline-offset:-6px;box-shadow:0 12px 32px #100d14aa}.uos[data-theme=ancient] .uos-cover:not(.has-image):after{content:"卷 · 故事";position:absolute;right:14px;bottom:14px;writing-mode:vertical-rl;letter-spacing:.32em;color:#f5e2baaa;font-size:12px}.uos[data-theme=ancient] .uos-card-body{border-top:2px solid #ba8d6c77}.uos[data-theme=ancient] .uos-number{font-style:italic;text-shadow:0 2px 12px #1a0c13}.uos[data-theme=ancient] .uos-kicker{letter-spacing:.36em}
+.uos[data-theme=ancient]:before{opacity:.17;background:repeating-linear-gradient(90deg,transparent 0 23px,#d6ac711f 24px 25px)}.uos[data-theme=ancient] .uos-card{border-radius:3px;border:1px solid #ba8d6c;outline:1px solid #b98d6c70;outline-offset:-6px;box-shadow:0 12px 32px #100d14aa}.uos[data-theme=ancient] .uos-cover:not(.has-image):after{content:"卷·故事";position:absolute;right:13px;bottom:13px;writing-mode:horizontal-tb;white-space:nowrap;letter-spacing:.12em;color:#f5e2baaa;font-size:11px;line-height:1;padding:5px 8px;border:1px solid #ba8d6c77;background:#241e28a8;border-radius:2px}.uos[data-theme=ancient] .uos-card-body{border-top:2px solid #ba8d6c77}.uos[data-theme=ancient] .uos-number{font-style:italic;text-shadow:0 2px 12px #1a0c13}.uos[data-theme=ancient] .uos-kicker{letter-spacing:.36em}
 @media(max-width:600px){.uos{border-radius:0!important;box-shadow:none!important}.uos h1{font-size:clamp(27px,8vw,38px)}.uos .uos-card{box-shadow:none}.uos-theme-swatch{height:64px}}
 .uos-watermark{margin:18px 0 0;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1.5;letter-spacing:.04em;text-align:center}
 
@@ -137,3 +137,26 @@
   .uos-card-shell{box-shadow:none}
 }
 @media(prefers-reduced-motion:reduce){.uos-card-shell{transition:none}.uos-card-shell:hover{transform:none}}
+
+/* Theme illustrations: one transparent 3×3 sprite, shared by the masthead,
+   story covers, theme swatches and the empty-search state. */
+.uos-theme-art,.uos-theme-swatch-art,.uos-kicker::after,.uos-search-empty::before{
+  background-image:url("data:image/webp;base64,__THEME_ICON_SPRITE__");
+  background-size:300% 300%;background-repeat:no-repeat;
+}
+.uos-theme-art{position:absolute;z-index:2;top:7px;right:9px;width:50px;aspect-ratio:1;pointer-events:none;opacity:.95;filter:drop-shadow(0 2px 5px #0008);background-position:var(--theme-icon-position,0% 0%)}
+.uos-kicker::after{content:"";display:inline-block;flex:none;width:25px;height:25px;margin-left:2px;vertical-align:middle;filter:drop-shadow(0 1px 4px #0005);background-position:var(--theme-icon-position,0% 0%)}
+.uos-theme-swatch{position:relative;overflow:hidden}
+.uos-theme-swatch-art{position:absolute;right:3px;top:3px;width:40px;height:40px;opacity:.9;filter:drop-shadow(0 1px 3px #0009);background-position:var(--theme-icon-position,0% 0%)}
+.uos-search-empty{display:flex;align-items:center;gap:12px;min-height:74px}
+.uos-search-empty::before{content:"";display:block;flex:none;width:44px;height:44px;filter:drop-shadow(0 2px 4px #0005);background-position:var(--theme-icon-position,0% 0%)}
+.uos[data-theme=archive],.uos-theme-swatch[data-theme=archive]{--theme-icon-position:0% 0%}
+.uos[data-theme=neon],.uos-theme-swatch[data-theme=neon]{--theme-icon-position:50% 0%}
+.uos[data-theme=paper],.uos-theme-swatch[data-theme=paper]{--theme-icon-position:100% 0%}
+.uos[data-theme=noir],.uos-theme-swatch[data-theme=noir]{--theme-icon-position:0% 50%}
+.uos[data-theme=meadow],.uos-theme-swatch[data-theme=meadow]{--theme-icon-position:50% 50%}
+.uos[data-theme=ancient],.uos-theme-swatch[data-theme=ancient]{--theme-icon-position:100% 50%}
+.uos[data-theme=starmap],.uos-theme-swatch[data-theme=starmap]{--theme-icon-position:0% 100%}
+.uos[data-theme=rose],.uos-theme-swatch[data-theme=rose]{--theme-icon-position:50% 100%}
+.uos[data-theme=wasteland],.uos-theme-swatch[data-theme=wasteland]{--theme-icon-position:100% 100%}
+@media(max-width:600px){.uos-theme-art{top:4px;right:4px;width:34px}.uos-kicker::after{width:21px;height:21px}.uos-theme-swatch-art{width:32px;height:32px}.uos-search-empty::before{width:38px;height:38px}}

@@ -34,7 +34,10 @@ const config = {
   music: {enabled:previous.music?.enabled ?? Boolean(previous.music?.audio),title:previous.music?.title||'',audio:previous.music?.audio||'',lyrics:previous.music?.lyrics||''},
 };
 
-const css = fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8').replace(/<\/style/gi,'<\\/style');
+const iconSprite = fs.readFileSync(new URL('./assets/theme-icons.webp',import.meta.url)).toString('base64');
+const css = fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8')
+  .replaceAll('__THEME_ICON_SPRITE__',iconSprite)
+  .replace(/<\/style/gi,'<\\/style');
 const playerParser = fs.readFileSync(new URL('./src/player.js',import.meta.url),'utf8');
 const sharedAnalysis = playerParser.slice(playerParser.indexOf('function clean('),playerParser.indexOf('function labelKey(')).replace(/^export /gm,'');
 const fallbackRuntime = (sharedAnalysis+fs.readFileSync(new URL('./src/selector.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'')).replace(/<\/script/gi,'<\\/script');
