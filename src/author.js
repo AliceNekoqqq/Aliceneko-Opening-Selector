@@ -2,6 +2,8 @@ import {mountInDocument} from './selector.js';
 import {AUTHOR_HTML} from './author-template.js';
 
 export const AUTHOR_MARKER='<UniversalOpeningSelector/>';
+const EMPTY_OPENING_ART=AUTHOR_HTML.match(/--uos-empty-opening-art:url\("([^"]+)"\)/)?.[1]||'';
+const DIAGNOSTICS_ART=AUTHOR_HTML.match(/--uos-diagnostics-art:url\("([^"]+)"\)/)?.[1]||EMPTY_OPENING_ART;
 
 export function inspectAuthorState(context,helper){
   const card=context?.characters?.[context.characterId];
@@ -44,13 +46,18 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
   }
   const host=doc.defaultView||globalThis,helper=helperApi||host.TavernHelper||host;
   let active=null,notice=null,updating=false;
+  function hasAuthorMarker(){
+    try{const context=host.SillyTavern?.getContext?.();const c=context?.characters?.[context?.characterId];const d=c?.data||c;return String(d?.first_mes??c?.first_mes??'').trimStart().startsWith(AUTHOR_MARKER)}catch{return false}
+  }
   function closeNotice(){notice?.remove();notice=null}
   function showNotice(container,message){
-    if(notice?.parentElement===container&&notice.textContent===message)return;
+    if(notice?.parentElement===container&&notice.dataset.message===message)return;
     closeNotice();
     notice=doc.createElement('div');notice.dataset.uosAuthorHint='';notice.setAttribute('role','status');
-    notice.style.cssText='position:relative!important;z-index:10!important;pointer-events:auto!important;margin:12px 0;padding:12px 14px;border:1px solid #c99d67;border-radius:10px;background:#17252d;color:#f4ecda;font:13px/1.6 system-ui,sans-serif;white-space:pre-wrap';
-    notice.textContent=message;container.prepend(notice);
+    notice.dataset.message=message;
+    notice.style.cssText='display:flex;align-items:center;gap:12px;position:relative!important;z-index:10!important;pointer-events:auto!important;margin:12px 0;padding:10px 14px;border:1px solid #c99d67;border-radius:10px;background:#17252d;color:#f4ecda;font:13px/1.6 system-ui,sans-serif;white-space:pre-wrap';
+    const art=doc.createElement('span');art.setAttribute('aria-hidden','true');art.style.cssText=`display:block;flex:none;width:52px;height:52px;background:url("${message.includes('备用开场为空')?EMPTY_OPENING_ART:DIAGNOSTICS_ART}") center/contain no-repeat;filter:drop-shadow(0 2px 5px #0007)`;
+    const copy=doc.createElement('span');copy.textContent=message;notice.append(art,copy);container.prepend(notice);
   }
   function closeFrame(){
     if(!active)return;
@@ -64,7 +71,7 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
       const {state,reason}=inspectAuthorState(host.SillyTavern?.getContext?.(),helper);
       const first=doc.querySelector('#chat .mes[mesid="0"],#chat .mes[data-mesid="0"]');
       const container=first?.querySelector('.mes_text,.mes_text_container')||first;
-      if(!state||!container){closeFrame();if(showSetupHints&&reason&&container)showNotice(container,reason);else closeNotice();return}
+      if(!state||!container){closeFrame();if(showSetupHints&&reason&&container&&hasAuthorMarker())showNotice(container,reason);else closeNotice();return}
       closeNotice();
       const key=`${state.avatar}\u0000${state.entries.length}\u0000${api.version}`;
       if(active?.container===container&&active.key===key&&active.frame.isConnected)return;
@@ -86,7 +93,7 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
   }
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;
-  const api={version:'1.0.2',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
+  const api={version:'1.0.3',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
   const onPageHide=()=>{if(doc.__uosAuthor===api)api.close()};doc.__uosAuthor=api;
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   scan();return api;
