@@ -23,7 +23,7 @@ assert.match(inspectAuthorState(context,helper).reason,/主开场第一行/);
 last=1;assert.equal(inspectAuthorState(context,helper).reason,null);last=0;
 card.data.first_mes=AUTHOR_MARKER;card.data.alternate_greetings=[];
 assert.match(inspectAuthorState(context,helper).reason,/备用开场为空/);
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.8.json'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.9.json'));
 const remote=fs.readFileSync('remote.js','utf8');
 const sprite=fs.readFileSync('assets/theme-icons.webp');
 assert.equal(sprite.toString('ascii',0,4),'RIFF');

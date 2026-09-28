@@ -169,13 +169,13 @@
 .uos-background-art{
   position:absolute!important;z-index:0!important;top:0;left:0;right:0;height:clamp(300px,54vw,540px);
   pointer-events:none;background-image:var(--uos-theme-bg-active);background-repeat:no-repeat;background-position:center top;background-size:cover;
-  opacity:.42;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 18%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 18%,transparent 100%);
+  opacity:.68;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 44%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 44%,transparent 100%);
 }
-.uos[data-theme=paper] .uos-background-art{opacity:.82;mix-blend-mode:multiply}
-.uos[data-theme=neon] .uos-background-art{opacity:.34}
-.uos[data-theme=meadow] .uos-background-art{opacity:.34}
-.uos[data-theme=rose] .uos-background-art{opacity:.34}
-.uos[data-theme=wasteland] .uos-background-art{opacity:.38}
+.uos[data-theme=paper] .uos-background-art{opacity:.92;mix-blend-mode:multiply}
+.uos[data-theme=neon] .uos-background-art{opacity:.56}
+.uos[data-theme=meadow] .uos-background-art{opacity:.56}
+.uos[data-theme=rose] .uos-background-art{opacity:.56}
+.uos[data-theme=wasteland] .uos-background-art{opacity:.60}
 .uos-theme-art{position:absolute;z-index:2;top:7px;right:9px;width:50px;aspect-ratio:1;pointer-events:none;opacity:.95;filter:drop-shadow(0 2px 5px #0008);background-position:var(--theme-icon-position,0% 0%)}
 .uos-kicker::after{content:"";display:inline-block;flex:none;width:25px;height:25px;margin-left:2px;vertical-align:middle;filter:drop-shadow(0 1px 4px #0005);background-position:var(--theme-icon-position,0% 0%)}
 .uos-theme-swatch{position:relative;overflow:hidden}

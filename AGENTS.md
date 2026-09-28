@@ -97,3 +97,9 @@
 
 交接是否成功的唯一标准：
 > 新 Work 不阅读旧聊天，仅看 AGENTS.md、PROJECT_STATE.md 和当前源码，也能准确理解项目现状并继续工作。
+
+## 11. 测试版与正式版隔离
+- `main` 是正式通道；已安装的 v1.0.8 正式脚本只读取 `main/scripts/runtime-ref.txt`。开发中的代码只提交到 `develop`，不可在测试时更改正式指针。
+- `develop` 是测试通道。只在此分支运行 `node scripts/build-author-script.mjs --preview`，并使用 `scripts/runtime-ref-preview.txt` 和单独的测试版导入 JSON。测试版使用 `-beta.N` 标识，导入后默认关闭，也不随角色卡导出。测试时先停用正式脚本，再手动启用测试脚本。
+- 构建命令必须显式指定 `--preview` 或 `--stable`；正式构建只允许在 `main` 上运行。正式 Loader 只接受三段数字正式版本，不加载 beta 模块。
+- 正式发布需先完成回归和酒馆环境验收，再将确认的源码提交到 `main`。运行正式构建、提交并发布含 `remote.js` 的源码提交后，最后才将 `main/scripts/runtime-ref.txt` 指向该已发布的正式运行模块提交并同步正式导入 JSON。任何候选提交都不得提前写入正式指针。

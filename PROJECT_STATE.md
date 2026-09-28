@@ -1,32 +1,32 @@
 # PROJECT_STATE.md
 
 ## 项目与发行阶段
-红豆粉开场白选择器，当前正式版 v1.0.8。玩家和作者使用同一份纯 import 脚本。普通多开场卡显示玩家预览；主开场以 `<UniversalOpeningSelector/>` 开头的角色卡显示作者选择页。
+红豆粉开场白选择器，正式版 v1.0.9；`develop` 保留测试版 v1.0.9-beta.2。玩家和作者使用同一份自动更新脚本：普通多开场卡显示玩家预览，主开场以 `<UniversalOpeningSelector/>` 开头时显示作者选择页。正式 Loader 自 v1.0.8 起读取 `main/scripts/runtime-ref.txt`，按 SHA 导入正式运行模块。
 
 ## 核心文件
-- `src/player.js`：普通玩家模式、标题/人物解析、搜索和本机设置。
-- `src/author.js`：识别作者标记、读取备用开场、挂载作者选择页和管理生命周期。
-- `src/selector.js` / `src/selector.css`：作者预设、九套主题、媒体、选择、保存和封面压缩。
-- `src/author-template.js`：生成的作者页面模板。
-- `scripts/build-author-script.mjs`：生成远程运行模块及轻量 import JSON；版本号和 `scripts/runtime-ref.txt` 决定发行信息。
-- `remote.js`：按 SHA 发布的自包含运行模块，由稳定 Loader 读取版本指针后导入并挂载。
-- `dist/红豆粉开场白选择器_通用脚本_v1.0.8.json`：正式版玩家/作者通用导入文件。
-- `pack.mjs`：仅作为维护者开发、测试及旧卡回归工具。
+- `src/player.js`：玩家模式、标题与人物解析、搜索和本机设置。
+- `src/author.js`：作者标记识别、选择页挂载与生命周期。
+- `src/selector.js` / `src/selector.css`：选择页、九套主题、媒体和作者设置。
+- `src/author-template.js`：构建生成的作者页面模板，包含主题图像资源。
+- `assets/theme-background-*.webp`：九套 1300×1050、质量 92 的主题背景图；由 `pack.mjs` 内嵌到运行模块，不进入角色卡数据。
+- `scripts/build-author-script.mjs`：`--stable` 仅允许在 `main` 构建 v1.0.9；`--preview` 仅允许在 `develop` 构建 v1.0.9-beta.2。
+- `scripts/runtime-ref.txt` / `scripts/runtime-ref-preview.txt`：正式与测试通道各自的运行模块指针。
+- `remote.js`：构建生成的自包含模块。
+- `dist/红豆粉开场白选择器_通用脚本_v1.0.9.json`：正式玩家／作者通用导入脚本。
+- `dist/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.2.json`：测试导入脚本，独立 ID、默认关闭且不随角色卡导出。
 
-## 使用规则
-作者自行把主开场改成 `<UniversalOpeningSelector/>`，把原主开场移至备用开场第一条，保持其他开场原顺序；在酒馆助手角色脚本中导入通用脚本并启用随卡导出。作者设置写入 `data.extensions.universal_opening_selector`。上传的封面、BGM 与歌词以内嵌数据保存在角色卡。普通用户将同一脚本导入全局脚本库；不带标记的普通多开场卡进入玩家模式。酒馆助手和可访问 GitHub 发布源是运行前提。
-
-不得自动迁移开场、自动初始化作者卡、注入 Regex 或修改开场正文。群聊和已开始的聊天不显示选择入口。玩家个人主题/标签/修正仅保存在本机。
-
-## 当前功能
-- 玩家与作者均可预览完整正文、识别和筛选人物、搜索开场。
-- 作者可编辑标题、简介、人物、标签、排除字段、主题、封面、音乐和歌词；保存时检查酒馆服务端写入并重新读取复核。
-- 上传封面尝试最长边 960 px WebP 压缩；只在生成结果更小时使用；GIF 保留，压缩后限制约 1 MB。
-- 九套主题：旧档案、霓虹夜、纸与墨、黑白电影、林间信、锦书古风、星海航图、绯色契约、末日警报。主题和设置为可拖动窗口，无全屏遮罩。
-- 作者选择页使用主题强调色双层边框和角部线条；页眉、搜索区、卡片间距经过整理，窄屏仍采用直角外框。九套主题各有专属背景图，分别体现档案书库、霓虹城、纸本水墨、黑白雨夜、林间晨雾、古典园林、星海、绯色花影和末日废城；背景图已改为 1300×1050 竖向比例（相较上一版横向收窄、纵向增高），`cover` 铺满作者与玩家顶部背景区域，配合底部透明渐隐融入主题底色，作者页和玩家预览均跟随主题。每套主题另有透明底小徽记，装饰页眉、开场卡、主题预览和无结果状态；徽记约 72 KB。古风卡片“卷·故事”横排显示。设置页三类标签各有透明插画；缺少正式开场、无搜索结果和未上传 BGM 状态均显示对应插画。小插画约 13 KB，九张主题背景约 312 KB，总计约 397 KB；由 pack 构建时内嵌到远程模块，不进入卡片扩展数据。
-- Loader 仅含版本指针读取与 import 逻辑；启动时以 `cache: no-store` 从 GitHub Raw 的 main 分支读取 `scripts/runtime-ref.txt`，运行模块仍按 SHA 固定加载。启动器从 v1.0.8 起稳定，后续发布无需玩家重新导入；指针请求失败时退回已知 SHA。媒体配置与模块代码缓存相互独立。
+## 当前功能与产品规则
+- 玩家和作者均可预览完整正文、搜索开场并按登场人物筛选。
+- 作者可编辑标题、简介、人物、标签、排除字段、主题、封面、音乐与歌词；作者数据保存到 `data.extensions.universal_opening_selector`。
+- 作者需自行将主开场改为 `<UniversalOpeningSelector/>`，并将原主开场移动到备用开场第一条。插件不自动迁移开场、不注入 Regex、不改写正文。
+- 九套主题背景铺在界面顶部并向主题底色渐隐。为解决背景发灰，通用不透明度提高到 68%，霓虹／林间／绯色为 56%，纸与墨为 92%，末日警报为 60%；渐隐从背景高度 44% 开始。主题和设置均为可拖动浮窗。
+- 正式 Loader 仅接受三段数字版本，不加载 beta 模块；测试 Loader 只读 `develop/scripts/runtime-ref-preview.txt`。正式指针在正式运行模块发布后最后更新。
 
 ## 验证与限制
-构建后运行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`。浏览器 UI 测试 `node test/author.ui.test.mjs` 需要 Playwright Chromium。酒馆主题、角色脚本导入/导出及手机实际交互仍须现场验收。
+发布前运行 `node scripts/build-author-script.mjs --stable`，以及 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs` 和 `node test/loader.test.mjs`。v1.0.9 的五项 Node 测试与九张背景资源内嵌检查通过。Playwright Chromium 不可用，因此作者界面截图测试未能执行；仍可在酒馆中补充实际显示与移动端回归。
 
-修改源码后先执行 `node scripts/build-author-script.mjs`。正式发布时先发布 `remote.js` 与代码，再把提交 SHA 写入 `scripts/runtime-ref.txt` 并构建最终轻量 JSON，最后更新 `main` 和版本分支。后续稳定 Loader 从 GitHub Raw 读取该指针并按 SHA 导入模块；保留可用 SHA 作为指针请求失败时的回退。
+## 最近重要修改
+2026-09-29：正式版 v1.0.9 发布主题背景清晰度调整。素材本身保持 1300×1050 WebP 质量 92；将 CSS 不透明度提高、延后渐隐，避免图片因低透明度而显得发虚。正式 Loader 继续读取 `main/scripts/runtime-ref.txt`，现有 v1.0.8 安装无需重新导入。测试版 v1.0.9-beta.2 保留在 `develop`。
+
+## 下一步
+收集酒馆和手机端的实际显示反馈；正式 `main` 和 `scripts/runtime-ref.txt` 是唯一面向用户的稳定通道。
