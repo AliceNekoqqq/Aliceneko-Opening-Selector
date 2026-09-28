@@ -56,7 +56,7 @@ assert.equal(resolveDisplayEntry(scene.entries[0],{title:'作者标题',names:'�
 assert.deepEqual(resolveDisplayEntry(scene.entries[0],{title:'作者标题',names:'李明'},{title:'玩家标题',names:''}).names,[]);
 assert.equal(resolveDisplayEntry({index:0,body:'<跳过>元信息。</跳过><content>正文标题。</content>',names:[]},{},{},['跳过']).title,'正文标题。');
 const playerSource=fs.readFileSync('src/player.js','utf8');
-assert.match(playerSource,/\.uos-user-background\{[^}]*background-size:100% auto/);
+assert.match(playerSource,/\.uos-user-background\{[^}]*background-size:cover/);
 for(const feature of ['uos-user-search','修正标题和登场人物','排除标题中的 <字段>','自定义开场标签','预览完整正文','data-number','THEME_CAPTIONS','THEME_BACKGROUND_IMAGES','uos-user-background'])assert.ok(playerSource.includes(feature),feature);
 
 const oldBody='<SceneInfo>地点：车站</SceneInfo>\n<content>她走到站台。</content>';

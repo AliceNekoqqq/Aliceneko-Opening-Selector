@@ -168,7 +168,7 @@
 .uos[data-theme=wasteland]{--uos-theme-bg-active:var(--uos-theme-bg-wasteland)}
 .uos-background-art{
   position:absolute!important;z-index:0!important;top:0;left:0;right:0;height:clamp(300px,54vw,540px);
-  pointer-events:none;background-image:var(--uos-theme-bg-active);background-repeat:no-repeat;background-position:center top;background-size:100% auto;
+  pointer-events:none;background-image:var(--uos-theme-bg-active);background-repeat:no-repeat;background-position:center top;background-size:cover;
   opacity:.42;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 18%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 18%,transparent 100%);
 }
 .uos[data-theme=paper] .uos-background-art{opacity:.82;mix-blend-mode:multiply}
