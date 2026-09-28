@@ -39,6 +39,7 @@ assert.ok(payload.content.includes(`const fallbackRef='${ref}'`));
 assert.ok(payload.content.includes('@main/scripts/runtime-ref.txt'));
 assert.ok(payload.content.includes("cache:'no-store'"));
 assert.ok(payload.content.includes("?cb='+nonce"));
+assert.ok(payload.content.includes('Math.floor(Date.now()/300000)'));
 assert.ok(payload.content.includes('@${ref}/remote.js'));
 assert.match(payload.content,/OPENING_SELECTOR_VERSION/);
 assert.doesNotMatch(payload.content,/expected='1\.0\.8'/);
