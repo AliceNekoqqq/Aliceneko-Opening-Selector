@@ -59,10 +59,22 @@
 
 `src/author.js` 是标记识别与作者选择页挂载逻辑；`src/player.js` 提供普通玩家模式；`src/selector.js`、`src/selector.css` 实现作者界面。`scripts/build-author-script.mjs` 生成仓库的 `remote.js` 运行模块和轻量导入脚本。`pack.mjs` 保留为开发与回归测试工具，不属于作者使用流程。
 
-运行 `node scripts/build-author-script.mjs` 后执行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs` 与 `node test/observer.test.mjs`。有 Playwright 浏览器环境时执行 `node test/author.ui.test.mjs`：它用同一脚本验证普通卡玩家入口和标记卡作者入口，并模拟宿主禁用 iframe 点击。角色脚本在酒馆中导入、保存、导出后还需做现场回归。
+在 `develop` 上运行 `node scripts/build-author-script.mjs --preview` 构建测试运行模块和测试导入脚本；正式构建 `node scripts/build-author-script.mjs --stable` 只允许在 `main` 上执行。构建后执行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs` 与 `node test/loader.test.mjs`。Loader 测试会模拟版本指针、SHA 回退、发布源重试、测试与正式通道隔离和全部来源故障。有 Playwright 浏览器环境时执行 `node test/author.ui.test.mjs`：它用同一脚本验证普通卡玩家入口和标记卡作者入口，并模拟宿主禁用 iframe 点击。角色脚本在酒馆中导入、保存、导出后还需做现场回归。
 
 玩家窗口和作者选择页角落均标明当前脚本版本。作者页可搜索标题、人物和正文，并按登场人物筛选；作者卡片采用简短摘要，自动识别登场人物，并能识别旧版自动生成的标题；点击“预览完整正文”查看原文，开场数量较多时保持网格浏览。
 
 ## GitHub 加载与素材保留
 
-导入的 JSON 只包含轻量启动器，不内嵌运行源码。作者将它导入角色脚本并勾选随卡导出后，角色卡会带着启动器；作者预设和媒体仍保存在卡片扩展字段。启动器每次运行都从 GitHub Raw 读取 `main` 上的版本指针，再按固定提交 SHA 导入对应的 `remote.js`。发布新版本后，玩家重新打开页面即可加载新版，不必再次下载或导入；作者卡里的启动器也随之更新。首次使用自动更新版时，需要用 v1.0.8 替换旧导入脚本一次。运行需要联网，网络/CDN 暂时不可用时会回退到最近一次构建时记录的可用提交。
+导入的 JSON 只包含轻量启动器，不内嵌运行源码。作者将它导入角色脚本并勾选随卡导出后，角色卡会带着启动器；作者预设和媒体仍保存在卡片扩展字段。
+
+v1.0.8 起，启动器每次运行都会以不使用缓存的方式从 GitHub Raw 读取 `main/scripts/runtime-ref.txt`，再按固定提交 SHA 导入对应的 `remote.js`。运行模块会依次尝试 jsDelivr、testingcf 和 GitHub Raw。发布新版本后，玩家重新打开酒馆页面即可加载新版，不必再次下载或导入脚本；作者角色卡里的启动器也会读取同一个最新指针。
+
+**首次升级需要手动替换一次：**把旧导入脚本移除，再导入 v1.0.8 通用 JSON。之后的版本更新由启动器自动完成。版本指针读取失败或内容无效时，会改用导入文件内记录的回退 SHA；如果运行模块的所有发布源都不可访问，界面会提示加载失败。联网是使用前提。作者预设、封面、音乐和歌词独立保存在角色卡中，不会因替换或更新运行模块而清除。
+
+## 测试版与正式版
+
+正式用户只安装上述 v1.0.8 通用 JSON。它始终读取 `main/scripts/runtime-ref.txt`，正式指针只在功能完成验收、正式运行模块发布后更新。开发改动提交到 `develop`，不会因为测试分支有新提交而进入正式用户脚本。正式 Loader 也会拒绝带 `-beta.N` 的测试运行模块。
+
+参与测试时导入 `dist/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.1.json`。此脚本有独立 ID，只读取 `develop/scripts/runtime-ref-preview.txt`；导入后默认关闭，且不会随角色卡导出。先停用正式脚本，再手动启用测试脚本，以免两个入口同时运行。测试版界面显示 `v1.0.9-beta.1`。测试结束后停用测试脚本、重新启用正式脚本即可回到正式通道。不要把测试脚本作为正式版分享。
+
+维护者发布测试版时，先把包含 `remote.js` 的测试源码提交并推送到 `develop`，再把该提交 SHA 写入测试指针、重新构建测试 JSON 并推送。正式发布时先将验收通过的源码提交到 `main`，生成并验证正式运行模块；在该运行模块提交已发布后，最后更新正式指针。`main` 的正式指针保持不动，直至正式发布的最后一步。
