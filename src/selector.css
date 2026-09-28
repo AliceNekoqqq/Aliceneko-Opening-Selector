@@ -144,7 +144,38 @@
   background-image:url("data:image/webp;base64,__THEME_ICON_SPRITE__");
   background-size:300% 300%;background-repeat:no-repeat;
 }
-.uos{--uos-empty-opening-art:url("__TAB_OPENINGS__");--uos-diagnostics-art:url("__TAB_DIAGNOSTICS__")}
+.uos{
+  --uos-empty-opening-art:url("__TAB_OPENINGS__");
+  --uos-diagnostics-art:url("__TAB_DIAGNOSTICS__");
+  --uos-theme-bg-archive:url("__THEME_BG_ARCHIVE__");
+  --uos-theme-bg-neon:url("__THEME_BG_NEON__");
+  --uos-theme-bg-paper:url("__THEME_BG_PAPER__");
+  --uos-theme-bg-noir:url("__THEME_BG_NOIR__");
+  --uos-theme-bg-meadow:url("__THEME_BG_MEADOW__");
+  --uos-theme-bg-ancient:url("__THEME_BG_ANCIENT__");
+  --uos-theme-bg-starmap:url("__THEME_BG_STARMAP__");
+  --uos-theme-bg-rose:url("__THEME_BG_ROSE__");
+  --uos-theme-bg-wasteland:url("__THEME_BG_WASTELAND__");
+}
+.uos[data-theme=archive]{--uos-theme-bg-active:var(--uos-theme-bg-archive)}
+.uos[data-theme=neon]{--uos-theme-bg-active:var(--uos-theme-bg-neon)}
+.uos[data-theme=paper]{--uos-theme-bg-active:var(--uos-theme-bg-paper)}
+.uos[data-theme=noir]{--uos-theme-bg-active:var(--uos-theme-bg-noir)}
+.uos[data-theme=meadow]{--uos-theme-bg-active:var(--uos-theme-bg-meadow)}
+.uos[data-theme=ancient]{--uos-theme-bg-active:var(--uos-theme-bg-ancient)}
+.uos[data-theme=starmap]{--uos-theme-bg-active:var(--uos-theme-bg-starmap)}
+.uos[data-theme=rose]{--uos-theme-bg-active:var(--uos-theme-bg-rose)}
+.uos[data-theme=wasteland]{--uos-theme-bg-active:var(--uos-theme-bg-wasteland)}
+.uos-background-art{
+  position:absolute!important;z-index:0!important;top:0;left:0;right:0;height:clamp(300px,54vw,540px);
+  pointer-events:none;background-image:var(--uos-theme-bg-active);background-repeat:no-repeat;background-position:center top;background-size:cover;
+  opacity:.42;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 18%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 18%,transparent 100%);
+}
+.uos[data-theme=paper] .uos-background-art{opacity:.82;mix-blend-mode:multiply}
+.uos[data-theme=neon] .uos-background-art{opacity:.34}
+.uos[data-theme=meadow] .uos-background-art{opacity:.34}
+.uos[data-theme=rose] .uos-background-art{opacity:.34}
+.uos[data-theme=wasteland] .uos-background-art{opacity:.38}
 .uos-theme-art{position:absolute;z-index:2;top:7px;right:9px;width:50px;aspect-ratio:1;pointer-events:none;opacity:.95;filter:drop-shadow(0 2px 5px #0008);background-position:var(--theme-icon-position,0% 0%)}
 .uos-kicker::after{content:"";display:inline-block;flex:none;width:25px;height:25px;margin-left:2px;vertical-align:middle;filter:drop-shadow(0 1px 4px #0005);background-position:var(--theme-icon-position,0% 0%)}
 .uos-theme-swatch{position:relative;overflow:hidden}

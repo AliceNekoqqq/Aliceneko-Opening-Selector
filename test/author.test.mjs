@@ -23,7 +23,7 @@ assert.match(inspectAuthorState(context,helper).reason,/主开场第一行/);
 last=1;assert.equal(inspectAuthorState(context,helper).reason,null);last=0;
 card.data.first_mes=AUTHOR_MARKER;card.data.alternate_greetings=[];
 assert.match(inspectAuthorState(context,helper).reason,/备用开场为空/);
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.3.json'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.4.json'));
 const remote=fs.readFileSync('remote.js','utf8');
 const sprite=fs.readFileSync('assets/theme-icons.webp');
 assert.equal(sprite.toString('ascii',0,4),'RIFF');
@@ -67,6 +67,16 @@ for(const theme of ['starmap','rose','wasteland']){
   assert.match(remote,new RegExp(`data-theme=${theme}`));
   assert.match(remote,new RegExp(`'${theme}'`));
 }
+assert.ok(remote.includes(String.raw`class=\"uos-background-art\"`));
+for(const theme of ['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland']){
+  assert.ok(remote.includes(String.raw`--uos-theme-bg-${theme}:url(\"data:image/webp;base64,`),theme);
+}
+assert.ok(remote.includes('THEME_BACKGROUND_IMAGES'));
+assert.ok(remote.includes('uos-user-background'));
+assert.doesNotMatch(remote,/__THEME_BG_[A-Z]+__/);
+const backgroundFiles=['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland'].map(theme=>`assets/theme-background-${theme}.webp`);
+assert.ok(backgroundFiles.every(file=>fs.statSync(file).size>1000));
+assert.ok(backgroundFiles.reduce((sum,file)=>sum+fs.statSync(file).size,0)<350_000);
 assert.match(remote,/搜索作者开场/);
 const original='data:image/png;base64,'+'x'.repeat(2000);
 class MockImage{naturalWidth=1920;naturalHeight=1080;set src(_value){queueMicrotask(()=>this.onload())}}

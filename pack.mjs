@@ -35,12 +35,24 @@ const config = {
 };
 
 const iconSprite = fs.readFileSync(new URL('./assets/theme-icons.webp',import.meta.url)).toString('base64');
+const themeBackgrounds = Object.fromEntries(['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland'].map(name=>[
+  name,`data:image/webp;base64,${fs.readFileSync(new URL(`./assets/theme-background-${name}.webp`,import.meta.url)).toString('base64')}`
+]));
 const tabArt = Object.fromEntries(['openings','bgm','diagnostics'].map(name=>[
   name,`data:image/webp;base64,${fs.readFileSync(new URL(`./assets/tab-${name}.webp`,import.meta.url)).toString('base64')}`
 ]));
 const cssDataUrl = Object.fromEntries(Object.entries(tabArt).map(([name,url])=>[name,url]));
 const css = fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8')
   .replaceAll('__THEME_ICON_SPRITE__',iconSprite)
+  .replaceAll('__THEME_BG_ARCHIVE__',themeBackgrounds.archive)
+  .replaceAll('__THEME_BG_NEON__',themeBackgrounds.neon)
+  .replaceAll('__THEME_BG_PAPER__',themeBackgrounds.paper)
+  .replaceAll('__THEME_BG_NOIR__',themeBackgrounds.noir)
+  .replaceAll('__THEME_BG_MEADOW__',themeBackgrounds.meadow)
+  .replaceAll('__THEME_BG_ANCIENT__',themeBackgrounds.ancient)
+  .replaceAll('__THEME_BG_STARMAP__',themeBackgrounds.starmap)
+  .replaceAll('__THEME_BG_ROSE__',themeBackgrounds.rose)
+  .replaceAll('__THEME_BG_WASTELAND__',themeBackgrounds.wasteland)
   .replaceAll('__TAB_OPENINGS__',cssDataUrl.openings)
   .replaceAll('__TAB_BGM__',cssDataUrl.bgm)
   .replaceAll('__TAB_DIAGNOSTICS__',cssDataUrl.diagnostics)
@@ -49,7 +61,7 @@ const playerParser = fs.readFileSync(new URL('./src/player.js',import.meta.url),
 const sharedAnalysis = playerParser.slice(playerParser.indexOf('function clean('),playerParser.indexOf('function labelKey(')).replace(/^export /gm,'');
 const fallbackRuntime = (sharedAnalysis+fs.readFileSync(new URL('./src/selector.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'')).replace(/<\/script/gi,'<\\/script');
 const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style id="uos-css">${css}</style></head><body>
-<main class="uos" data-uos data-theme="archive"><div class="uos-top"><span class="uos-kicker">CHOOSE YOUR BEGINNING</span><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div><p class="uos-status uos-top-status" data-top-status role="status"></p>
+<main class="uos" data-uos data-theme="archive"><div class="uos-background-art" aria-hidden="true"></div><div class="uos-top"><span class="uos-kicker">CHOOSE YOUR BEGINNING</span><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div><p class="uos-status uos-top-status" data-top-status role="status"></p>
 <h1 data-title></h1><p class="uos-intro" data-subtitle></p><section class="uos-player" data-player hidden aria-label="开场音乐播放器"><div class="uos-player-head"><span class="uos-player-record" aria-hidden="true"></span><div class="uos-player-meta"><span class="uos-player-kicker">SOUNDTRACK · 开场音乐</span><strong data-music-title></strong></div><div class="uos-player-controls"><button type="button" data-skip="-10" aria-label="快退10秒">↶</button><button type="button" data-play aria-label="播放">▶</button><button type="button" data-skip="10" aria-label="快进10秒">↷</button></div></div><div class="uos-player-track"><input type="range" data-seek min="0" max="1000" value="0" aria-label="音乐播放进度"><span data-clock>0:00 / 0:00</span></div><div class="uos-lyrics" data-lyrics>♫</div><audio preload="metadata"></audio></section><div class="uos-grid" data-grid></div>
 <p class="uos-footer">选择后进入对应的正式开场。也可使用酒馆首条消息的翻页箭头。当前聊天开始后不能重新选择。</p><div class="uos-status" data-status role="status"></div>
 <div class="uos-dialog" data-theme-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>切换主题</h2><button type="button" class="uos-icon" data-close="[data-theme-dialog]">关闭</button></div><div class="uos-theme-grid" data-theme-grid></div></div></div>
