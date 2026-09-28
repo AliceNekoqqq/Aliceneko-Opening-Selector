@@ -24,9 +24,9 @@
 - 上传封面尝试最长边 960 px WebP 压缩；只在生成结果更小时使用；GIF 保留，压缩后限制约 1 MB。
 - 九套主题：旧档案、霓虹夜、纸与墨、黑白电影、林间信、锦书古风、星海航图、绯色契约、末日警报。主题和设置为可拖动窗口，无全屏遮罩。
 - 作者选择页使用主题强调色双层边框和角部线条；页眉、搜索区、卡片间距经过整理，窄屏仍采用直角外框。九套主题各有专属背景图，分别体现档案书库、霓虹城、纸本水墨、黑白雨夜、林间晨雾、古典园林、星海、绯色花影和末日废城；背景图已改为 1300×1050 竖向比例（相较上一版横向收窄、纵向增高），`cover` 铺满作者与玩家顶部背景区域，配合底部透明渐隐融入主题底色，作者页和玩家预览均跟随主题。每套主题另有透明底小徽记，装饰页眉、开场卡、主题预览和无结果状态；徽记约 72 KB。古风卡片“卷·故事”横排显示。设置页三类标签各有透明插画；缺少正式开场、无搜索结果和未上传 BGM 状态均显示对应插画。小插画约 13 KB，九张主题背景约 312 KB，总计约 397 KB；由 pack 构建时内嵌到远程模块，不进入卡片扩展数据。
-- Loader 仅含版本指针读取与 import 逻辑；版本指针位于 GitHub main 的 `scripts/runtime-ref.txt`，运行模块仍按 SHA 固定加载。启动器从 v1.0.8 起稳定，后续发布无需玩家重新导入；媒体配置与模块代码缓存相互独立。
+- Loader 仅含版本指针读取与 import 逻辑；启动时以 `cache: no-store` 从 GitHub Raw 的 main 分支读取 `scripts/runtime-ref.txt`，运行模块仍按 SHA 固定加载。启动器从 v1.0.8 起稳定，后续发布无需玩家重新导入；指针请求失败时退回已知 SHA。媒体配置与模块代码缓存相互独立。
 
 ## 验证与限制
 构建后运行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`。浏览器 UI 测试 `node test/author.ui.test.mjs` 需要 Playwright Chromium。酒馆主题、角色脚本导入/导出及手机实际交互仍须现场验收。
 
-修改源码后先执行 `node scripts/build-author-script.mjs`。正式发布时先发布 `remote.js` 与代码，再把提交 SHA 写入 `scripts/runtime-ref.txt` 并构建最终轻量 JSON，最后更新 `main` 和版本分支。后续稳定 Loader 通过带缓存绕过参数的 CDN 读取该指针，并按 SHA 导入模块；保留可用 SHA 作为指针请求失败时的回退。
+修改源码后先执行 `node scripts/build-author-script.mjs`。正式发布时先发布 `remote.js` 与代码，再把提交 SHA 写入 `scripts/runtime-ref.txt` 并构建最终轻量 JSON，最后更新 `main` 和版本分支。后续稳定 Loader 从 GitHub Raw 读取该指针并按 SHA 导入模块；保留可用 SHA 作为指针请求失败时的回退。
