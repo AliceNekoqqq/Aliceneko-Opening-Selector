@@ -1,4 +1,4 @@
-import {greetingTitle,greetingNames,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
+import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export async function optimizeCoverData(source,file,doc=document){
   if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
@@ -18,7 +18,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9-beta.2';
+  const VERSION = '1.0.9-beta.3';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -66,6 +66,8 @@ export function mountInDocument(doc = document, helperApi = null) {
       subtitle:String(x.subtitle||'选择一个开场，故事将从那里继续。').slice(0,400),
       theme:THEMES.some(t=>t[0]===x.theme)?x.theme:'archive',
       excludedTags:String(x.excludedTags||'').slice(0,500),
+      excludedPersonTags:String(x.excludedPersonTags||'').slice(0,500),
+      personAliases:String(x.personAliases||'').slice(0,1500),
       entries:Array.isArray(x.entries)?x.entries.map((e,i)=>({
         title:String(e?.title||`开场 ${i+1}`).slice(0,100),
         description:String(e?.description||'').slice(0,300),
@@ -83,16 +85,17 @@ export function mountInDocument(doc = document, helperApi = null) {
     // This packaged card reserves the main greeting (swipe 0) for the selector.
     return String(first).includes('<UniversalOpeningSelector/>') ? alts : [];
   }
-  function infer(text,i){
+  function infer(text,i,people){
     const source=String(text||''),excluded=excludedTags(config.excludedTags);
     const title=greetingTitle(source,i,excluded),body=narrativeStart(source,excluded);
-    return {title,description:body.slice(title.length).trim().slice(0,140),names:greetingNames(source).join('、')};
+    return {title,description:body.slice(title.length).trim().slice(0,140),names:(people?.names||detectGreetingCollection([source],{aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags)})[0].names).join('、')};
   }
   function suggest(text,i){return infer(text,i)}
   function entries(){
     const greetings=greetingList();
     const count=greetings.length || config.entries.length;
-    return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
+    const people=detectGreetingCollection(greetings,{knownNames:[character()?.data?.name||character()?.name,...config.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[])],aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags)});
+    return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i]),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
@@ -236,9 +239,9 @@ export function mountInDocument(doc = document, helperApi = null) {
   function openSettings(){
     const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
-    fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));
+    fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v),field('人物识别排除的 <字段>（逗号分隔）',draft.excludedPersonTags,v=>draft.excludedPersonTags=v),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>draft.personAliases=v,true));
     const list=el('div');fields.append(list);
-    const greetings=greetingList();const items=entries();items.forEach((entry,i)=>{
+    const greetings=greetingList();const items=entries(),manuallyEditedNames=new Set();items.forEach((entry,i)=>{
       draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
       if(greetings[i]){const source=el('details','uos-source');source.append(el('summary','','查看原开场正文'),el('pre','',greetings[i]));box.append(source)}
       box.append(el('p','uos-help','卡片实时预览 · 保存后才会写入角色卡'));
@@ -249,7 +252,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
         field('标签',entry.label,v=>{entry.label=v;updatePreview()}),
-        field('登场人物（逗号分隔，输入“无”可隐藏误判）',entry.names===''?'无':entry.names||'',v=>{entry.names=v.trim()==='无'?'':v;updatePreview()}),
+        field('登场人物（逗号分隔，输入“无”可隐藏误判）',entry.names===''?'无':entry.names||'',v=>{entry.names=v.trim()==='无'?'':v;manuallyEditedNames.add(i);updatePreview()}),
         field('简介',entry.description,v=>{entry.description=v;updatePreview()},true),
         fileField('上传封面（原图 8 MB 内）','image/png,image/jpeg,image/webp,image/gif',8*1048576,async(v,file)=>{const next=await optimizeCoverData(v,file,doc);if(next.length>1400000)throw Error('压缩后仍超过约 1 MB，请换更小的图片；GIF 动图不会压缩');entry.image=next;updatePreview();return next.length<v.length?`封面已压缩：${Math.round(v.length/1024)} KB → ${Math.round(next.length/1024)} KB，保存后随卡导出。`:'封面已载入；原图更小或不支持压缩，保存后随卡导出。'}));
       box.append(group);
@@ -274,7 +277,10 @@ export function mountInDocument(doc = document, helperApi = null) {
       const button=$('[data-save]');button.disabled=true;button.textContent='正在保存…';
       try{
         draft.theme=displayTheme;
-        draft.entries=draft.entries.slice(0,greetingList().length);
+        draft.entries=draft.entries.slice(0,greetingList().length).map((entry,i)=>{
+          if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return entry;
+          const {names,...rest}=entry;return rest;
+        });
         // ST may update the in-memory character while a failed server merge is
         // only logged. Verify persistence before reporting export readiness.
         if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');

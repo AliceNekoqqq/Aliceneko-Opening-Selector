@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {readPlayerState} from '../index.js';
-import {resolveDisplayEntry,isLegacyGeneratedEntry} from '../src/player.js';
+import {resolveDisplayEntry,isLegacyGeneratedEntry,detectGreetingPeople,detectGreetingCollection} from '../src/player.js';
 
 assert.match(fs.readFileSync('src/player.js','utf8'),/唯一来源Discord:♡Aliceneko♡\/红豆粉丨本插件完全免费/);
 
@@ -65,3 +65,22 @@ const oldAuto={title:oldPlain.slice(0,20),description:oldPlain.slice(20,88)};
 assert.equal(isLegacyGeneratedEntry(oldBody,oldAuto,0),true);
 const oldCard={avatar:'old.png',data:{first_mes:oldBody,alternate_greetings:['另一幕。'],extensions:{universal_opening_selector:{entries:[oldAuto]}}}};
 assert.equal(readPlayerState({characters:[oldCard],characterId:0,groupId:null},helper).entries[0].title,'她走到站台。');
+
+const personCases=detectGreetingCollection([
+  '<角色档案>姓名：沈挽昼</角色档案><正文>她在门边等你。</正文>',
+  '<content>沈挽昼握紧消防斧。\n林安安：别出声。</content>',
+  '<沈挽昼>“别开门。”</沈挽昼><正文>林安安回过头。</正文>',
+],{aliases:'沈挽昼=挽昼,小沈'});
+assert.deepEqual(personCases[0].names,['沈挽昼']);
+assert.deepEqual(personCases[1].names,['林安安','沈挽昼']);
+assert.equal(personCases[1].evidence['沈挽昼'],'正文提及');
+assert.equal(personCases[1].evidence['林安安'],'台词署名');
+assert.deepEqual(personCases[2].names,['沈挽昼','林安安']);
+assert.equal(personCases[2].evidence['沈挽昼'],'人物标签');
+assert.deepEqual(detectGreetingPeople('<正文>小沈推开门。</正文>',{aliases:'沈挽昼=小沈'}).names,['沈挽昼']);
+assert.deepEqual(detectGreetingPeople('<SceneInfo>场景类型：末日\n时间：凌晨</SceneInfo><正文>雨停了。</正文>').names,[]);
+assert.deepEqual(detectGreetingPeople('<无关设定>姓名：张三</无关设定><content>李四：快跑！</content>',{excludedPersonTags:['无关设定']}).names,['李四']);
+const candidate=detectGreetingPeople('<正文>沈挽昼走过走廊。</正文>');
+assert.deepEqual(candidate.names,[]);
+assert.deepEqual(candidate.suggestions,['沈挽昼']);
+assert.equal(resolveDisplayEntry({index:0,body:'沈挽昼：走。',names:['沈挽昼'],nameEvidence:{沈挽昼:'台词署名'}}).namesSource,'自动提取：台词署名');
