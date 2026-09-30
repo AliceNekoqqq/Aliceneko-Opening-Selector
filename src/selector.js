@@ -1,4 +1,5 @@
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
+import {createWorldbookPeopleReader} from './worldbook-people.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export async function optimizeCoverData(source,file,doc=document){
   if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
@@ -18,7 +19,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9-beta.3';
+  const VERSION = '1.0.9-beta.4';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -51,6 +52,15 @@ export function mountInDocument(doc = document, helperApi = null) {
     return null;
   };
   const character = () => { const c=context(); return c?.characters?.[c.characterId]; };
+  const readWorldbookPeople=createWorldbookPeopleReader(helper());
+  let worldbookPeople=[],worldbookMessage='正在读取角色世界书人物名单…';
+  async function refreshWorldbookPeople(refresh=false){
+    const card=character(),identity=card?.avatar;
+    try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
+      worldbookPeople=result.people;worldbookMessage=`世界书候选：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;render();
+    }catch{worldbookMessage='世界书读取失败，仍可使用原有姓名识别。'}
+    const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;
+  }
   const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];
   let config = normalize(stored || seed);
   let draft = null;
@@ -88,13 +98,14 @@ export function mountInDocument(doc = document, helperApi = null) {
   function infer(text,i,people){
     const source=String(text||''),excluded=excludedTags(config.excludedTags);
     const title=greetingTitle(source,i,excluded),body=narrativeStart(source,excluded);
-    return {title,description:body.slice(title.length).trim().slice(0,140),names:(people?.names||detectGreetingCollection([source],{aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags)})[0].names).join('、')};
+    const detected=people||detectGreetingCollection([source],{aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags),worldbookPeople})[0];
+    return {title,description:body.slice(title.length).trim().slice(0,140),names:detected.names.join('、'),nameSuggestions:detected.suggestions};
   }
   function suggest(text,i){return infer(text,i)}
   function entries(){
     const greetings=greetingList();
     const count=greetings.length || config.entries.length;
-    const people=detectGreetingCollection(greetings,{knownNames:[character()?.data?.name||character()?.name,...config.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[])],aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags)});
+    const people=detectGreetingCollection(greetings,{knownNames:[character()?.data?.name||character()?.name,...config.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[])],aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags),worldbookPeople});
     return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i]),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
@@ -166,6 +177,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title));
       if(entry.description)body.append(el('div','uos-description',entry.description));
       body.append(el('p','uos-card-names',`登场人物 · ${names?names.replace(/[,，]/g,' / '):'未识别'}`));
+      if(entry.nameSuggestions?.length)body.append(el('p','uos-help',`待确认人物 · ${entry.nameSuggestions.join(' / ')}`));
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
       const source=greetings[i];
       if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'),el('pre','',source));shell.append(details)}
@@ -240,9 +252,10 @@ export function mountInDocument(doc = document, helperApi = null) {
     const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
     fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v),field('人物识别排除的 <字段>（逗号分隔）',draft.excludedPersonTags,v=>draft.excludedPersonTags=v),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>draft.personAliases=v,true));
+    const worldbookNote=el('p','uos-help',worldbookMessage);worldbookNote.dataset.worldbookStatus='';const reloadWorldbook=el('button','uos-icon','重新读取世界书');reloadWorldbook.type='button';reloadWorldbook.onclick=async()=>{reloadWorldbook.disabled=true;await refreshWorldbookPeople(true);reloadWorldbook.disabled=false};fields.append(worldbookNote,reloadWorldbook);
     const list=el('div');fields.append(list);
     const greetings=greetingList();const items=entries(),manuallyEditedNames=new Set();items.forEach((entry,i)=>{
-      draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
+      draft.entries[i]={...entry,...draft.entries[i]};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
       if(greetings[i]){const source=el('details','uos-source');source.append(el('summary','','查看原开场正文'),el('pre','',greetings[i]));box.append(source)}
       box.append(el('p','uos-help','卡片实时预览 · 保存后才会写入角色卡'));
       const preview=el('div','uos-card uos-card-preview'),cover=el('div','uos-cover'),body=el('div','uos-card-body');
@@ -256,6 +269,7 @@ export function mountInDocument(doc = document, helperApi = null) {
         field('简介',entry.description,v=>{entry.description=v;updatePreview()},true),
         fileField('上传封面（原图 8 MB 内）','image/png,image/jpeg,image/webp,image/gif',8*1048576,async(v,file)=>{const next=await optimizeCoverData(v,file,doc);if(next.length>1400000)throw Error('压缩后仍超过约 1 MB，请换更小的图片；GIF 动图不会压缩');entry.image=next;updatePreview();return next.length<v.length?`封面已压缩：${Math.round(v.length/1024)} KB → ${Math.round(next.length/1024)} KB，保存后随卡导出。`:'封面已载入；原图更小或不支持压缩，保存后随卡导出。'}));
       box.append(group);
+      if(entry.nameSuggestions?.length){const accept=el('button','uos-icon',`采纳候选：${entry.nameSuggestions.join('、')}`);accept.type='button';accept.onclick=()=>{entry.names=[...new Set([...(entry.names||'').split(/[、，,\/]/).filter(Boolean),...entry.nameSuggestions])].join('、');manuallyEditedNames.add(i);group.querySelectorAll('input,textarea')[2].value=entry.names;updatePreview();status('候选已填入人物字段，请检查后保存。')};box.append(accept)}
       if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[3].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
       const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
@@ -278,8 +292,9 @@ export function mountInDocument(doc = document, helperApi = null) {
       try{
         draft.theme=displayTheme;
         draft.entries=draft.entries.slice(0,greetingList().length).map((entry,i)=>{
-          if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return entry;
-          const {names,...rest}=entry;return rest;
+          const {nameSuggestions,...saved}=entry;
+          if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return saved;
+          const {names,...rest}=saved;return rest;
         });
         // ST may update the in-memory character while a failed server merge is
         // only logged. Verify persistence before reporting export readiness.
@@ -308,6 +323,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   $('[data-seek]').oninput=e=>{if(Number.isFinite(audio.duration))audio.currentTime=audio.duration*Number(e.target.value)/1000};
   audio.ontimeupdate=updatePlayer;audio.onloadedmetadata=updatePlayer;audio.onplay=updatePlayer;audio.onpause=updatePlayer;
   render();
+  void refreshWorldbookPeople();
   root.dataset.uosMounted = '1';
   root.dataset.uosVersion = VERSION;
   return true;
