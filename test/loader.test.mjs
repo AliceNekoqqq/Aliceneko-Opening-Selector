@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.8.json','utf8'));
-const preview=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.7.json','utf8'));
+const preview=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.8.json','utf8'));
 assert.notEqual(preview.id,payload.id,'test and release scripts need separate identities');
 assert.match(preview.name,/测试版/);
 assert.equal(preview.enabled,false,'test script must require explicit enabling');
@@ -89,7 +89,7 @@ let betaMounts=0;
 const previewRun=await run({
   script:preview.content,
   fetchPointer:async()=>({ok:true,text:async()=>publishedSha}),
-  loadModule:async()=>({OPENING_SELECTOR_VERSION:'1.0.9-beta.7',mountUniversalSelector:()=>{betaMounts++}}),
+  loadModule:async()=>({OPENING_SELECTOR_VERSION:'1.0.9-beta.8',mountUniversalSelector:()=>{betaMounts++}}),
 });
 assert.equal(betaMounts,1,'test script can load a beta module');
 assert.equal(previewRun.errors.length,0);
@@ -97,7 +97,7 @@ assert.equal(previewRun.errors.length,0);
 const rejectedUrls=[];
 const rejected=await run({
   fetchPointer:async()=>({ok:true,text:async()=>publishedSha}),
-  loadModule:async url=>{rejectedUrls.push(url);return {OPENING_SELECTOR_VERSION:'1.0.9-beta.7',mountUniversalSelector:()=>{betaMounts++}}},
+  loadModule:async url=>{rejectedUrls.push(url);return {OPENING_SELECTOR_VERSION:'1.0.9-beta.8',mountUniversalSelector:()=>{betaMounts++}}},
 });
 assert.equal(rejectedUrls.length,3,'release script rejects beta modules from every provider');
 assert.equal(betaMounts,1,'release script must never mount a beta module');

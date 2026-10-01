@@ -194,3 +194,38 @@ assert.deepEqual(extractWorldbookPeople([{name:'Cast overview',entries:[{name:'C
 const itemTitles=extractWorldbookPeople([{name:'物资书',entries:[{name:'消防斧',keys:['消防斧'],content:'长柄的救援工具。'},{name:'急救箱',keys:['急救箱'],content:'内有绷带与消炎药。'}]}]);
 assert.ok(itemTitles.every(p=>p.trusted===false),'a Chinese item title matching its own keyword is not enough to confirm a person');
 assert.deepEqual(detectGreetingPeople('拿起消防斧和急救箱。',{worldbookPeople:itemTitles}).names,[]);
+
+// User screenshot: NPC·姓名·NSFW used to merge many entries into a person named NSFW.
+const cruiseNames=['范婼慧','尹以菽','洛言舟','陆斯年','顾之遥','裴衍','沈既明','江曜'];
+const cruise=extractWorldbookPeople([{name:'银趴邮轮世界书',entries:cruiseNames.map((name,i)=>({
+ name:`NPC·${name}·NSFW`,keys:['NSFW',name,`小${name.slice(1)}`,'SFW',cruiseNames[(i+1)%cruiseNames.length]],content:'性格：沉稳',
+}))}]);
+assert.deepEqual(cruise.map(p=>p.name),cruiseNames);
+assert.ok(cruise.every(p=>p.trusted&&p.sources.length===1));
+assert.ok(cruise.every(p=>!p.aliases.includes('NSFW')&&!p.aliases.includes('SFW')));
+assert.deepEqual(cruise[0].aliases,['小婼慧'],'other canonical names in relationship activation keys are not aliases');
+for(const name of cruiseNames)assert.deepEqual(detectGreetingPeople(`<正文>${name}走进房间。</正文>`,{worldbookPeople:cruise}).names,[name]);
+assert.deepEqual(detectGreetingPeople('NSFW SFW R18',{worldbookPeople:cruise}).names,[]);
+assert.deepEqual(detectGreetingPeople('姓名：NSFW\n<NSFW>提示</NSFW>').names,[]);
+
+const taggedNames=extractWorldbookPeople([{name:'标题格式书',entries:[
+ {name:'NSFW·NPC·沈挽昼·基础·核心',keys:['NSFW','沈挽昼','小沈'],content:'性别：女'},
+ {name:'【NPC·003】【NSFW】林安安【SFW】',keys:['NSFW','林安安','安安'],content:'年龄：18'},
+ {name:'NPC｜陆斯年｜SFW',keys:['SFW','陆斯年'],content:''},
+ {name:'NPC/楚泽/R-18',keys:['R18','楚泽'],content:''},
+ {name:'人物：爱丽丝·温特·NSFW',keys:['NSFW','爱丽丝·温特','丽丝'],content:''},
+ {name:'NPC·Alice-Marie·SFW',keys:['Alice-Marie','SFW'],content:''},
+ {name:'NPC·SFW·NSFW',keys:['NSFW','SFW'],content:'性别：女'},
+ {name:'NSFW',keys:['NSFW'],content:'这是内容评级提示。'},
+ {name:'人物资料',keys:['NSFW','沈挽昼','小沈'],content:'性格：冷静'},
+ {name:'NPC·洛言舟·NSFW',keys:['洛言舟','NSFW'],content:'姓名：洛言舟·Winter\n英文名：Luo'},
+]}]);
+assert.deepEqual(taggedNames.map(p=>p.name),['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','Alice-Marie','洛言舟·Winter']);
+assert.ok(taggedNames.find(p=>p.name==='洛言舟·Winter').aliases.includes('洛言舟'));
+assert.ok(taggedNames.find(p=>p.name==='洛言舟·Winter').aliases.includes('Luo'));
+assert.ok(taggedNames.every(p=>!p.aliases.some(alias=>/^(NSFW|SFW|R18)$/i.test(alias))));
+const titleDiagnostics=[];
+const uncertainTitle=extractWorldbookPeople([{name:'多人标题书',entries:[{name:'NPC·沈挽昼·林安安·NSFW',keys:['NSFW','沈挽昼','林安安'],content:'性格：冷静'}]}],{diagnostics:titleDiagnostics});
+assert.deepEqual(uncertainTitle,[],'multiple title people must not be picked by keyword length or assigned as aliases');
+assert.match(titleDiagnostics[0].reason,/多个姓名/);
+console.log('Real NPC·name·NSFW titles, category keys, rating variants and canonical alias ownership passed');

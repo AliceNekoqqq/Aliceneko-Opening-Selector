@@ -6,13 +6,16 @@ const WB_PROSE=/^(?:他是|她是|这是|那是|在此|每个|该人物|该角�
 const WB_PLACE=/(?:市|镇|区|街|学院|大学|医院|学校|公寓|研究所|车站|商店|便利店|安全屋|防空洞|祠堂|集团|协会)$/u;
 const WB_OVERVIEW=/(?:人物|角色|NPC)[\s·・:：_-]*(?:速览|一览|概览|概况|名单|列表|总览|总表|图鉴|汇总)|登场人物|登场角色|主要人物|主要角色|人物关系一览|character\s*(?:list|overview)|\bcast\b|^(?:人物介绍|角色介绍|人物简介|角色简介)$/i;
 const WB_PERSON_MARKER=/(?:人物|角色|人设|NPC|档案|profile|character)/i;
+// Entry categories/ratings are metadata, even when they are also activation keys.
+const WB_TITLE_TAG=/^(?:NSFW|SFW|R[- ]?18G?|18\+|成人向?|全年龄|限制级|色情|人物|角色|NPC|人设|人物档案|角色档案|人物资料|角色资料|人物设定|角色设定|基础设定|基础信息|详细信息|人物介绍|角色介绍|人物简介|角色简介|档案|profile|character|主要|次要|重要|主角|配角|男主|女主|基础|核心|背景|关系|设定|\d+)$/iu;
+function wbTitleTag(value){const parts=String(value).trim().split(/[·・:：|｜/_]+/u);return parts.every(part=>WB_TITLE_TAG.test(part.trim()))}
 const WB_SURNAMES='赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫经房裘缪干解应宗丁宣贲邓郁单杭洪包诸左石崔吉钮龚程嵇邢滑裴陆荣翁荀羊甄曲封芮储靳邴松井段富巫乌焦巴弓牧隗山谷车侯宓蓬全郗班仰秋仲伊宫宁仇栾暴甘钭厉戎祖武符刘景詹束龙叶幸司韶黎薄印宿白怀蒲台从鄂索咸籍赖卓蔺屠蒙池乔阴胥能苍双闻莘党翟谭贡劳逄姬申扶堵冉宰郦雍却璩桑桂濮牛寿通边扈燕冀浦尚农温别庄晏柴瞿阎充慕连茹习宦艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚那简饶空曾毋沙乜养鞠须丰巢关蒯相查后荆红游竺权逯盖益桓公楚';
 const WB_NAME_FIELD='(?:姓名|全名|本名|真名|角色名|人物名|人物姓名|角色姓名|角色名称|人物名称|人名|名字|name|full[_ ]?name)';
 function normalizePersonText(value){return String(value??'').normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g,'')}
 function isPersonName(value){
   const name=normalizePersonText(value).trim();
   if(/^[\p{Script=Han}·・\s]+$/u.test(name)&&name.replace(/[·・\s]/g,'').length>12)return false;
-  return !WB_STRUCTURAL.test(name)&&/^(?=.*[\p{L}])[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}][\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}\s.'’·・\-]{0,39}$/u.test(name);
+  return !WB_STRUCTURAL.test(name)&&!wbTitleTag(name)&&/^(?=.*[\p{L}])[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}][\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}\s.'’·・\-]{0,39}$/u.test(name);
 }
 function wbName(value){
   return normalizePersonText(value).replace(/\*\*|`/g,'').trim().replace(/^[#\s]+/,'')
@@ -21,11 +24,36 @@ function wbName(value){
 }
 function wbNames(value){return String(value??'').split(/[、，,\/;；]+/).map(wbName).filter(name=>isPersonName(name)&&!WB_GENERIC.test(name)&&!WB_PLACE.test(name)&&!WB_PROSE.test(name))}
 function wbTitle(value){
-  return wbName(normalizePersonText(value).replace(/[【\[]([^】\]]*)[】\]]/g,(_,inside)=>/^(?:人物|角色|NPC|人设|人物档案|角色档案|主要|次要|重要|主角|配角|男主|女主|基础|核心|\d+)$/i.test(inside.trim())?'':inside)
+  let title=normalizePersonText(value)
+    .replace(/[【\[]([^】\]]*)[】\]]/g,(_,inside)=>wbTitleTag(inside)?'':`【${inside}】`)
     .replace(/^(?:[\p{Extended_Pictographic}\uFE0F\s]+|\d+[.、)]\s*)/u,'')
-    .replace(/^(?:人物档案|角色档案|人物设定|角色设定|人物介绍|角色介绍|人物简介|角色简介|角色资料|人物资料|人物|角色|人设|NPC|character|profile)\s*[:\-—_|｜]?\s*/i,'')
+    .replace(/^(?:人物档案|角色档案|人物设定|角色设定|人物介绍|角色介绍|人物简介|角色简介|角色资料|人物资料|人物|角色|人设|NPC\b|character\b|profile\b)\s*[·・:：\-—_|｜/]*\s*/i,'')
     .replace(/\s*[-—_|｜:]\s*(?:人物|角色|NPC|档案|设定|基础信息|详细信息|profile).*$/i,'')
-    .replace(/(?:人物介绍|角色介绍|人物设定|角色设定|人物档案|角色档案|角色资料|人物资料|人设)$/i,''));
+    .replace(/(?:人物介绍|角色介绍|人物设定|角色设定|人物档案|角色档案|角色资料|人物资料|人设)$/i,'').trim();
+  // Strip only recognized edge categories; keep genuine middle-dot/hyphen names intact.
+  for(let i=0;i<12;i++){
+    const before=title;
+    title=title.replace(/^(?:R[- ]?18G?|18\+)\s*[·・:：|｜/_—-]+\s*/iu,'')
+      .replace(/\s*[·・:：|｜/_—-]+\s*(?:R[- ]?18G?|18\+)$/iu,'');
+    const first=title.match(/^([^·・:：|｜/_—-]+)[·・:：|｜/_—-]+\s*(.*)$/u);
+    if(first&&wbTitleTag(first[1]))title=first[2].trim();
+    const last=title.match(/^(.*?)[·・:：|｜/_—-]+\s*([^·・:：|｜/_—-]+)$/u);
+    if(last&&wbTitleTag(last[2]))title=last[1].trim();
+    if(title===before)break;
+  }
+  // A trailing bracket after a name is a qualifier; a fully bracketed name stays intact.
+  title=title.replace(/^(.+?)[【\[][^】\]]*[】\]]\s*$/u,(_,head)=>head.includes('【')?_:head);
+  return wbName(title);
+}
+function wbTitleKeyword(title,keys){
+  const text=normalizePersonText(title),matches=keys.flatMap(name=>{
+    const start=text.indexOf(name);if(start<0)return [];
+    const end=start+name.length;
+    // A substring such as “安安” inside “林安安” is not a separate title person.
+    if(/[\p{L}\p{N}]/u.test(text[start-1]||'')||/[\p{L}\p{N}]/u.test(text[end]||''))return [];
+    return [name];
+  });
+  return [...new Set(matches)];
 }
 function wbFieldNames(value){
   const head=String(value).split(/\s+(?:性别|年龄|身份|职业|别名|昵称|gender|age)\s*[:=]|[|｜]/iu)[0];
@@ -101,9 +129,10 @@ function extractWorldbookPeople(books,{diagnostics=[]}={}){
     const personTitle=WB_PERSON_MARKER.test(title)&&!WB_OVERVIEW.test(title)&&!/(?:关系|规则|名单|设定集)/u.test(title);
     const nonPerson=/(?:地点|地理位置|场所类型|势力名称|物品名称)\s*:/u.test(labeled);record.nonPerson=nonPerson&&!personFields&&!record.names.size;
     if(!record.names.size&&!WB_OVERVIEW.test(title)&&(personTitle||personFields||record.keys.length)){
-      const inTitle=[...record.keys].sort((a,b)=>b.length-a.length).find(name=>normalizePersonText(title).includes(name));
-      if(inTitle&&!record.titleName)record.titleName=inTitle;
-      else if(!record.titleName&&(personTitle||personFields)&&record.keys.length){remember(record.keys[0],'人物条目关键词');record.titleName=record.keys[0]}
+      const inTitle=wbTitleKeyword(title,record.keys);
+      if(inTitle.length>1&&!record.keys.includes(record.titleName)){record.titleName='';record.ambiguousTitle=true}
+      else if(inTitle.length===1&&!record.titleName)record.titleName=inTitle[0];
+      else if(!record.titleName&&!inTitle.length&&(personTitle||personFields)&&record.keys.length){remember(record.keys[0],'人物条目关键词');record.titleName=record.keys[0]}
     }
     const likelyName=/^[\p{Script=Han}]{2,4}$/u.test(record.titleName)&&WB_SURNAMES.includes(record.titleName[0])||/[\p{Script=Latin}\p{Script=Hiragana}\p{Script=Katakana}·・]/u.test(record.titleName);
     const humanDescription=/(?:(?<!其)他|她|性格|外貌|出身|身高|穿着|生于|出生|\bhe\b|\bshe\b)/iu.test(labeled);
@@ -124,8 +153,10 @@ function extractWorldbookPeople(books,{diagnostics=[]}={}){
   }
   for(const record of records){
     if(!record.accepted.size&&!record.nonPerson&&!/(?:物品|装备|武器|技能|组织|势力)/u.test(record.title)&&record.titleName&&!WB_STRUCTURAL.test(record.titleName)&&!WB_PROSE.test(record.titleName))add(record.titleName,record,'仅标题，待确认',false);
-    if(!record.accepted.size)diagnostics.push({book:record.book,title:record.title,reason:record.limit?'人物词表已达到 1000 人上限':'未找到有效姓名、人物速览或可用人名标题'});
+    if(!record.accepted.size)diagnostics.push({book:record.book,title:record.title,reason:record.limit?'人物词表已达到 1000 人上限':record.ambiguousTitle?'标题含多个姓名关键词，无法确定单一人物；可补充姓名字段':'未找到有效姓名、人物速览或可用人名标题'});
   }
+  // Relationship activation keys can be another person's real name, not an alias.
+  for(const person of found.values())person.aliases=person.aliases.filter(alias=>isPersonName(alias)&&!(found.get(alias)?.trusted&&alias!==person.name));
   const owners=new Map();for(const person of found.values())for(const alias of [person.name,...person.aliases]){if(!owners.has(alias))owners.set(alias,new Set());owners.get(alias).add(person.name)}
   for(const person of found.values()){person.aliases=[...new Set(person.aliases)];person.ambiguousAliases=person.aliases.filter(alias=>owners.get(alias).size>1)}
   return [...found.values()];
@@ -211,7 +242,7 @@ async function optimizeCoverData(source,file,doc=document){
 }
 function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9-beta.7';
+  const VERSION = '1.0.9-beta.8';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -615,7 +646,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
   }
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;
-  const api={version:'1.0.9-beta.7',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
+  const api={version:'1.0.9-beta.8',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
   const onPageHide=()=>{if(doc.__uosAuthor===api)api.close()};doc.__uosAuthor=api;
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   scan();return api;
@@ -624,7 +655,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.9-beta.7';
+const VERSION='1.0.9-beta.8';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -1118,5 +1149,5 @@ function mountPlayerSelector(startDocument=document,helperApi){
   return api;
 }
 
-export const OPENING_SELECTOR_VERSION='1.0.9-beta.7';
+export const OPENING_SELECTOR_VERSION='1.0.9-beta.8';
 export function mountUniversalSelector(startDocument=document,helperApi=null){const doc=startDocument?.nodeType===9?startDocument:document;const helper=helperApi||globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null);mountPlayerSelector(doc,helper);mountAuthorSelector(doc,helper,{showSetupHints:true});return {player:doc.__uosPlayer,author:doc.__uosAuthor}};
