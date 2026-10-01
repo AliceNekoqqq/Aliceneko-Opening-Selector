@@ -6,6 +6,7 @@ const WB_PROSE=/^(?:他是|她是|这是|那是|在此|每个|该人物|该角�
 const WB_PLACE=/(?:市|镇|区|街|学院|大学|医院|学校|公寓|研究所|车站|商店|便利店|安全屋|防空洞|祠堂|集团|协会)$/u;
 const WB_OVERVIEW=/(?:人物|角色|NPC)[\s·・:：_-]*(?:速览|一览|概览|概况|名单|列表|总览|总表|图鉴|汇总)|登场人物|登场角色|主要人物|主要角色|人物关系一览|character\s*(?:list|overview)|\bcast\b|^(?:人物介绍|角色介绍|人物简介|角色简介)$/i;
 const WB_PERSON_MARKER=/(?:人物|角色|人设|NPC|档案|profile|character)/i;
+const WB_SURNAMES='赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫经房裘缪干解应宗丁宣贲邓郁单杭洪包诸左石崔吉钮龚程嵇邢滑裴陆荣翁荀羊甄曲封芮储靳邴松井段富巫乌焦巴弓牧隗山谷车侯宓蓬全郗班仰秋仲伊宫宁仇栾暴甘钭厉戎祖武符刘景詹束龙叶幸司韶黎薄印宿白怀蒲台从鄂索咸籍赖卓蔺屠蒙池乔阴胥能苍双闻莘党翟谭贡劳逄姬申扶堵冉宰郦雍却璩桑桂濮牛寿通边扈燕冀浦尚农温别庄晏柴瞿阎充慕连茹习宦艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚那简饶空曾毋沙乜养鞠须丰巢关蒯相查后荆红游竺权逯盖益桓公楚';
 const WB_NAME_FIELD='(?:姓名|全名|本名|真名|角色名|人物名|人物姓名|角色姓名|角色名称|人物名称|人名|名字|name|full[_ ]?name)';
 function normalizePersonText(value){return String(value??'').normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g,'')}
 function isPersonName(value){
@@ -104,8 +105,9 @@ function extractWorldbookPeople(books,{diagnostics=[]}={}){
       if(inTitle&&!record.titleName)record.titleName=inTitle;
       else if(!record.titleName&&(personTitle||personFields)&&record.keys.length){remember(record.keys[0],'人物条目关键词');record.titleName=record.keys[0]}
     }
+    const likelyName=/^[\p{Script=Han}]{2,4}$/u.test(record.titleName)&&WB_SURNAMES.includes(record.titleName[0])||/[\p{Script=Latin}\p{Script=Hiragana}\p{Script=Katakana}·・]/u.test(record.titleName);
     const humanDescription=/(?:(?<!其)他|她|性格|外貌|出身|身高|穿着|生于|出生|\bhe\b|\bshe\b)/iu.test(labeled);
-    if(record.titleName&&(!nonPerson||personFields||record.names.has(record.titleName))&&(personTitle||personFields||record.names.has(record.titleName)||record.keys.includes(record.titleName)||humanDescription)){
+    if(record.titleName&&(!nonPerson||personFields||record.names.has(record.titleName))&&(personTitle||personFields||record.names.has(record.titleName)||record.keys.includes(record.titleName)&&likelyName||humanDescription)){
       if(!record.names.size||record.names.has(record.titleName)){record.names.add(record.titleName);add(record.titleName,record,'人物条目标题')}
     }
   }

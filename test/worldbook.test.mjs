@@ -190,3 +190,7 @@ const large=extractWorldbookPeople([{name:'多人书',entries:Array.from({length
 assert.equal(large.length,220,'more than 200 explicit people must be read');
 
 assert.deepEqual(extractWorldbookPeople([{name:'Cast overview',entries:[{name:'Cast',content:'- Alice: doctor\nShe is kind.\nThis is a cast overview.'}]}]).filter(p=>p.trusted).map(p=>p.name),['Alice']);
+
+const itemTitles=extractWorldbookPeople([{name:'物资书',entries:[{name:'消防斧',keys:['消防斧'],content:'长柄的救援工具。'},{name:'急救箱',keys:['急救箱'],content:'内有绷带与消炎药。'}]}]);
+assert.ok(itemTitles.every(p=>p.trusted===false),'a Chinese item title matching its own keyword is not enough to confirm a person');
+assert.deepEqual(detectGreetingPeople('拿起消防斧和急救箱。',{worldbookPeople:itemTitles}).names,[]);
