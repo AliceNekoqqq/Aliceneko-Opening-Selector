@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.14.json'));
+assert.match(payload.name,/确认更新/);
+assert.equal(payload.enabled,false);assert.equal(payload.export_with.data,false);
+const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
+const next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
+const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
+async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,moduleVersion='1.0.9-beta.15'}={}){
+ const imports=[],mounts=[],prompts=[],messages=[],storage=new Map(stored?[["uos-approved-runtime-preview",JSON.stringify(stored)]]:[]);
+ const host={localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>{if(storageFails)throw Error('storage blocked');storage.set(key,value)}},confirm:text=>{prompts.push(text);return accept},alert:text=>messages.push(text)};
+ const doc={defaultView:host,createElement:()=>({style:{},remove(){this.removed=true}}),body:{append:button=>{doc.button=button}}};
+ const globals={$:()=>[{ownerDocument:doc}],addEventListener(){},removeEventListener(){}};
+ let checks=0;
+ const script=payload.content.replace('await import(url)','await loadModule(url)');
+ await new AsyncFunction('globalThis','document','fetch','loadModule',`return ${script}`)(globals,doc,async()=>{checks++;if(pointer===null)throw Error('offline');return {ok:true,text:async()=>pointer}},async url=>{imports.push(url);if(fail&&url.includes(next))throw Error('offline module');return {OPENING_SELECTOR_VERSION:url.includes(next)?moduleVersion:'1.0.9-beta.14',mountUniversalSelector:()=>mounts.push(url)}});
+ return {doc,imports,mounts,prompts,messages,storage,get checks(){return checks}};
+}
+const cancelled=await run();assert.equal(cancelled.prompts.length,1);assert.equal(cancelled.imports.length,1,'cancel never imports the new runtime');assert.ok(cancelled.imports[0].includes(old));assert.equal(cancelled.storage.size,0);
+await cancelled.doc.__uosUpdater.check(true);assert.equal(cancelled.prompts.length,2,'manual check can prompt after cancel');assert.equal(cancelled.imports.length,1);
+const approved=await run({accept:true});assert.equal(approved.imports.length,2);assert.equal(approved.mounts.length,2);assert.equal(JSON.parse(approved.storage.get('uos-approved-runtime-preview')).ref,next);
+const restarted=await run({stored:{bootstrap:old,ref:next}});assert.equal(restarted.imports.length,1);assert.ok(restarted.imports[0].includes(next));assert.equal(restarted.prompts.length,0,'approved version persists');
+await restarted.doc.__uosUpdater.check(true);assert.match(restarted.messages.at(-1),/最新版本/);
+const offline=await run({pointer:null});assert.equal(offline.mounts.length,1);assert.equal(offline.prompts.length,0);assert.match(offline.messages[0],/继续使用当前版本/);
+const invalid=await run({pointer:'invalid'});assert.equal(invalid.imports.length,1);
+const failure=await run({accept:true,fail:true});assert.equal(failure.mounts.length,1);assert.equal(failure.storage.size,0);assert.equal(failure.imports.length,4,'all update providers fail without changing selected runtime');
+const mismatch=await run({accept:true,moduleVersion:'1.0.10'});assert.equal(mismatch.mounts.length,1,'preview rejects stable module');assert.equal(mismatch.storage.size,0);
+const storageBlocked=await run({accept:true,storageFails:true});assert.match(storageBlocked.messages.at(-1),/无法保存/);
+const stale=await run({stored:{bootstrap:next,ref:next},pointer:old});assert.ok(stale.imports[0].includes(old),'new import resets the bootstrap');
+const updater=stale.doc.__uosUpdater;updater.close();assert.ok(stale.doc.button.removed);const count=stale.checks;await updater.check(true);assert.equal(stale.checks,count);
+console.log('Confirmed update: cancel, manual retry, persistence, channel guard, failures and cleanup passed');
