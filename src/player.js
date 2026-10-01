@@ -1,8 +1,8 @@
-import {isPersonName,createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
+import {isPersonName,normalizePersonText,createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.9-beta.6';
+const VERSION='1.0.9-beta.7';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -139,7 +139,7 @@ const COMMON_SURNAMES='赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤
 const PERSON_WORD={test:isPersonName};
 export function personAliases(value){
   const result=new Map();
-  for(const line of String(value||'').slice(0,1500).split(/[;；\n]+/).slice(0,40)){
+  for(const line of normalizePersonText(value).slice(0,1500).split(/[;；\n]+/).slice(0,40)){
     const [canonical,...rest]=line.split(/[=＝]/),name=canonical?.trim();
     if(!PERSON_WORD.test(name))continue;
     result.set(name,name);
@@ -148,8 +148,10 @@ export function personAliases(value){
   return result;
 }
 export function detectGreetingPeople(body,{knownNames=[],aliases='',worldbookPeople=null}={}){
-  const text=String(body||'');
-  const names=[],evidence={},suggestions=[],vocabularyOnly=Array.isArray(worldbookPeople)&&worldbookPeople.some(person=>isPersonName(person?.name));
+  const text=normalizePersonText(body);
+  knownNames=knownNames.map(normalizePersonText);
+  const manual=personAliases(aliases);
+  const names=[],evidence={},suggestions=[],vocabularyOnly=Array.isArray(worldbookPeople)&&worldbookPeople.some(person=>person?.trusted!==false&&isPersonName(person?.name));
   const dictionary=new Map(),worldbookByName=new Map(),owners=new Map();
   for(const person of worldbookPeople||[]){
     if(!isPersonName(person?.name))continue;worldbookByName.set(person.name,person);
@@ -161,12 +163,12 @@ export function detectGreetingPeople(body,{knownNames=[],aliases='',worldbookPeo
   // Canonical names and explicit user rules take precedence over keyword aliases.
   for(const person of worldbookByName.values())dictionary.set(person.name,person.name);
   for(const name of knownNames)if(PERSON_WORD.test(name))dictionary.set(name,name);
-  for(const [alias,name] of personAliases(aliases))dictionary.set(alias,name);
-  const add=(name,source)=>{if(owners.get(name)?.size>1&&!dictionary.has(name))return;if(vocabularyOnly&&!dictionary.has(name)&&source!=='明确标注')return;const canonical=dictionary.get(name)||name;if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical))return;if(!names.includes(canonical))names.push(canonical);if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source};
+  for(const [alias,name] of manual)dictionary.set(alias,name);
+  const add=(name,source)=>{if(owners.get(name)?.size>1&&!dictionary.has(name))return;if(vocabularyOnly&&!dictionary.has(name)&&source!=='明确标注')return;const canonical=dictionary.get(name)||name;if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical))return;if(worldbookByName.get(canonical)?.trusted===false&&source!=='明确标注'&&!knownNames.includes(canonical)&&![...manual.values()].includes(canonical)){if(!suggestions.includes(canonical))suggestions.push(canonical);return}if(!names.includes(canonical))names.push(canonical);if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source};
   // Metadata labels and person lists are explicit even when inside another tag.
   for(const match of text.matchAll(/(?:姓名|人物姓名|角色名|角色姓名|登场人物|在场角色|名字)[：:]\s*([^\n<>。；;]{1,160})/gmu))for(const name of match[1].split(/[、，,\/]+/).map(x=>x.trim().replace(/[（(].*$/,'')))if(isPersonName(name))add(name,'明确标注');
-  for(const match of text.matchAll(/<(姓名|角色名|人物姓名|角色姓名|名字)>\s*([^<>]{2,60})\s*<\/\1>/gmu))add(match[2].trim(),'明确标注');
-  for(const match of text.matchAll(/<(?:人物|角色|姓名)[^<>]*?(?:name|姓名|名字)=["']([^"'<>]{2,40})["'][^<>]*>/gmu))add(match[1],'明确标注');
+  for(const match of text.matchAll(/<(姓名|角色名|人物姓名|角色姓名|名字)>\s*([^<>]{1,60})\s*<\/\1>/gmu))add(match[2].trim(),'明确标注');
+  for(const match of text.matchAll(/<(?:人物|角色|姓名)[^<>]*?(?:name|姓名|名字)=["']([^"'<>]{1,40})["'][^<>]*>/gmu))add(match[1],'明确标注');
   const lines=text.replace(/<\/?[^<>]*>/g,'\n').split(/\r?\n/);
   for(let i=0;i<lines.length;i++){
     if(!/^(?:(?:在场|出场|登场|主要|当前)?(?:角色|人物|人员|名单)|(?:角色|人物|人员)(?:名单|列表))[：:]\s*$/.test(lines[i].trim()))continue;
@@ -196,7 +198,8 @@ export function detectGreetingPeople(body,{knownNames=[],aliases='',worldbookPeo
   const occupied=[];
   for(const [alias,canonical] of [...dictionary].sort((a,b)=>b[0].length-a[0].length)){
     const safe=alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    const latin=/\p{Script=Latin}/u.test(alias),prefix=latin?'(?<![\\p{Script=Latin}\\p{N}_])':'',suffix=latin?'(?![\\p{Script=Latin}\\p{N}_])':'';
+    const boundary=[...alias].length===1?'[\\p{L}\\p{N}_]':/[\p{Script=Latin}\p{N}]/u.test(alias)?'[\\p{Script=Latin}\\p{N}_]':null;
+    const prefix=boundary?`(?<!${boundary})`:'',suffix=boundary?`(?!${boundary})`:'';
     for(const match of text.matchAll(new RegExp(`${prefix}${safe}${suffix}`,'gu'))){
       const start=match.index,end=start+match[0].length;
       if(occupied.some(([a,b])=>start<b&&end>a))continue;
@@ -472,7 +475,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
         if(overlay!==active||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
-        worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,worldbookPeople);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
+        worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,worldbookPeople,result.diagnostics);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
       }catch{if(overlay===active)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();

@@ -50,7 +50,7 @@ const tricky=extractWorldbookPeople([{name:'绑定书',entries:[
  {name:'人物档案',content:'{"name":"Alice Winter","age":18}',strategy:{keys:['Alice']}},
  {name:'双人档案',content:'姓名：张三\n姓名：李四',strategy:{keys:['小张']}},
 ]}]);
-assert.deepEqual(tricky.map(p=>p.name),['林安安','王明月','王明','爱丽丝·温特','Alice Winter','张三','李四']);
+assert.deepEqual(tricky.filter(p=>p.trusted).map(p=>p.name),['林安安','王明月','王明','爱丽丝·温特','Alice Winter','张三','李四']);
 assert.deepEqual(tricky[0].aliases,['小林','安安','小月']);
 assert.deepEqual(tricky[0].ambiguousAliases,['小月']);
 assert.ok(!tricky.find(p=>p.name==='张三').aliases.includes('小张'));
@@ -62,7 +62,7 @@ assert.deepEqual(detectGreetingPeople('Malice Alice2 _Alice Alice',{worldbookPeo
 assert.deepEqual(detectGreetingPeople('姓名：蓝色雨幕\n沈挽昼：你好。',{worldbookPeople:tricky}).names,['蓝色雨幕'],'explicit name fields supplement an incomplete dictionary without guessing dialogue labels');
 assert.deepEqual(detectGreetingPeople('小月到了。',{worldbookPeople:tricky,aliases:'王明月=小月'}).names,['王明月']);
 assert.deepEqual(detectGreetingPeople('姓名：张三',{worldbookPeople:[]}).names,['张三']);
-assert.deepEqual(extractWorldbookPeople([{name:'无依据',entries:[{name:'陆斯年',content:'他背着一把枪。'}]}]),[]);
+assert.deepEqual(extractWorldbookPeople([{name:'人物线索',entries:[{name:'陆斯年',content:'他背着一把枪。'}]}]).map(p=>p.name),['陆斯年']);
 const readOnlyBound=createWorldbookPeopleReader({getCharWorldbookNames:()=>({primary:'绑定书',additional:[]}),getWorldbook:async name=>{assert.equal(name,'绑定书');return []}});
 assert.deepEqual((await readOnlyBound(card)).people,[]);
 
@@ -130,3 +130,63 @@ console.log('Empty-list regression, explicit-name fallback, legacy helper compat
 
 assert.deepEqual(detectGreetingPeople('姓名：小月',{worldbookPeople:tricky}).names,[],'explicit fields cannot invent a canonical person for an ambiguous alias');
 assert.deepEqual(detectGreetingPeople('在场角色：\n- 王明月制服',{worldbookPeople:tricky}).names,['王明月']);
+
+// Formats commonly used in real character worldbooks, not just the original narrow fixtures.
+const richDiagnostics=[];
+const rich=extractWorldbookPeople([{name:'复杂人物书',entries:[
+ {name:'01. 【NPC】【核心】沈挽昼（基础设定）',content:'外貌：琥珀色眼瞳',key:['挽昼','小沈']},
+ {name:'【角色资料】林安安',content:'| 字段 | 内容 |\n| --- | --- |\n| 姓名 | 「林安安」 |\n| 年龄 | 18 |',keys:['安安']},
+ {name:'陆斯年',content:'他背着一把枪。',key:['斯年']},
+ {name:'楚泽_人物资料',content:'穿着白色研究服。',key:['楚泽','阿泽']},
+ {name:'人物档案',content:'- **全名** = 『爱丽丝·温特』 年龄：20\n- **昵称**：丽丝',key:['Alice']},
+ {name:'XML档案',content:'<character name="月"><age>20</age></character>',key:['月']},
+ {name:'人物档案',content:'<姓名 class="label">綾波レイ</姓名>',key:['レイ']},
+ {name:'人物档案',content:'本名：２Ｂ',key:['2B','ヨルハ二号B型']},
+ {name:'人物 · 速览',content:'① 洛青：同学\n②苏晚 - 医生\n3. 顾云 高三女生\n## 宋遥\n简介：她是护士。\n## 地点\n- 青石公寓：住处'},
+ {name:'朔夜',content:'纯标题，没有其他人物线索。'},
+ {name:'河西医院',content:'地点：暮迟市'},
+ {name:'世界规则',content:'请遵守剧情设定。'},
+ {name:'人物：禁用姓名',enabled:false,content:'姓名：不可见'},
+]}],{diagnostics:richDiagnostics});
+assert.deepEqual(rich.filter(p=>p.trusted).map(p=>p.name),['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','月','綾波レイ','2B','洛青','苏晚','顾云','宋遥']);
+assert.deepEqual(rich.find(p=>p.name==='沈挽昼').aliases,['挽昼','小沈']);
+assert.ok(rich.find(p=>p.name==='林安安').aliases.includes('安安'));
+assert.ok(rich.find(p=>p.name==='爱丽丝·温特').aliases.includes('丽丝'));
+assert.equal(rich.find(p=>p.name==='朔夜').trusted,false);
+assert.ok(richDiagnostics.some(d=>d.title==='河西医院'));
+assert.ok(richDiagnostics.some(d=>d.reason.includes('停用')));
+const richMatched=detectGreetingPeople('<status>小沈端着盘子，安安收拾绷带，斯年沉默。</status>阿泽来了。丽丝整理药箱。<月/>レイ坐在窗边。２Ｂ站在门口。洛青、苏晚、顾云、宋遥。',{worldbookPeople:rich});
+assert.deepEqual(new Set(richMatched.names),new Set(['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','月','綾波レイ','2B','洛青','苏晚','顾云','宋遥']));
+assert.deepEqual(detectGreetingPeople('月亮照着雪地。',{worldbookPeople:rich}).names,[],'one-character person must not match within ordinary words');
+assert.deepEqual(detectGreetingPeople('朔夜整理药箱。',{worldbookPeople:rich}).names,[]);
+assert.deepEqual(detectGreetingPeople('朔夜整理药箱。',{worldbookPeople:rich}).suggestions,['朔夜']);
+assert.deepEqual(detectGreetingPeople('姓名：朔夜',{worldbookPeople:rich}).names,['朔夜']);
+assert.deepEqual(detectGreetingPeople('朔夜整理药箱。',{worldbookPeople:rich,knownNames:['朔夜']}).names,['朔夜']);
+renderWorldbookPeopleList(fakeDoc,list,[],richDiagnostics);
+assert.equal(list.children[1].children[0].children[0].tag,'summary');
+assert.match(list.children[1].children[0].children[0].textContent,/未采纳条目/);
+console.log('Decorated titles, profile tables, full names, XML attributes, cast descriptions and Japanese/digit names passed');
+
+const variants=extractWorldbookPeople([{name:'人物书',entries:[
+ {name:'【NPC·003】沈挽昼[异化模式]',keys:['沈挽昼','小沈'],content:'外貌：琥珀色眼瞳'},
+ {name:'人物档案',keys:['林安安','安安'],content:'性别：女\n年龄：18'},
+ {name:'空标题资料',content:'她名叫苏晚，是医院的护士。'},
+ {name:'人物档案',content:'姓名：田中 太郎',keys:['太郎']},
+ {name:'急救箱',content:'物品名称：急救箱'},
+]}]);
+assert.deepEqual(variants.filter(p=>p.trusted).map(p=>p.name),['沈挽昼','林安安','苏晚','田中 太郎']);
+assert.ok(variants.find(p=>p.name==='沈挽昼').aliases.includes('小沈'));
+assert.ok(variants.find(p=>p.name==='林安安').aliases.includes('安安'));
+assert.ok(variants.find(p=>p.name==='田中 太郎').aliases.includes('田中太郎'));
+assert.ok(!variants.some(p=>p.name==='急救箱'));
+assert.deepEqual(detectGreetingPeople('田中太郎端着盘子。',{worldbookPeople:variants}).names,['田中 太郎']);
+assert.deepEqual(detectGreetingPeople('蓝色雨幕遮住走廊。',{worldbookPeople:tricky}).names,[],'title-only setting candidate must not enter filters');
+assert.deepEqual(detectGreetingPeople('蓝色雨幕遮住走廊。',{worldbookPeople:tricky}).suggestions,['蓝色雨幕']);
+
+const weakOnly=extractWorldbookPeople([{name:'环境书',entries:[{name:'蓝色雨幕',content:'落雨的景象。'}]}]);
+assert.deepEqual(detectGreetingPeople('林安安：快走。',{worldbookPeople:weakOnly}).names,['林安安'],'a weak-only list must not disable ordinary explicit recognition');
+assert.deepEqual(detectGreetingPeople('<姓名>月</姓名>').names,['月']);
+const large=extractWorldbookPeople([{name:'多人书',entries:Array.from({length:220},(_,i)=>({name:'人物档案',content:'姓名：顾'+String.fromCodePoint(0x4e00+i)}))}]);
+assert.equal(large.length,220,'more than 200 explicit people must be read');
+
+assert.deepEqual(extractWorldbookPeople([{name:'Cast overview',entries:[{name:'Cast',content:'- Alice: doctor\nShe is kind.\nThis is a cast overview.'}]}]).filter(p=>p.trusted).map(p=>p.name),['Alice']);
