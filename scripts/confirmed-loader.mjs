@@ -47,7 +47,7 @@ export async function confirmedLoader({fallbackRef,pointerUrls,versionPattern,ch
     finally{busy=false;if(!closed){button.disabled=false;render()}}
   }
   button.onclick=()=>check(true);
-  const api={check,close(){closed=true;button.remove();globalThis.removeEventListener?.('pagehide',api.close);if(doc.__uosUpdater===api)delete doc.__uosUpdater}};
+  const api={check,get hasUpdate(){return hasUpdate},get busy(){return busy},close(){closed=true;button.remove();globalThis.removeEventListener?.('pagehide',api.close);if(doc.__uosUpdater===api)delete doc.__uosUpdater}};
   doc.__uosUpdater=api;globalThis.addEventListener?.('pagehide',api.close);
   await check(false);
 }

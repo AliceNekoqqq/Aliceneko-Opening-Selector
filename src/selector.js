@@ -1,3 +1,4 @@
+import {bindUpdateControl} from './update-control.js';
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './player.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
@@ -19,7 +20,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9-beta.15';
+  const VERSION = '1.0.9-beta.16';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -318,6 +319,8 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   $('[data-theme-button]').onclick=openThemes;
   $('[data-settings-button]').onclick=openSettings;
+  const updateButton=doc.createElement('button');updateButton.className='uos-icon';updateButton.dataset.updateButton='';
+  $('[data-theme-button]').parentElement.prepend(updateButton);bindUpdateControl(updateButton,host.document);
   root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>activePopup?.complete(null));
   const audio=$('[data-player] audio');
   $('[data-play]').onclick=()=>{if(audio.paused)audio.play().catch(()=>status('无法播放该音乐文件'));else audio.pause()};
