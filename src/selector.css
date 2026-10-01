@@ -206,6 +206,7 @@
 .uos-worldbook-opening>summary{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .uos-worldbook-opening-state{flex:none;color:var(--accent);font-size:11px;font-weight:600}
 .uos-worldbook-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.uos-worldbook-actions>.uos-icon{max-width:100%;white-space:normal;line-height:1.35;overflow-wrap:anywhere}
 .uos-worldbook-search{display:block;width:100%;margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text)}
 .uos-worldbook-group{margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 .uos-worldbook-entry-list{max-height:300px;overflow:auto;margin-top:8px}

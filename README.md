@@ -71,7 +71,7 @@
 
 `src/author.js` 是标记识别与作者选择页挂载逻辑；`src/player.js` 提供普通玩家模式；`src/selector.js`、`src/selector.css` 实现作者界面。`scripts/build-author-script.mjs` 生成仓库的 `remote.js` 运行模块和轻量导入脚本。`pack.mjs` 保留为开发与回归测试工具，不属于作者使用流程。
 
-在 `develop` 上运行 `node scripts/build-author-script.mjs --preview` 构建测试运行模块和测试导入脚本；正式构建 `node scripts/build-author-script.mjs --stable` 只允许在 `main` 上执行。构建后执行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/worldbook.test.mjs`、`node test/worldbook-presets.test.mjs`、`node test/person-rules.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`、`node test/loader.test.mjs`、`node test/confirmed-loader.test.mjs` 和 `node test/update-control.test.mjs`。世界书测试覆盖人物速览、姓名列、绑定范围、别名冲突、长短姓名重叠、标签全文匹配、卡名／书名所属短语、卡名弱候选与正文确认、保留人工姓名、装饰标题、未知标题分类模式、跨书隔离、共享姓氏保护、条目顺序不变性、重复人物资料、关键词候选、普通触发词不参与匹配、明确别名与人工确认、候选不跨开场传播、`NPC·姓名·NSFW` 实例、分类／评级关键词、多人标题歧义、正式姓名与别名归属、姓名表格、日文／数字／单字名字、速览描述后缀、低把握度候选、未采纳原因、超过 200 人的名单、缓存、刷新、空名单不清空正文人物、旧接口和延迟接口以及读取失败；Loader 测试会模拟版本指针、SHA 回退、发布源重试、测试与正式通道隔离和全部来源故障。本阶段列出的十个 Node 回归脚本全部通过（包括新增的 `worldbook-presets`、`confirmed-loader`、`update-control` 与 `person-rules` 覆盖）；当前环境没有 Playwright Chromium 可执行文件，作者 UI 自动化与真实酒馆／手机验收仍待完成。有 Playwright 浏览器环境时执行 `node test/author.ui.test.mjs`：它用同一脚本验证普通卡玩家入口、标记卡作者入口、世界书预设保存／切换，并模拟宿主禁用 iframe 点击。角色脚本在酒馆中导入、保存、导出后还需做现场回归。
+在 `develop` 上运行 `node scripts/build-author-script.mjs --preview` 构建测试运行模块和测试导入脚本；正式构建 `node scripts/build-author-script.mjs --stable` 只允许在 `main` 上执行。构建后执行 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/worldbook.test.mjs`、`node test/worldbook-presets.test.mjs`、`node test/person-rules.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`、`node test/loader.test.mjs`、`node test/confirmed-loader.test.mjs` 和 `node test/update-control.test.mjs`。本阶段列出的十个 Node 回归脚本已通过；当前环境没有 Playwright Chromium 可执行文件，作者 UI 自动化与真实酒馆／手机验收仍待完成。有 Playwright 浏览器环境时执行 `node test/author.ui.test.mjs`，覆盖玩家／作者入口和世界书预设的创建、编辑、保存、撤销、分配及切换。角色脚本在酒馆中导入、保存、导出后还需做现场回归。
 
 玩家窗口和作者选择页角落均标明当前脚本版本。作者页可搜索标题、人物和正文，并按登场人物筛选；作者卡片采用简短摘要，自动识别登场人物，并能识别旧版自动生成的标题；点击“预览完整正文”查看原文，开场数量较多时保持网格浏览。
 
@@ -87,8 +87,8 @@
 
 正式用户安装上述 v1.0.10 通用 JSON。它始终读取 `main/scripts/runtime-ref.txt`，正式指针只在功能完成验收、正式运行模块发布后更新。开发改动提交到 `develop`，不会因为测试分支有新提交而进入正式用户脚本。正式 Loader 也会拒绝带 `-beta.N` 的测试运行模块。
 
-参与测试时导入 `dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.2.json`。测试脚本有独立 ID，默认关闭，只读取 `develop` 预览指针；测试前先停用正式脚本。作者在“设置 → 世界书”集中管理预设，再给各开场分配预设。beta.1 保存的逐开场设置会自动迁移。
+参与测试时导入 `dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.3.json`。测试脚本有独立 ID，默认关闭，只读取 `develop` 预览指针；测试前先停用正式脚本。作者在“设置 → 世界书”集中管理预设，再给各开场分配预设。beta.1 保存的逐开场设置会自动迁移。
 
 维护者发布测试版时，先把包含 `remote.js` 的测试源码提交并推送到 `develop`，再把该提交 SHA 写入测试指针、重新构建测试 JSON 并推送。正式发布时先将验收通过的源码提交到 `main`，生成并验证正式运行模块；在该运行模块提交已发布后，最后更新正式指针。`main` 的正式指针保持不动，直至正式发布的最后一步。
 
-测试版 v1.0.10-beta.2 新增集中式世界书预设库，支持新建、编辑、复制、重命名、删除，并按开场分配；预设保存到角色卡。切换时仅修改当前角色绑定书中 UID 对应条目的开关，读取不完整或 UID 变化时停止应用。
+测试版 v1.0.10-beta.3 明确预设保存流程：新建、复制、名称和条目开关先作为草稿编辑，点“保存预设”后才能分配；最后点“保存到角色卡”写入角色卡。可撤销未保存的修改；搜索批量按钮会说明只编辑预设。切换时仅修改当前角色绑定书中 UID 对应条目的开关，读取不完整或 UID 变化时停止应用。
