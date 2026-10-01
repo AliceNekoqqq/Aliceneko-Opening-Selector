@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {captureWorldbookPreset,createWorldbookPresetManager,normalizeWorldbookPreset} from '../src/worldbook-presets.js';
+import {captureWorldbookPreset,createWorldbookPresetManager,migrateWorldbookPresetAssignments,normalizeWorldbookPreset,normalizeWorldbookPresetLibrary} from '../src/worldbook-presets.js';
 
 const card={avatar:'preset-test.png',data:{extensions:{world:'Role book'}}};
 const initial={
@@ -24,6 +24,27 @@ assert.equal(listed.entryCount,3);
 
 const preset=captureWorldbookPreset(listed.books);
 assert.deepEqual(preset.books[0].entries.map(entry=>[entry.uid,entry.enabled]),[[1,true],[2,false]]);
+const library=normalizeWorldbookPresetLibrary([
+  {id:'same-id',name:'同名预设',...preset},
+  {id:'same-id',name:'同名预设',...preset},
+]);
+assert.equal(library.length,2);
+assert.notEqual(library[0].id,library[1].id);
+assert.notEqual(library[0].name,library[1].name);
+const migrated=migrateWorldbookPresetAssignments([
+  {title:'开场甲',worldbookPreset:preset},
+  {title:'开场乙',worldbookPreset:preset},
+],[]);
+assert.equal(migrated.presets.length,2,'beta.1 per-opening snapshots migrate into the shared preset library');
+assert.notEqual(migrated.entries[0].worldbookPresetId,migrated.entries[1].worldbookPresetId);
+assert.ok(migrated.presets.every(value=>value.books[0].entries.length===2));
+assert.ok(migrated.entries.every(value=>!Object.hasOwn(value,'worldbookPreset')));
+const shared=migrateWorldbookPresetAssignments([
+  {title:'开场甲',worldbookPresetId:'shared'},
+  {title:'开场乙',worldbookPresetId:'shared'},
+],[{id:'shared',name:'公共预设',...preset}]);
+assert.deepEqual(shared.entries.map(value=>value.worldbookPresetId),['shared','shared']);
+assert.equal(shared.presets.length,1);
 preset.books[0].entries[0].enabled=false;
 preset.books[0].entries[1].enabled=true;
 preset.books[1].entries[0].enabled=false;

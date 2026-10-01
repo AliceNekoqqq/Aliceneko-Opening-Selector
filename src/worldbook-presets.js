@@ -40,6 +40,56 @@ export function normalizeWorldbookPreset(input) {
   return books.length ? { version: 1, books } : null;
 }
 
+function uniqueValue(base, used, separator) {
+  let value = base;
+  let index = 2;
+  while (used.has(value)) value = base + separator + index++;
+  used.add(value);
+  return value;
+}
+
+export function normalizeWorldbookPresetLibrary(input) {
+  const presets = [];
+  const ids = new Set();
+  const names = new Set();
+  for (const [index, raw] of (Array.isArray(input) ? input.slice(0, 500) : []).entries()) {
+    const snapshot = normalizeWorldbookPreset(raw);
+    if (!snapshot) continue;
+    const idBase = typeof raw?.id === 'string' ? raw.id.trim().slice(0, 120) : '';
+    const id = uniqueValue(idBase || 'worldbook-' + (index + 1), ids, '-');
+    const nameBase = String(raw?.name || '世界书预设 ' + (index + 1)).trim().slice(0, 120) || '世界书预设 ' + (index + 1);
+    const name = uniqueValue(nameBase, names, ' ');
+    presets.push({ id, name, ...snapshot });
+  }
+  return presets;
+}
+
+export function migrateWorldbookPresetAssignments(rawEntries, rawPresets) {
+  const presets = normalizeWorldbookPresetLibrary(rawPresets);
+  const ids = new Set(presets.map(preset => preset.id));
+  const names = new Set(presets.map(preset => preset.name));
+  const entries = (Array.isArray(rawEntries) ? rawEntries : []).map((raw, index) => {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const entry = { ...source };
+    delete entry.worldbookPreset;
+    const assigned = typeof source.worldbookPresetId === 'string' ? source.worldbookPresetId.trim() : '';
+    if (assigned && ids.has(assigned)) {
+      entry.worldbookPresetId = assigned;
+      return entry;
+    }
+    delete entry.worldbookPresetId;
+    const snapshot = normalizeWorldbookPreset(source.worldbookPreset);
+    if (!snapshot || presets.length >= 500) return entry;
+    const id = uniqueValue('legacy-opening-' + (index + 1), ids, '-');
+    const title = String(source.title || '开场 ' + (index + 1)).trim().slice(0, 80);
+    const name = uniqueValue('开场 ' + (index + 1) + ' · ' + title, names, ' ');
+    presets.push({ id, name, ...snapshot });
+    entry.worldbookPresetId = id;
+    return entry;
+  });
+  return { entries, presets };
+}
+
 export function captureWorldbookPreset(books) {
   const snapshot = normalizeWorldbookPreset({
     version: 1,

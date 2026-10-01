@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'uos-test-'));
 const source=path.join(dir,'card.json'), once=path.join(dir,'once.json'), twice=path.join(dir,'twice.json');
-const original={name:'Demo',first_mes:'车站最后一班车。',data:{name:'Demo',first_mes:'车站最后一班车。',alternate_greetings:['雨夜的电话。'],extensions:{regex_scripts:[]}}};
+const original={name:'Demo',first_mes:'车站最后一班车。',data:{name:'Demo',first_mes:'车站最后一班车。',alternate_greetings:['雨夜的电话。'],extensions:{regex_scripts:[],universal_opening_selector:{entries:[{title:'车站',worldbookPresetId:'shared-world'},{title:'雨夜',worldbookPresetId:'shared-world'}],worldbookPresets:[{id:'shared-world',name:'共享预设',version:1,books:[{name:'角色书',entries:[{uid:7,name:'人物条目',enabled:true}]}]}]}}}};
 fs.writeFileSync(source,JSON.stringify(original));
 const pack=path.resolve('pack.mjs');
 execFileSync(process.execPath,[pack,source,once]);
@@ -16,6 +16,9 @@ assert.equal(card.data.alternate_greetings[0],original.first_mes);
 assert.match(card.data.first_mes,/UniversalOpeningSelector/);
 assert.equal(card.data.extensions.regex_scripts.length,1);
 assert.equal(card.data.extensions.universal_opening_selector.entries.length,2);
+assert.equal(card.data.extensions.universal_opening_selector.entries[0].worldbookPresetId,'shared-world');
+assert.equal(card.data.extensions.universal_opening_selector.entries[1].worldbookPresetId,'shared-world');
+assert.equal(card.data.extensions.universal_opening_selector.worldbookPresets[0].books[0].entries[0].uid,7);
 assert.equal(card.data.extensions.universal_opening_selector.music.enabled,false);
 const regex=card.data.extensions.regex_scripts[0];
 assert.match(regex.replaceString,/data-settings-button/);

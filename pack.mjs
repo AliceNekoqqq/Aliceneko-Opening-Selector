@@ -31,6 +31,7 @@ const config = {
   subtitle: previous.subtitle || '选择一个开场，故事将从那里继续。',
   theme: previous.theme || 'archive',
   entries: greetings.map((s,i) => previous.entries?.[i] || infer(s,i)),
+  worldbookPresets: previous.worldbookPresets || [],
   music: {enabled:previous.music?.enabled ?? Boolean(previous.music?.audio),title:previous.music?.title||'',audio:previous.music?.audio||'',lyrics:previous.music?.lyrics||''},
 };
 
