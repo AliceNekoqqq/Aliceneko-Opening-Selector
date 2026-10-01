@@ -148,7 +148,7 @@ const rich=extractWorldbookPeople([{name:'复杂人物书',entries:[
  {name:'世界规则',content:'请遵守剧情设定。'},
  {name:'人物：禁用姓名',enabled:false,content:'姓名：不可见'},
 ]}],{diagnostics:richDiagnostics});
-assert.deepEqual(rich.filter(p=>p.trusted).map(p=>p.name),['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','月','綾波レイ','2B','洛青','苏晚','顾云','宋遥']);
+assert.deepEqual(rich.filter(p=>p.trusted).map(p=>p.name),['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','月','綾波レイ','2B','洛青','苏晚','顾云']);
 assert.deepEqual(rich.find(p=>p.name==='沈挽昼').aliases,['挽昼','小沈']);
 assert.ok(rich.find(p=>p.name==='林安安').aliases.includes('安安'));
 assert.ok(rich.find(p=>p.name==='爱丽丝·温特').aliases.includes('丽丝'));
@@ -156,7 +156,7 @@ assert.equal(rich.find(p=>p.name==='朔夜').trusted,false);
 assert.ok(richDiagnostics.some(d=>d.title==='河西医院'));
 assert.ok(richDiagnostics.some(d=>d.reason.includes('停用')));
 const richMatched=detectGreetingPeople('<status>小沈端着盘子，安安收拾绷带，斯年沉默。</status>阿泽来了。丽丝整理药箱。<月/>レイ坐在窗边。２Ｂ站在门口。洛青、苏晚、顾云、宋遥。',{worldbookPeople:rich});
-assert.deepEqual(new Set(richMatched.names),new Set(['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','月','綾波レイ','2B','洛青','苏晚','顾云','宋遥']));
+assert.deepEqual(new Set(richMatched.names),new Set(['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','月','綾波レイ','2B','洛青','苏晚','顾云']));
 assert.deepEqual(detectGreetingPeople('月亮照着雪地。',{worldbookPeople:rich}).names,[],'one-character person must not match within ordinary words');
 assert.deepEqual(detectGreetingPeople('朔夜整理药箱。',{worldbookPeople:rich}).names,[]);
 assert.deepEqual(detectGreetingPeople('朔夜整理药箱。',{worldbookPeople:rich}).suggestions,['朔夜']);
@@ -254,7 +254,7 @@ assert.ok(scoped.some(p=>p.name==='PrivateSheet'&&p.trusted),'learned categories
 assert.ok(scoped.some(p=>p.name==='林安安'&&p.trusted));
 
 const triggerOnly=extractWorldbookPeople([{name:'身份不确定',entries:[{name:'人物档案',keys:['神秘组','沈挽昼','小沈'],content:'年龄：18'}]}]);
-assert.ok(triggerOnly.length&&triggerOnly.every(p=>p.trusted===false),'ambiguous keys are candidates, never resolved by array order');
+assert.deepEqual(triggerOnly,[],'activation keys alone do not invent even candidate identities');
 assert.deepEqual(detectGreetingPeople('沈挽昼站在门口。',{worldbookPeople:triggerOnly}).names,[]);
 assert.ok(detectGreetingPeople('沈挽昼站在门口。',{worldbookPeople:triggerOnly}).suggestions.includes('沈挽昼'));
 
@@ -305,8 +305,9 @@ const strictByName=new Map(strictPeople.map(p=>[p.name,p]));
 assert.deepEqual(strictByName.get('沈挽昼').aliases,['小沈']);
 assert.deepEqual(strictByName.get('沈挽昼').candidateAliases,['挽昼','消防斧','门口']);
 assert.deepEqual(strictByName.get('林安安').aliases,['安安']);
-for(const name of ['陆斯年','楚泽','月色温柔','宋遥'])assert.equal(strictByName.get(name).trusted,false,name);
-assert.equal(strictByName.get('洛青').trusted,true);
+assert.equal(strictByName.get('陆斯年').trusted,false);
+for(const name of ['楚泽','月色温柔','宋遥'])assert.ok(!strictByName.has(name),name);
+assert.ok(!strictByName.has('洛青'),'a list under a non-cast subsection does not become a cast list');
 assert.ok(!strictPeople.some(p=>p.name==='门口'),'a table without a person column does not invent names');
 assert.deepEqual(detectGreetingPeople('<道具>消防斧、门口、绷带、挽昼</道具>',{worldbookPeople:strictPeople}).names,[]);
 assert.deepEqual(detectGreetingPeople('小沈与安安站在门边。',{worldbookPeople:strictPeople}).names.sort(),['沈挽昼','林安安'].sort());
@@ -320,13 +321,13 @@ assert.match(list.children[0].children[3].textContent,/待确认关键词（未�
 const tableAliases=extractWorldbookPeople([{name:'别名书',entries:[
  {name:'人物速览',content:'| 姓名 | 别名 |\n| --- | --- |\n| 张三 | 阿三 |'},
  {name:'张三',content:'姓名：张三',keys:['阿三','雨夜']},
- {name:'李四',content:'{"name":"李四","alias":"小四"}',keys:['小四','门口']},
+ {name:'李四',content:'{"type":"person","name":"李四","alias":"小四"}',keys:['小四','门口']},
 ]}]);
 assert.deepEqual(tableAliases[0].aliases,['阿三']);assert.deepEqual(tableAliases[0].candidateAliases,['雨夜']);
 assert.deepEqual(tableAliases[1].aliases,['小四']);
 assert.deepEqual(detectGreetingPeople('阿三和小四。',{worldbookPeople:tableAliases}).names.sort(),['张三','李四'].sort());
 const weakLong=[{name:'王明月',trusted:false,aliases:[]},{name:'王明',trusted:true,aliases:[]}];
-assert.deepEqual(detectGreetingPeople('王明月站在门口。',{worldbookPeople:weakLong}).names,['王明'],'an unconfirmed longer candidate cannot mask a confirmed name');
+assert.deepEqual(detectGreetingPeople('王明月站在门口。',{worldbookPeople:weakLong}).names,[],'a longer candidate prevents a shorter name from being falsely matched inside it');
 assert.deepEqual(detectGreetingPeople('姓名：user\n名字：哥哥').names,[]);
 assert.deepEqual(detectGreetingPeople('哥哥：来了。',{aliases:'哥哥'}).names,['哥哥'],'manual rules still confirm special names');
 console.log('Strict identities, untrusted activation keywords, explicit aliases, candidate rendering and manual confirmation passed');
