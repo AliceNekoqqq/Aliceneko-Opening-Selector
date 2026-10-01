@@ -1,5 +1,5 @@
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
-import {createWorldbookPeopleReader,renderWorldbookPeopleList} from './worldbook-people.js';
+import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export async function optimizeCoverData(source,file,doc=document){
   if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
@@ -19,7 +19,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9-beta.5';
+  const VERSION = '1.0.9-beta.6';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -52,13 +52,13 @@ export function mountInDocument(doc = document, helperApi = null) {
     return null;
   };
   const character = () => { const c=context(); return c?.characters?.[c.characterId]; };
-  const readWorldbookPeople=createWorldbookPeopleReader(helper());
+  const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host]);
   let worldbookPeople=[],worldbookMessage='正在读取角色世界书人物名单…';
   async function refreshWorldbookPeople(refresh=false){
     const card=character(),identity=card?.avatar;
     try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
-      worldbookPeople=result.people;worldbookMessage=`世界书人物名单：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;render();
-    }catch{worldbookMessage='世界书读取失败，可手动填写姓名与别名。'}
+      worldbookPeople=result.people;worldbookMessage=formatWorldbookPeopleStatus(result);render();
+    }catch{worldbookMessage='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
     const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,worldbookPeople);
   }
   const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];

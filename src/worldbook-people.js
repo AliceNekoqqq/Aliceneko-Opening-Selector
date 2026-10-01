@@ -21,7 +21,7 @@ export function extractWorldbookPeople(books){
   for(const book of books||[])for(const entry of (Array.isArray(book.entries)?book.entries:[]).slice(0,3000)){
     if(entry.enabled===false||entry.disable===true)continue;
     const title=String(entry.name||entry.comment||'').slice(0,160),content=String(entry.content||'').slice(0,100000);
-    const rawKeys=entry.strategy?.keys??entry.key??[],keys=(Array.isArray(rawKeys)?rawKeys:[]).filter(key=>typeof key==='string').flatMap(wbNames);
+    const rawKeys=entry.strategy?.keys??entry.keys??entry.key??[],keys=(Array.isArray(rawKeys)?rawKeys:[]).filter(key=>typeof key==='string').flatMap(wbNames);
     const record={book:book.name,title,content,keys,names:new Set(),titleName:''};records.push(record);
     // YAML, JSON, Markdown labels and XML name fields; do not treat arbitrary prose as a name.
     const labeled=content.replace(/\*\*|`/g,'');
@@ -29,7 +29,7 @@ export function extractWorldbookPeople(books){
       for(const name of wbNames(match[1])){record.names.add(name);add(name,record,'姓名字段')}
     }
     for(const match of labeled.matchAll(/<(姓名|角色名|人物姓名|角色姓名|名字|name)>\s*([^<>]{1,100})\s*<\/\1>/giu))for(const name of wbNames(match[2])){record.names.add(name);add(name,record,'姓名字段')}
-    const titleName=wbName(title.replace(/[【\[]([^】\]]*)[】\]]/g,(_,inside)=>/^(?:人物|角色|NPC|人物档案|角色档案)$/i.test(inside)?'':inside).replace(/^(?:人物档案|角色档案|人物设定|角色设定|人物|角色|NPC)\s*[：:\-—|｜]?\s*/i,'').replace(/\s*[|｜\-—：:]\s*(?:人物|角色|NPC|档案|设定).*$/i,''));
+    const titleName=wbName(title.replace(/[【\[]([^】\]]*)[】\]]/g,(_,inside)=>/^(?:人物|角色|NPC|人物档案|角色档案)$/i.test(inside)?'':inside).replace(/^(?:人物档案|角色档案|人物设定|角色设定|人物介绍|角色介绍|人物简介|角色简介|人设|人物|角色|NPC)\s*[：:\-—|｜]?\s*/i,'').replace(/\s*[|｜\-—：:]\s*(?:人物|角色|NPC|档案|设定|基础信息).*$/i,'').replace(/(?:人物介绍|角色介绍|人物设定|角色设定|人物档案|角色档案|人设)$/i,''));
     if(wbNames(titleName).length===1)record.titleName=titleName;
     // Explicit cast sections: table column names take priority over column position.
     let overview=WB_OVERVIEW.test(title),sectionLevel=0,tableNameColumn=-1,tableAliasColumn=-1;
@@ -56,7 +56,7 @@ export function extractWorldbookPeople(books){
     const personTitle=/(?:人物|角色|NPC|档案)/i.test(title)&&!WB_OVERVIEW.test(title)&&!/(?:关系|规则|名单|设定集)/u.test(title);
     const nonPerson=/(?:地点|地理位置|场所类型|势力名称|物品名称)\s*[：:]/u.test(labeled);
     // A bare title requires corroboration, not just a plausible Chinese word.
-    if(record.titleName&&!nonPerson&&(personTitle||personFields||record.names.has(record.titleName)||keys.includes(record.titleName)&&/(?:他|她|性格|外貌|出身|人物|角色|\bhe\b|\bshe\b)/iu.test(labeled))){
+    if(record.titleName&&(!nonPerson||personFields||record.names.has(record.titleName))&&(personTitle||personFields||record.names.has(record.titleName)||keys.includes(record.titleName)&&/(?:他|她|性格|外貌|出身|人物|角色|\bhe\b|\bshe\b)/iu.test(labeled))){
       if(!record.names.size||record.names.has(record.titleName)){record.names.add(record.titleName);add(record.titleName,record,'人物条目标题')}
     }
   }
@@ -82,21 +82,48 @@ export function renderWorldbookPeopleList(doc,list,people){
     const source=doc.createElement('p');source.textContent=`来源：${person.sources?.join('；')||'人物名单'}`;row.append(aliases,source);list.append(row);
   }
 }
+export function formatWorldbookPeopleStatus(result){
+  const {people=[],books=[],boundBooks=books,entryCount=0,warnings=[]}=result;
+  const source=boundBooks.length?`角色绑定世界书：${boundBooks.join('、')}（已读取 ${books.length}/${boundBooks.length} 本，${entryCount} 条）`:(warnings.length?'角色世界书读取不可用':'当前角色未绑定世界书');
+  return `${source}；提取人物：${people.length} 人${warnings.length?`；${warnings.join('；')}`:''}。${people.length?'按名单匹配全文，明确姓名标注可补充名单外人物。':'继续识别正文中的明确姓名、人物名单与台词署名。'}`;
+}
 export function createWorldbookPeopleReader(helper){
   const cache=new Map();
   return async function read(card,{refresh=false}={}){
-    const data=card?.data||card||{};let bindings=[],warnings=[];
-    if(typeof helper?.getCharWorldbookNames==='function')try{const names=await helper.getCharWorldbookNames('current');bindings=[...new Set([names?.primary,...(Array.isArray(names?.additional)?names.additional:[])].filter(x=>typeof x==='string'&&x))]}catch{warnings.push('无法读取角色绑定的世界书')}
-    else warnings.push('当前酒馆助手未提供角色世界书接口');
-    const key=JSON.stringify([card?.avatar||data.name||'',bindings]);
+    const data=card?.data||card||{},provided=typeof helper==='function'?helper():helper;
+    const sources=(Array.isArray(provided)?provided:[provided]).filter(Boolean);
+    const find=method=>{const owner=sources.find(source=>typeof source[method]==='function');return owner?owner[method].bind(owner):null};
+    const getNames=find('getCharWorldbookNames'),getOldNames=find('getCharLorebooks'),getPrimary=find('getCurrentCharPrimaryLorebook');
+    let bindings=[],warnings=[],bindingRead=false;
+    const calls=[getNames&&(()=>getNames('current')),getOldNames&&(()=>getOldNames({name:'current',type:'all'})),getPrimary&&(()=>({primary:getPrimary(),additional:[]}))].filter(Boolean);
+    for(const getBindings of calls)try{
+      const names=await getBindings();
+      if(!names||typeof names!=='object'||!('primary' in names||'additional' in names))throw Error('返回格式异常');
+      bindings=[...new Set([names.primary,...(Array.isArray(names.additional)?names.additional:[])].filter(x=>typeof x==='string'&&x))];bindingRead=true;break;
+    }catch{}
+    if(!bindingRead){
+      // This is the saved binding, not the card's embedded character_book contents.
+      const primary=data.extensions?.world??card?.extensions?.world;
+      if(typeof primary==='string'&&primary.trim()){bindings=[primary];warnings.push('绑定接口不可用，按角色卡保存的主世界书绑定读取')}
+      else warnings.push(calls.length?'无法读取角色绑定的世界书':'当前酒馆助手未提供角色世界书接口');
+    }
+    const getBook=find('getWorldbook'),getOldBook=find('getLorebookEntries');
+    const key=JSON.stringify([card?.avatar||data.name||'',bindings,Boolean(getBook),Boolean(getOldBook)]);
     if(!refresh&&cache.has(key))return cache.get(key);
     const pending=(async()=>{
       const books=[];
-      if(bindings.length&&typeof helper?.getWorldbook!=='function')warnings.push('当前酒馆助手未提供世界书读取接口');
-      else for(const name of bindings)try{const entries=await helper.getWorldbook(name);if(Array.isArray(entries))books.push({name,entries});else warnings.push(`世界书“${name}”返回格式异常`)}catch{warnings.push(`世界书“${name}”读取失败`)}
-      return {people:extractWorldbookPeople(books),books:books.map(book=>book.name),warnings};
+      if(bindings.length&&!getBook&&!getOldBook)warnings.push('当前酒馆助手未提供世界书读取接口');
+      else for(const name of bindings){
+        let loaded=false,errorMessage='';
+        for(const fetchBook of [getBook,getOldBook].filter(Boolean))try{
+          const entries=await fetchBook(name);if(!Array.isArray(entries))throw Error('返回格式异常');
+          books.push({name,entries});loaded=true;break;
+        }catch(error){errorMessage=String(error?.message||error).slice(0,160)}
+        if(!loaded)warnings.push(`世界书“${name}”读取失败${errorMessage?`：${errorMessage}`:''}`);
+      }
+      return {people:extractWorldbookPeople(books),books:books.map(book=>book.name),boundBooks:bindings,entryCount:books.reduce((count,book)=>count+book.entries.length,0),warnings};
     })();
     if(cache.size>=8&&!cache.has(key))cache.delete(cache.keys().next().value);
-    cache.set(key,pending);const result=await pending;if(result.warnings.length)if(cache.get(key)===pending)cache.delete(key);return result;
+    cache.set(key,pending);const result=await pending;if(result.warnings.length&&cache.get(key)===pending)cache.delete(key);return result;
   };
 }

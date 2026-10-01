@@ -22,7 +22,7 @@ function extractWorldbookPeople(books){
   for(const book of books||[])for(const entry of (Array.isArray(book.entries)?book.entries:[]).slice(0,3000)){
     if(entry.enabled===false||entry.disable===true)continue;
     const title=String(entry.name||entry.comment||'').slice(0,160),content=String(entry.content||'').slice(0,100000);
-    const rawKeys=entry.strategy?.keys??entry.key??[],keys=(Array.isArray(rawKeys)?rawKeys:[]).filter(key=>typeof key==='string').flatMap(wbNames);
+    const rawKeys=entry.strategy?.keys??entry.keys??entry.key??[],keys=(Array.isArray(rawKeys)?rawKeys:[]).filter(key=>typeof key==='string').flatMap(wbNames);
     const record={book:book.name,title,content,keys,names:new Set(),titleName:''};records.push(record);
     // YAML, JSON, Markdown labels and XML name fields; do not treat arbitrary prose as a name.
     const labeled=content.replace(/\*\*|`/g,'');
@@ -30,7 +30,7 @@ function extractWorldbookPeople(books){
       for(const name of wbNames(match[1])){record.names.add(name);add(name,record,'姓名字段')}
     }
     for(const match of labeled.matchAll(/<(姓名|角色名|人物姓名|角色姓名|名字|name)>\s*([^<>]{1,100})\s*<\/\1>/giu))for(const name of wbNames(match[2])){record.names.add(name);add(name,record,'姓名字段')}
-    const titleName=wbName(title.replace(/[【\[]([^】\]]*)[】\]]/g,(_,inside)=>/^(?:人物|角色|NPC|人物档案|角色档案)$/i.test(inside)?'':inside).replace(/^(?:人物档案|角色档案|人物设定|角色设定|人物|角色|NPC)\s*[：:\-—|｜]?\s*/i,'').replace(/\s*[|｜\-—：:]\s*(?:人物|角色|NPC|档案|设定).*$/i,''));
+    const titleName=wbName(title.replace(/[【\[]([^】\]]*)[】\]]/g,(_,inside)=>/^(?:人物|角色|NPC|人物档案|角色档案)$/i.test(inside)?'':inside).replace(/^(?:人物档案|角色档案|人物设定|角色设定|人物介绍|角色介绍|人物简介|角色简介|人设|人物|角色|NPC)\s*[：:\-—|｜]?\s*/i,'').replace(/\s*[|｜\-—：:]\s*(?:人物|角色|NPC|档案|设定|基础信息).*$/i,'').replace(/(?:人物介绍|角色介绍|人物设定|角色设定|人物档案|角色档案|人设)$/i,''));
     if(wbNames(titleName).length===1)record.titleName=titleName;
     // Explicit cast sections: table column names take priority over column position.
     let overview=WB_OVERVIEW.test(title),sectionLevel=0,tableNameColumn=-1,tableAliasColumn=-1;
@@ -57,7 +57,7 @@ function extractWorldbookPeople(books){
     const personTitle=/(?:人物|角色|NPC|档案)/i.test(title)&&!WB_OVERVIEW.test(title)&&!/(?:关系|规则|名单|设定集)/u.test(title);
     const nonPerson=/(?:地点|地理位置|场所类型|势力名称|物品名称)\s*[：:]/u.test(labeled);
     // A bare title requires corroboration, not just a plausible Chinese word.
-    if(record.titleName&&!nonPerson&&(personTitle||personFields||record.names.has(record.titleName)||keys.includes(record.titleName)&&/(?:他|她|性格|外貌|出身|人物|角色|\bhe\b|\bshe\b)/iu.test(labeled))){
+    if(record.titleName&&(!nonPerson||personFields||record.names.has(record.titleName))&&(personTitle||personFields||record.names.has(record.titleName)||keys.includes(record.titleName)&&/(?:他|她|性格|外貌|出身|人物|角色|\bhe\b|\bshe\b)/iu.test(labeled))){
       if(!record.names.size||record.names.has(record.titleName)){record.names.add(record.titleName);add(record.titleName,record,'人物条目标题')}
     }
   }
@@ -83,22 +83,49 @@ function renderWorldbookPeopleList(doc,list,people){
     const source=doc.createElement('p');source.textContent=`来源：${person.sources?.join('；')||'人物名单'}`;row.append(aliases,source);list.append(row);
   }
 }
+function formatWorldbookPeopleStatus(result){
+  const {people=[],books=[],boundBooks=books,entryCount=0,warnings=[]}=result;
+  const source=boundBooks.length?`角色绑定世界书：${boundBooks.join('、')}（已读取 ${books.length}/${boundBooks.length} 本，${entryCount} 条）`:(warnings.length?'角色世界书读取不可用':'当前角色未绑定世界书');
+  return `${source}；提取人物：${people.length} 人${warnings.length?`；${warnings.join('；')}`:''}。${people.length?'按名单匹配全文，明确姓名标注可补充名单外人物。':'继续识别正文中的明确姓名、人物名单与台词署名。'}`;
+}
 function createWorldbookPeopleReader(helper){
   const cache=new Map();
   return async function read(card,{refresh=false}={}){
-    const data=card?.data||card||{};let bindings=[],warnings=[];
-    if(typeof helper?.getCharWorldbookNames==='function')try{const names=await helper.getCharWorldbookNames('current');bindings=[...new Set([names?.primary,...(Array.isArray(names?.additional)?names.additional:[])].filter(x=>typeof x==='string'&&x))]}catch{warnings.push('无法读取角色绑定的世界书')}
-    else warnings.push('当前酒馆助手未提供角色世界书接口');
-    const key=JSON.stringify([card?.avatar||data.name||'',bindings]);
+    const data=card?.data||card||{},provided=typeof helper==='function'?helper():helper;
+    const sources=(Array.isArray(provided)?provided:[provided]).filter(Boolean);
+    const find=method=>{const owner=sources.find(source=>typeof source[method]==='function');return owner?owner[method].bind(owner):null};
+    const getNames=find('getCharWorldbookNames'),getOldNames=find('getCharLorebooks'),getPrimary=find('getCurrentCharPrimaryLorebook');
+    let bindings=[],warnings=[],bindingRead=false;
+    const calls=[getNames&&(()=>getNames('current')),getOldNames&&(()=>getOldNames({name:'current',type:'all'})),getPrimary&&(()=>({primary:getPrimary(),additional:[]}))].filter(Boolean);
+    for(const getBindings of calls)try{
+      const names=await getBindings();
+      if(!names||typeof names!=='object'||!('primary' in names||'additional' in names))throw Error('返回格式异常');
+      bindings=[...new Set([names.primary,...(Array.isArray(names.additional)?names.additional:[])].filter(x=>typeof x==='string'&&x))];bindingRead=true;break;
+    }catch{}
+    if(!bindingRead){
+      // This is the saved binding, not the card's embedded character_book contents.
+      const primary=data.extensions?.world??card?.extensions?.world;
+      if(typeof primary==='string'&&primary.trim()){bindings=[primary];warnings.push('绑定接口不可用，按角色卡保存的主世界书绑定读取')}
+      else warnings.push(calls.length?'无法读取角色绑定的世界书':'当前酒馆助手未提供角色世界书接口');
+    }
+    const getBook=find('getWorldbook'),getOldBook=find('getLorebookEntries');
+    const key=JSON.stringify([card?.avatar||data.name||'',bindings,Boolean(getBook),Boolean(getOldBook)]);
     if(!refresh&&cache.has(key))return cache.get(key);
     const pending=(async()=>{
       const books=[];
-      if(bindings.length&&typeof helper?.getWorldbook!=='function')warnings.push('当前酒馆助手未提供世界书读取接口');
-      else for(const name of bindings)try{const entries=await helper.getWorldbook(name);if(Array.isArray(entries))books.push({name,entries});else warnings.push(`世界书“${name}”返回格式异常`)}catch{warnings.push(`世界书“${name}”读取失败`)}
-      return {people:extractWorldbookPeople(books),books:books.map(book=>book.name),warnings};
+      if(bindings.length&&!getBook&&!getOldBook)warnings.push('当前酒馆助手未提供世界书读取接口');
+      else for(const name of bindings){
+        let loaded=false,errorMessage='';
+        for(const fetchBook of [getBook,getOldBook].filter(Boolean))try{
+          const entries=await fetchBook(name);if(!Array.isArray(entries))throw Error('返回格式异常');
+          books.push({name,entries});loaded=true;break;
+        }catch(error){errorMessage=String(error?.message||error).slice(0,160)}
+        if(!loaded)warnings.push(`世界书“${name}”读取失败${errorMessage?`：${errorMessage}`:''}`);
+      }
+      return {people:extractWorldbookPeople(books),books:books.map(book=>book.name),boundBooks:bindings,entryCount:books.reduce((count,book)=>count+book.entries.length,0),warnings};
     })();
     if(cache.size>=8&&!cache.has(key))cache.delete(cache.keys().next().value);
-    cache.set(key,pending);const result=await pending;if(result.warnings.length)if(cache.get(key)===pending)cache.delete(key);return result;
+    cache.set(key,pending);const result=await pending;if(result.warnings.length&&cache.get(key)===pending)cache.delete(key);return result;
   };
 }
 
@@ -121,7 +148,7 @@ async function optimizeCoverData(source,file,doc=document){
 }
 function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9-beta.5';
+  const VERSION = '1.0.9-beta.6';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -154,13 +181,13 @@ function mountInDocument(doc = document, helperApi = null) {
     return null;
   };
   const character = () => { const c=context(); return c?.characters?.[c.characterId]; };
-  const readWorldbookPeople=createWorldbookPeopleReader(helper());
+  const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host]);
   let worldbookPeople=[],worldbookMessage='正在读取角色世界书人物名单…';
   async function refreshWorldbookPeople(refresh=false){
     const card=character(),identity=card?.avatar;
     try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
-      worldbookPeople=result.people;worldbookMessage=`世界书人物名单：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;render();
-    }catch{worldbookMessage='世界书读取失败，可手动填写姓名与别名。'}
+      worldbookPeople=result.people;worldbookMessage=formatWorldbookPeopleStatus(result);render();
+    }catch{worldbookMessage='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
     const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,worldbookPeople);
   }
   const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];
@@ -525,7 +552,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
   }
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;
-  const api={version:'1.0.9-beta.5',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
+  const api={version:'1.0.9-beta.6',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
   const onPageHide=()=>{if(doc.__uosAuthor===api)api.close()};doc.__uosAuthor=api;
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   scan();return api;
@@ -534,7 +561,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.9-beta.5';
+const VERSION='1.0.9-beta.6';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -681,7 +708,7 @@ function personAliases(value){
 }
 function detectGreetingPeople(body,{knownNames=[],aliases='',worldbookPeople=null}={}){
   const text=String(body||'');
-  const names=[],evidence={},suggestions=[],vocabularyOnly=Array.isArray(worldbookPeople);
+  const names=[],evidence={},suggestions=[],vocabularyOnly=Array.isArray(worldbookPeople)&&worldbookPeople.some(person=>isPersonName(person?.name));
   const dictionary=new Map(),worldbookByName=new Map(),owners=new Map();
   for(const person of worldbookPeople||[]){
     if(!isPersonName(person?.name))continue;worldbookByName.set(person.name,person);
@@ -694,7 +721,7 @@ function detectGreetingPeople(body,{knownNames=[],aliases='',worldbookPeople=nul
   for(const person of worldbookByName.values())dictionary.set(person.name,person.name);
   for(const name of knownNames)if(PERSON_WORD.test(name))dictionary.set(name,name);
   for(const [alias,name] of personAliases(aliases))dictionary.set(alias,name);
-  const add=(name,source)=>{if(vocabularyOnly&&!dictionary.has(name))return;const canonical=dictionary.get(name)||name;if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical))return;if(!names.includes(canonical))names.push(canonical);if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source};
+  const add=(name,source)=>{if(owners.get(name)?.size>1&&!dictionary.has(name))return;if(vocabularyOnly&&!dictionary.has(name)&&source!=='明确标注')return;const canonical=dictionary.get(name)||name;if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical))return;if(!names.includes(canonical))names.push(canonical);if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source};
   // Metadata labels and person lists are explicit even when inside another tag.
   for(const match of text.matchAll(/(?:姓名|人物姓名|角色名|角色姓名|登场人物|在场角色|名字)[：:]\s*([^\n<>。；;]{1,160})/gmu))for(const name of match[1].split(/[、，,\/]+/).map(x=>x.trim().replace(/[（(].*$/,'')))if(isPersonName(name))add(name,'明确标注');
   for(const match of text.matchAll(/<(姓名|角色名|人物姓名|角色姓名|名字)>\s*([^<>]{2,60})\s*<\/\1>/gmu))add(match[2].trim(),'明确标注');
@@ -705,7 +732,8 @@ function detectGreetingPeople(body,{knownNames=[],aliases='',worldbookPeople=nul
     for(let j=i+1;j<Math.min(i+15,lines.length);j++){
       const item=lines[j].trim().match(/^(?:[-*•·]|\d+[.、])\s*([\p{Script=Han}]{2,12})(.*)$/u);
       if(!item)break;
-      const head=item[1];if(head.length<=4){add(head,'明确标注');continue}
+      const head=item[1],knownHead=[...dictionary.keys()].sort((a,b)=>b.length-a.length).find(name=>head.startsWith(name));if(knownHead){add(knownHead,'明确标注');continue}if(head.length<=4){add(head,'明确标注');continue}
+      if(typeof Intl.Segmenter!=='function')continue;
       const words=[...new Intl.Segmenter('zh',{granularity:'word'}).segment(head)];
       const boundary=words.find(x=>x.index>=2&&x.index<=4&&x.segment.length>=2)?.index;
       if(boundary)add(head.slice(0,boundary),'明确标注');
@@ -792,7 +820,7 @@ function mountPlayerSelector(startDocument=document,helperApi){
   doc.__uosPlayer?.close?.();
   const host=doc.defaultView||globalThis;
   const helper=helperApi||host.TavernHelper||host;
-  const readWorldbookPeople=createWorldbookPeopleReader(helper);
+  const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS;(doc.head||doc.documentElement).append(style);
   let trigger=null,overlay=null,updating=false,suppressClickUntil=0;
   const positionKey='uos_player_button_position';
@@ -1003,8 +1031,8 @@ function mountPlayerSelector(startDocument=document,helperApi){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
         if(overlay!==active||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
-        worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,worldbookPeople);worldbookStatus.textContent=`世界书人物名单：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;updatePeople();renderCards();
-      }catch{if(overlay===active)worldbookStatus.textContent='世界书读取失败，可手动填写姓名与别名。'}finally{reloadWorldbook.disabled=false}
+        worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,worldbookPeople);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
+      }catch{if(overlay===active)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();
     try{active.showModal()}catch(error){closePanel();console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error);return}
@@ -1024,5 +1052,5 @@ function mountPlayerSelector(startDocument=document,helperApi){
   return api;
 }
 
-export const OPENING_SELECTOR_VERSION='1.0.9-beta.5';
+export const OPENING_SELECTOR_VERSION='1.0.9-beta.6';
 export function mountUniversalSelector(startDocument=document,helperApi=null){const doc=startDocument?.nodeType===9?startDocument:document;const helper=helperApi||globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null);mountPlayerSelector(doc,helper);mountAuthorSelector(doc,helper,{showSetupHints:true});return {player:doc.__uosPlayer,author:doc.__uosAuthor}};
