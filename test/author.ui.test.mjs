@@ -4,31 +4,38 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10.json','utf8'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.1.json','utf8'));
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
-const loader=payload.content.replace(/https:\/\/cdn\.jsdelivr\.net\/gh\/AliceNekoqqq\/Aliceneko-Opening-Selector@[^\"\\]+\/remote\.js/,localUrl);
+const loader=payload.content.replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`);
 const first='<UniversalOpeningSelector/>\n\n【请选择开场】';
 const card={avatar:'test.png',data:{first_mes:'原主开场。',alternate_greetings:['<SceneInfo>在场角色：\n- 张子薇制服</SceneInfo>\n<content>雨夜车站的重逢。</content>'],extensions:{}}};
 const browser=await chromium.launch({headless:true});
 try{
   const page=await browser.newPage();
-  const runtimeRef=payload.content.match(/fallbackRef='([a-f0-9]{40})'/)[1];
+  const runtimeRef=payload.content.match(/\"fallbackRef\":\"([a-f0-9]{40})\"/)[1];
   await page.route('**/scripts/runtime-ref-preview.txt',route=>route.fulfill({status:200,body:runtimeRef,headers:{'access-control-allow-origin':'*'}}));
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.setContent('<style>.mes_text iframe{pointer-events:none!important}</style><div id="chat"><div class="mes" mesid="0"><div class="mes_text">原主开场。</div></div></div>');
   await page.evaluate(card=>{
-    const state={characters:[card],characterId:0,groupId:null,swipe:0};
+    const worldbooks={'测试角色书':[{uid:1,name:'人物速览',content:'- 张子薇：同学',enabled:true},{uid:2,name:'张子薇',content:'姓名：张子薇\n性别：女',enabled:false,strategy:{keys:['张子薇','子薇']}}],'旧接口角色书':[{uid:9,name:'旧接口人物',comment:'人物：张子薇',enabled:true,content:'姓名：张子薇\n性别：女',keys:['张子薇','子薇']}]};
+    const state={characters:[card],characterId:0,groupId:null,swipe:0,getRequestHeaders:()=>({}),writeExtensionField:async(_id,key,value)=>{card.data.extensions[key]=JSON.parse(JSON.stringify(value))}};
     window.SillyTavern={getContext:()=>state};
     window.TavernHelper={
       getChatMessages:()=>[{role:'assistant',swipe_id:state.swipe,swipes:[card.data.first_mes,...card.data.alternate_greetings]}],
       getLastMessageId:()=>0,
       getCharWorldbookNames:()=>({primary:'测试角色书',additional:[]}),
-      getWorldbook:async()=>[{name:'人物速览',content:'- 张子薇：同学'},{name:'张子薇',content:'姓名：张子薇\n性别：女',strategy:{keys:['张子薇','子薇']}}],
+      getWorldbook:async name=>worldbooks[name]||[],
+      updateWorldbookWith:async(name,updater)=>{worldbooks[name]=await updater(worldbooks[name]||[])},
       setChatMessages:async([{swipe_id}])=>{state.swipe=swipe_id},
     };
-    window.__state=state;
+    const nativeFetch=window.fetch.bind(window);window.fetch=async(url,options={})=>{
+      if(url==='/api/characters/merge-attributes'){const body=JSON.parse(options.body);card.data.extensions={...card.data.extensions,...body.data.extensions};return {ok:true,status:200}}
+      if(url==='/api/characters/get')return {ok:true,status:200,json:async()=>JSON.parse(JSON.stringify(card))};
+      return nativeFetch(url,options);
+    };
+    window.__state=state;window.__worldbooks=worldbooks;
   },card);
   await page.evaluate(()=>{const frame=document.createElement('iframe');frame.id='uos-test-runner';document.body.append(frame)});
   const runner=page.frames().find(frame=>frame.parentFrame()===page.mainFrame());
@@ -51,7 +58,8 @@ try{
   await page.evaluate(()=>{
     delete window.TavernHelper.getCharWorldbookNames;delete window.TavernHelper.getWorldbook;
     window.TavernHelper.getCharLorebooks=()=>({primary:'旧接口角色书',additional:[]});
-    window.TavernHelper.getLorebookEntries=async()=>[{comment:'人物：张子薇',enabled:true,content:'姓名：张子薇\n性别：女',keys:['张子薇','子薇']}];
+    window.TavernHelper.getLorebookEntries=async name=>window.__worldbooks[name]||[{uid:9,comment:'人物：张子薇',name:'旧接口人物',enabled:true,content:'姓名：张子薇\n性别：女',keys:['张子薇','子薇']}];
+    window.TavernHelper.updateWorldbookWith=async(name,updater)=>{window.__worldbooks[name]=await updater(window.__worldbooks[name]||[])};
   });
   await rules.getByText('重新读取世界书',{exact:true}).click();
   await rules.locator('.uos-worldbook-people').getByText('张子薇',{exact:true}).waitFor();
@@ -77,7 +85,7 @@ try{
   await selector.getByLabel('按人物筛选作者开场').selectOption('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
   await selector.getByLabel('按人物筛选作者开场').selectOption('');
-  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.9-beta\.13/);
+  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.10-beta\.1/);
   await selector.locator('.uos-card-details summary').first().click();
   assert.match(await selector.locator('.uos-card-details pre').first().textContent(),/原主开场/);
   assert.equal(await page.locator('iframe[data-uos-author-frame]').evaluate(node=>getComputedStyle(node).pointerEvents),'auto');
@@ -105,10 +113,18 @@ try{
   const settingsRect=await page.locator('iframe[data-uos-frame]').boundingBox();
   assert.ok(settingsRect.width<page.viewportSize().width && settingsRect.height<page.viewportSize().height);
   await dialog.getByText('第 1 条开场').waitFor();
-  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
+  await dialog.locator('[data-tab="worldbooks"]').click();
+  const openingPreset=dialog.locator('.uos-worldbook-opening').first();
+  await openingPreset.getByText('旧接口人物',{exact:true}).waitFor();
+  const presetToggle=openingPreset.locator('.uos-worldbook-entry-toggle input').first();
+  assert.equal(await presetToggle.isChecked(),true,'worldbook settings show current entry state');
+  await presetToggle.uncheck();
+  assert.match(await openingPreset.locator('.uos-worldbook-opening-state').textContent(),/已配置/);
+  await dialog.locator('[data-save]').click();
+  await page.waitForFunction(()=>window.__state.characters[0].data.extensions.universal_opening_selector.entries[0].worldbookPreset.books[0].entries.find(e=>e.uid===9).enabled===false);
 
   await selector.locator('.uos-card').first().click();
-  await page.waitForFunction(()=>window.__state.swipe===1);
+  await page.waitForFunction(()=>window.__state.swipe===1&&window.__worldbooks['旧接口角色书'][0].enabled===false);
   assert.deepEqual(errors,[]);
   console.log('One script switches player and author modes; author buttons work under hostile chat CSS');
 }finally{await browser.close()}

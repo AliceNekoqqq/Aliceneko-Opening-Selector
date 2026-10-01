@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.16.json'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.1.json'));
 assert.match(payload.name,/确认更新/);
 assert.equal(payload.enabled,false);assert.equal(payload.export_with.data,false);
 const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
 const next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
-async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,moduleVersion='1.0.9-beta.17'}={}){
+async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,moduleVersion='1.0.10-beta.1'}={}){
  const imports=[],mounts=[],prompts=[],messages=[],storage=new Map(stored?[["uos-approved-runtime-preview",JSON.stringify(stored)]]:[]);
  const host={localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>{if(storageFails)throw Error('storage blocked');storage.set(key,value)}},confirm:text=>{prompts.push(text);return accept},alert:text=>messages.push(text)};
  const doc={defaultView:host,createElement:()=>({style:{},children:[],setAttribute(key,value){this[key]=value},append(...items){this.children.push(...items)},remove(){this.removed=true}}),body:{append:button=>{doc.button=button}}};

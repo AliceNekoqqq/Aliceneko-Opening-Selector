@@ -200,3 +200,18 @@
 @media(max-width:600px){.uos-theme-art{top:4px;right:4px;width:34px}.uos-kicker::after{width:21px;height:21px}.uos-theme-swatch-art{width:32px;height:32px}.uos-search-empty{gap:10px;min-height:82px;padding:12px}.uos-search-empty::before{width:52px;height:52px}.uos-tab-art{width:29px;height:29px}.uos-tabs button{gap:5px;padding:8px 5px;font-size:12px}.uos-empty-music{height:104px}}
 
 .uos-person-rules{grid-column:1/-1}.uos-person-rules summary{cursor:pointer;color:var(--accent)}.uos-worldbook-people{max-height:240px;overflow:auto;padding-left:22px;overflow-wrap:anywhere;font-size:13px}.uos-worldbook-people li{margin:10px 0}.uos-worldbook-people p{margin:4px 0;color:var(--muted);font-size:12px;line-height:1.5}
+.uos-tab-art-letter{display:grid;place-items:center;border:1px solid var(--line);border-radius:9px;background:linear-gradient(145deg,var(--panel),var(--bg));color:var(--accent);font:700 17px/1 serif;text-shadow:0 1px 5px #0008}
+.uos-worldbook-opening{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--panel) 86%,transparent)}
+.uos-worldbook-opening>summary,.uos-worldbook-group>summary{cursor:pointer;color:var(--text);font-weight:700;overflow-wrap:anywhere}
+.uos-worldbook-opening>summary{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.uos-worldbook-opening-state{flex:none;color:var(--accent);font-size:11px;font-weight:600}
+.uos-worldbook-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.uos-worldbook-search{display:block;width:100%;margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text)}
+.uos-worldbook-group{margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.uos-worldbook-entry-list{max-height:300px;overflow:auto;margin-top:8px}
+.uos-worldbook-entry-toggle{display:grid;grid-template-columns:20px minmax(0,1fr);gap:5px 9px;align-items:start;margin:5px 0;padding:9px;border:1px solid color-mix(in srgb,var(--line) 65%,transparent);border-radius:8px;background:var(--panel);cursor:pointer}
+.uos-worldbook-entry-toggle input{width:17px;height:17px;margin:1px 0 0;accent-color:var(--accent)}
+.uos-worldbook-entry-name{overflow-wrap:anywhere;font-size:13px;line-height:1.45}
+.uos-worldbook-entry-keys{grid-column:2;color:var(--muted);font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.uos-worldbook-presets-list{margin-top:8px}
+@media(max-width:600px){.uos-tabs{gap:3px}.uos-tabs button{padding:7px 3px;font-size:11px}.uos-tab-art-letter{font-size:14px}.uos-worldbook-opening{padding:9px}.uos-worldbook-actions{gap:5px}.uos-worldbook-actions .uos-icon{padding:7px;font-size:12px}}
