@@ -1,4 +1,6 @@
-import {greetingTitle,greetingNames,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
+import {bindUpdateControl} from './update-control.js';
+import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './player.js';
+import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export async function optimizeCoverData(source,file,doc=document){
   if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
@@ -18,7 +20,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9';
+  const VERSION = '1.0.10';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -51,6 +53,15 @@ export function mountInDocument(doc = document, helperApi = null) {
     return null;
   };
   const character = () => { const c=context(); return c?.characters?.[c.characterId]; };
+  const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host]);
+  let worldbookPeople=[],worldbookDiagnostics=[],worldbookMessage='正在读取角色世界书人物名单…';
+  async function refreshWorldbookPeople(refresh=false){
+    const card=character(),identity=card?.avatar;
+    try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
+      worldbookPeople=result.people;worldbookDiagnostics=result.diagnostics||[];worldbookMessage=formatWorldbookPeopleStatus(result);render();
+    }catch{worldbookMessage='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
+    const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,worldbookPeople,worldbookDiagnostics);
+  }
   const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];
   let config = normalize(stored || seed);
   let draft = null;
@@ -66,6 +77,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       subtitle:String(x.subtitle||'选择一个开场，故事将从那里继续。').slice(0,400),
       theme:THEMES.some(t=>t[0]===x.theme)?x.theme:'archive',
       excludedTags:String(x.excludedTags||'').slice(0,500),
+      personAliases:String(x.personAliases||'').slice(0,1500),
       entries:Array.isArray(x.entries)?x.entries.map((e,i)=>({
         title:String(e?.title||`开场 ${i+1}`).slice(0,100),
         description:String(e?.description||'').slice(0,300),
@@ -83,16 +95,18 @@ export function mountInDocument(doc = document, helperApi = null) {
     // This packaged card reserves the main greeting (swipe 0) for the selector.
     return String(first).includes('<UniversalOpeningSelector/>') ? alts : [];
   }
-  function infer(text,i){
+  function infer(text,i,people){
     const source=String(text||''),excluded=excludedTags(config.excludedTags);
     const title=greetingTitle(source,i,excluded),body=narrativeStart(source,excluded);
-    return {title,description:body.slice(title.length).trim().slice(0,140),names:greetingNames(source).join('、')};
+    const detected=people||detectGreetingCollection([source],{aliases:config.personAliases,worldbookPeople})[0];
+    return {title,description:body.slice(title.length).trim().slice(0,140),names:detected.names.join('、'),nameSuggestions:detected.suggestions};
   }
   function suggest(text,i){return infer(text,i)}
   function entries(){
     const greetings=greetingList();
     const count=greetings.length || config.entries.length;
-    return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
+    const people=detectGreetingCollection(greetings,{characterName:character()?.data?.name||character()?.name,knownNames:config.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[]),aliases:config.personAliases,worldbookPeople});
+    return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i]),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
@@ -163,6 +177,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title));
       if(entry.description)body.append(el('div','uos-description',entry.description));
       body.append(el('p','uos-card-names',`登场人物 · ${names?names.replace(/[,，]/g,' / '):'未识别'}`));
+      if(entry.nameSuggestions?.length)body.append(el('p','uos-help',`待确认人物 · ${entry.nameSuggestions.join(' / ')}`));
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
       const source=greetings[i];
       if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'),el('pre','',source));shell.append(details)}
@@ -237,22 +252,27 @@ export function mountInDocument(doc = document, helperApi = null) {
     const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
     fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));
+    const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));fields.append(personRules);
+    const worldbookList=el('ul');worldbookList.dataset.worldbookList='';renderWorldbookPeopleList(doc,worldbookList,worldbookPeople,worldbookDiagnostics);
+    const aliasWarning=el('p','uos-help');aliasWarning.textContent=personAliases(draft.personAliases).conflicts.length?`重复别名未参与匹配：${personAliases(draft.personAliases).conflicts.join('、')}。请只保留一个归属。`:'';personRules.append(aliasWarning);
+    const worldbookNote=el('p','uos-help',worldbookMessage);worldbookNote.dataset.worldbookStatus='';const reloadWorldbook=el('button','uos-icon','重新读取世界书');reloadWorldbook.type='button';reloadWorldbook.onclick=async()=>{reloadWorldbook.disabled=true;await refreshWorldbookPeople(true);reloadWorldbook.disabled=false};personRules.append(worldbookNote,worldbookList,reloadWorldbook,el('p','uos-help','仅读取角色绑定的世界书，明确姓名参与全文匹配，包含所有标签。普通触发关键词需手动确认；缺少明确姓名证据的标题、台词署名和人物标签先列为候选。'),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>{draft.personAliases=v;aliasWarning.textContent=personAliases(v).conflicts.length?`重复别名未参与匹配：${personAliases(v).conflicts.join('、')}。请只保留一个归属。`:''},true));
     const list=el('div');fields.append(list);
-    const greetings=greetingList();const items=entries();items.forEach((entry,i)=>{
-      draft.entries[i] ||= {...entry};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
+    const greetings=greetingList();const items=entries(),manuallyEditedNames=new Set();items.forEach((entry,i)=>{
+      draft.entries[i]={...entry,...draft.entries[i]};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));
       if(greetings[i]){const source=el('details','uos-source');source.append(el('summary','','查看原开场正文'),el('pre','',greetings[i]));box.append(source)}
       box.append(el('p','uos-help','卡片实时预览 · 保存后才会写入角色卡'));
       const preview=el('div','uos-card uos-card-preview'),cover=el('div','uos-cover'),body=el('div','uos-card-body');
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
       const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description'),namesPreview=el('p','uos-card-names');body.append(label,title,description,namesPreview);preview.append(cover,body);box.append(preview);
-      const updatePreview=()=>{label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${entry.names||'未识别'}`;const image=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image);cover.classList.toggle('has-image',image);cover.style.backgroundImage=image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};updatePreview();
+      const updatePreview=()=>{label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;const image=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image);cover.classList.toggle('has-image',image);cover.style.backgroundImage=image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};updatePreview();
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
         field('标签',entry.label,v=>{entry.label=v;updatePreview()}),
-        field('登场人物（逗号分隔，输入“无”可隐藏误判）',entry.names===''?'无':entry.names||'',v=>{entry.names=v.trim()==='无'?'':v;updatePreview()}),
+        field('登场人物（逗号分隔；留空恢复自动，输入“无”隐藏）',entry.names===''?'无':entry.names||'',v=>{if(v.trim()==='')delete entry.names;else entry.names=v.trim()==='无'?'':v;manuallyEditedNames.add(i);updatePreview()}),
         field('简介',entry.description,v=>{entry.description=v;updatePreview()},true),
         fileField('上传封面（原图 8 MB 内）','image/png,image/jpeg,image/webp,image/gif',8*1048576,async(v,file)=>{const next=await optimizeCoverData(v,file,doc);if(next.length>1400000)throw Error('压缩后仍超过约 1 MB，请换更小的图片；GIF 动图不会压缩');entry.image=next;updatePreview();return next.length<v.length?`封面已压缩：${Math.round(v.length/1024)} KB → ${Math.round(next.length/1024)} KB，保存后随卡导出。`:'封面已载入；原图更小或不支持压缩，保存后随卡导出。'}));
       box.append(group);
+      if(entry.nameSuggestions?.length){const accept=el('button','uos-icon',`采纳候选：${entry.nameSuggestions.join('、')}`);accept.type='button';accept.onclick=()=>{entry.names=[...new Set([...(entry.names||'').split(/[、，,\/]/).filter(Boolean),...entry.nameSuggestions])].join('、');manuallyEditedNames.add(i);group.querySelectorAll('input,textarea')[2].value=entry.names;updatePreview();status('候选已填入人物字段，请检查后保存。')};box.append(accept)}
       if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[3].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
       const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
@@ -274,7 +294,11 @@ export function mountInDocument(doc = document, helperApi = null) {
       const button=$('[data-save]');button.disabled=true;button.textContent='正在保存…';
       try{
         draft.theme=displayTheme;
-        draft.entries=draft.entries.slice(0,greetingList().length);
+        draft.entries=draft.entries.slice(0,greetingList().length).map((entry,i)=>{
+          const {nameSuggestions,...saved}=entry;
+          if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return saved;
+          const {names,...rest}=saved;return rest;
+        });
         // ST may update the in-memory character while a failed server merge is
         // only logged. Verify persistence before reporting export readiness.
         if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');
@@ -295,6 +319,8 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   $('[data-theme-button]').onclick=openThemes;
   $('[data-settings-button]').onclick=openSettings;
+  const updateButton=doc.createElement('button');updateButton.className='uos-icon';updateButton.dataset.updateButton='';
+  $('[data-theme-button]').parentElement.prepend(updateButton);bindUpdateControl(updateButton,host.document);
   root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>activePopup?.complete(null));
   const audio=$('[data-player] audio');
   $('[data-play]').onclick=()=>{if(audio.paused)audio.play().catch(()=>status('无法播放该音乐文件'));else audio.pause()};
@@ -302,6 +328,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   $('[data-seek]').oninput=e=>{if(Number.isFinite(audio.duration))audio.currentTime=audio.duration*Number(e.target.value)/1000};
   audio.ontimeupdate=updatePlayer;audio.onloadedmetadata=updatePlayer;audio.onplay=updatePlayer;audio.onpause=updatePlayer;
   render();
+  void refreshWorldbookPeople();
   root.dataset.uosMounted = '1';
   root.dataset.uosVersion = VERSION;
   return true;

@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.9.json','utf8'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10.json','utf8'));
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
 const loader=payload.content.replace(/https:\/\/cdn\.jsdelivr\.net\/gh\/AliceNekoqqq\/Aliceneko-Opening-Selector@[^\"\\]+\/remote\.js/,localUrl);
@@ -13,6 +13,8 @@ const card={avatar:'test.png',data:{first_mes:'原主开场。',alternate_greeti
 const browser=await chromium.launch({headless:true});
 try{
   const page=await browser.newPage();
+  const runtimeRef=payload.content.match(/fallbackRef='([a-f0-9]{40})'/)[1];
+  await page.route('**/scripts/runtime-ref-preview.txt',route=>route.fulfill({status:200,body:runtimeRef,headers:{'access-control-allow-origin':'*'}}));
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.setContent('<style>.mes_text iframe{pointer-events:none!important}</style><div id="chat"><div class="mes" mesid="0"><div class="mes_text">原主开场。</div></div></div>');
@@ -22,6 +24,8 @@ try{
     window.TavernHelper={
       getChatMessages:()=>[{role:'assistant',swipe_id:state.swipe,swipes:[card.data.first_mes,...card.data.alternate_greetings]}],
       getLastMessageId:()=>0,
+      getCharWorldbookNames:()=>({primary:'测试角色书',additional:[]}),
+      getWorldbook:async()=>[{name:'人物速览',content:'- 张子薇：同学'},{name:'张子薇',content:'姓名：张子薇\n性别：女',strategy:{keys:['张子薇','子薇']}}],
       setChatMessages:async([{swipe_id}])=>{state.swipe=swipe_id},
     };
     window.__state=state;
@@ -33,6 +37,26 @@ try{
   assert.equal(await page.locator('[data-uos-author-hint]').count(),0);
   await page.locator('.uos-user-trigger').click();
   await page.locator('dialog.uos-user-overlay').getByText('选择故事的起点').waitFor();
+  const rules=page.locator('dialog.uos-user-overlay details').filter({has:page.getByText('人物识别规则',{exact:true})});
+  await rules.locator('summary').click();
+  await rules.locator('.uos-worldbook-people').getByText('张子薇',{exact:true}).waitFor();
+  assert.match(await rules.locator('.uos-worldbook-people').textContent(),/子薇/);
+  assert.match(await rules.locator('.uos-worldbook-people').textContent(),/测试角色书/);
+  // A successful empty read must not erase explicit people already present in openings.
+  await page.evaluate(()=>window.TavernHelper.getWorldbook=async()=>[]);
+  await rules.getByText('重新读取世界书',{exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('dialog.uos-user-overlay').textContent.includes('提取人物：0 人'));
+  assert.match(await page.locator('.uos-user-list').textContent(),/张子薇/);
+  // Old helper names and old entry keywords must work through the complete mounted UI.
+  await page.evaluate(()=>{
+    delete window.TavernHelper.getCharWorldbookNames;delete window.TavernHelper.getWorldbook;
+    window.TavernHelper.getCharLorebooks=()=>({primary:'旧接口角色书',additional:[]});
+    window.TavernHelper.getLorebookEntries=async()=>[{comment:'人物：张子薇',enabled:true,content:'姓名：张子薇\n性别：女',keys:['张子薇','子薇']}];
+  });
+  await rules.getByText('重新读取世界书',{exact:true}).click();
+  await rules.locator('.uos-worldbook-people').getByText('张子薇',{exact:true}).waitFor();
+  assert.match(await rules.locator('.uos-worldbook-people').textContent(),/子薇/);
+  assert.match(await rules.textContent(),/旧接口角色书/);
   await page.locator('.uos-user-close').click();
   await page.evaluate(first=>{
     const card=window.__state.characters[0];
@@ -53,7 +77,7 @@ try{
   await selector.getByLabel('按人物筛选作者开场').selectOption('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
   await selector.getByLabel('按人物筛选作者开场').selectOption('');
-  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.9/);
+  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.9-beta\.13/);
   await selector.locator('.uos-card-details summary').first().click();
   assert.match(await selector.locator('.uos-card-details pre').first().textContent(),/原主开场/);
   assert.equal(await page.locator('iframe[data-uos-author-frame]').evaluate(node=>getComputedStyle(node).pointerEvents),'auto');
