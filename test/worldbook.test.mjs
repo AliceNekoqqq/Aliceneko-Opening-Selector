@@ -164,7 +164,7 @@ assert.deepEqual(detectGreetingPeople('姓名：朔夜',{worldbookPeople:rich}).
 assert.deepEqual(detectGreetingPeople('朔夜整理药箱。',{worldbookPeople:rich,knownNames:['朔夜']}).names,['朔夜']);
 renderWorldbookPeopleList(fakeDoc,list,[],richDiagnostics);
 assert.equal(list.children[1].children[0].children[0].tag,'summary');
-assert.match(list.children[1].children[0].children[0].textContent,/未采纳条目/);
+assert.match(list.children[1].children[0].children[0].textContent,/未采纳原因/);
 console.log('Decorated titles, profile tables, full names, XML attributes, cast descriptions and Japanese/digit names passed');
 
 const variants=extractWorldbookPeople([{name:'人物书',entries:[
@@ -229,3 +229,50 @@ const uncertainTitle=extractWorldbookPeople([{name:'多人标题书',entries:[{n
 assert.deepEqual(uncertainTitle,[],'multiple title people must not be picked by keyword length or assigned as aliases');
 assert.match(titleDiagnostics[0].reason,/多个姓名/);
 console.log('Real NPC·name·NSFW titles, category keys, rating variants and canonical alias ownership passed');
+
+// Generalization: these labels are deliberately absent from every fixed category list.
+for(const [prefix,suffix] of [['CrewBlue','PrivateSheet'],['舟组','夜册'],['CustomAlpha','CustomOmega']]){
+ const diagnostic=[];
+ const names=['沈挽昼','林安安','陆斯年'];
+ const entries=names.map(name=>({name:`${prefix}·${name}·${suffix}`,keys:[suffix,name,'共同触发'],content:'年龄：18'}));
+ const inferred=extractWorldbookPeople([{name:'自定义格式',entries}],{diagnostics:diagnostic});
+ assert.deepEqual(inferred.map(p=>p.name),names,'unknown repeated wrappers are resolved through independent identities');
+ assert.ok(inferred.every(p=>p.trusted&&p.aliases.length===0));
+ assert.ok(diagnostic.some(item=>item.reason.includes(prefix)&&item.reason.includes(suffix)));
+ assert.ok(diagnostic.some(item=>item.reason.includes('共同触发')));
+ assert.deepEqual(detectGreetingPeople('林安安走进房间。共同触发。',{worldbookPeople:inferred}).names,['林安安']);
+ assert.deepEqual(extractWorldbookPeople([{name:'自定义格式',entries:[...entries].reverse()}]).map(p=>p.name).sort(),names.sort(),'decisions must not depend on entry order');
+}
+
+const sameFamily=extractWorldbookPeople([{name:'复合姓名',entries:['Alice','Bob','Charlie'].map(name=>({name:`${name}·Winter`,keys:[`${name}·Winter`],content:'年龄：20'}))}]);
+assert.deepEqual(sameFamily.map(p=>p.name),['Alice·Winter','Bob·Winter','Charlie·Winter'],'a repeated surname inside full confirmed names is preserved');
+const scoped=extractWorldbookPeople([
+ {name:'甲书',entries:['沈挽昼','林安安','陆斯年'].map(name=>({name:`CrewBlue·${name}·PrivateSheet`,keys:[name,'PrivateSheet'],content:'年龄：20'}))},
+ {name:'乙书',entries:[{name:'人物资料',content:'姓名：PrivateSheet'}]},
+]);
+assert.ok(scoped.some(p=>p.name==='PrivateSheet'&&p.trusted),'learned categories do not leak to another bound book');
+assert.ok(scoped.some(p=>p.name==='林安安'&&p.trusted));
+
+const triggerOnly=extractWorldbookPeople([{name:'身份不确定',entries:[{name:'人物档案',keys:['神秘组','沈挽昼','小沈'],content:'年龄：18'}]}]);
+assert.ok(triggerOnly.length&&triggerOnly.every(p=>p.trusted===false),'ambiguous keys are candidates, never resolved by array order');
+assert.deepEqual(detectGreetingPeople('沈挽昼站在门口。',{worldbookPeople:triggerOnly}).names,[]);
+assert.ok(detectGreetingPeople('沈挽昼站在门口。',{worldbookPeople:triggerOnly}).suggestions.includes('沈挽昼'));
+
+const bodyIdentity=extractWorldbookPeople([{name:'姓名优先',entries:[{name:'CrewBlue·沈挽昼·PrivateSheet',keys:['PrivateSheet','沈挽昼','小沈'],content:'姓名：沈挽昼\n昵称：小沈'}]}]);
+assert.deepEqual(bodyIdentity.map(p=>p.name),['沈挽昼']);
+assert.ok(!bodyIdentity[0].aliases.includes('CrewBlue·沈挽昼·PrivateSheet'),'an opaque decorated title is not automatically an alias');
+
+const explicitShared=extractWorldbookPeople([{name:'共享明确别名',entries:['沈挽昼','林安安','陆斯年'].map(name=>({name:`人物：${name}`,keys:[name,'小月'],content:'别名：小月'}))}]);
+assert.ok(explicitShared.every(p=>p.aliases.includes('小月')&&p.ambiguousAliases.includes('小月')),'explicit aliases remain visible even when shared');
+assert.deepEqual(detectGreetingPeople('小月站在门口。',{worldbookPeople:explicitShared}).names,[]);
+
+const objects=extractWorldbookPeople([{name:'物品模板',entries:['消防斧','急救箱','手电筒'].map(name=>({name:`CrewBlue·${name}·PrivateSheet`,keys:[name,'PrivateSheet'],content:'物品名称：'+name}))}]);
+assert.ok(!objects.some(p=>p.trusted),'repeated formatting without human identity evidence cannot confirm people');
+console.log('Book-wide unknown title patterns, evidence priority, scoped categories, compound names and uncertain keys passed');
+const repeatedProfiles=extractWorldbookPeople([{name:'同一人物多条资料',entries:['白天','夜晚','雨天'].map(mode=>({name:`人物：沈挽昼（${mode}）`,keys:['沈挽昼','小沈'],content:'年龄：18'}))}]);
+assert.deepEqual(repeatedProfiles.map(p=>p.name),['沈挽昼']);
+assert.deepEqual(repeatedProfiles[0].aliases,['小沈'],'repeated profiles of one identity must not turn its alias into a generic key');
+const unorderedEntries=[{name:'人物档案',keys:['神秘组','沈挽昼','小沈'],content:'年龄：18'},{name:'人物：沈挽昼',keys:['沈挽昼'],content:'性格：温柔'}];
+const summarize=rows=>extractWorldbookPeople([{name:'顺序检查',entries:rows}]).map(p=>({name:p.name,trusted:p.trusted,aliases:p.aliases.slice().sort()})).sort((a,b)=>a.name.localeCompare(b.name));
+assert.deepEqual(summarize(unorderedEntries),summarize([...unorderedEntries].reverse()),'generic keyword entries must see all confirmed titles');
+assert.deepEqual(extractWorldbookPeople([{name:'物品含年龄属性',entries:[{name:'人物档案：许愿石',keys:['许愿石'],content:'物品名称：许愿石\n年龄：18'}]}]),[],'explicit item identity is stronger than a generic age attribute or decorative title');
