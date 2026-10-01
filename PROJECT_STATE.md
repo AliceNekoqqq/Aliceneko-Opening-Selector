@@ -1,7 +1,7 @@
 # PROJECT_STATE.md
 
 ## 项目与发行阶段
-红豆粉开场白选择器，正式版 v1.0.9；`develop` 为测试版 v1.0.9-beta.6。玩家和作者使用同一份自动更新脚本：普通多开场卡显示玩家预览，主开场以 `<UniversalOpeningSelector/>` 开头时显示作者选择页。正式 Loader 自 v1.0.8 起读取 `main/scripts/runtime-ref.txt`，按 SHA 导入正式运行模块；v1.0.9 指针目标为 `10d7e873234e225ec760152f2d95e5f265d61dae`。测试指针 `scripts/runtime-ref-preview.txt` 将在 beta.6 运行模块源码提交发布后更新。
+红豆粉开场白选择器，正式版 v1.0.9；`develop` 为测试版 v1.0.9-beta.6。玩家和作者使用同一份自动更新脚本：普通多开场卡显示玩家预览，主开场以 `<UniversalOpeningSelector/>` 开头时显示作者选择页。正式 Loader 自 v1.0.8 起读取 `main/scripts/runtime-ref.txt`，按 SHA 导入正式运行模块；v1.0.9 指针目标为 `10d7e873234e225ec760152f2d95e5f265d61dae`。测试指针 `scripts/runtime-ref-preview.txt` 指向已发布的 beta.6 运行模块提交 `cd616a4ab3aa983430a4ecb36863d02cf2d02dff`。
 
 ## 核心文件
 - `src/player.js`：玩家模式、标题与人物解析、搜索和本机设置。
