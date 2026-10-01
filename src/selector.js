@@ -1,5 +1,5 @@
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry} from './player.js';
-import {createWorldbookPeopleReader} from './worldbook-people.js';
+import {createWorldbookPeopleReader,renderWorldbookPeopleList} from './worldbook-people.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export async function optimizeCoverData(source,file,doc=document){
   if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
@@ -19,7 +19,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.9-beta.4';
+  const VERSION = '1.0.9-beta.5';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -57,9 +57,9 @@ export function mountInDocument(doc = document, helperApi = null) {
   async function refreshWorldbookPeople(refresh=false){
     const card=character(),identity=card?.avatar;
     try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
-      worldbookPeople=result.people;worldbookMessage=`世界书候选：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;render();
-    }catch{worldbookMessage='世界书读取失败，仍可使用原有姓名识别。'}
-    const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;
+      worldbookPeople=result.people;worldbookMessage=`世界书人物名单：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;render();
+    }catch{worldbookMessage='世界书读取失败，可手动填写姓名与别名。'}
+    const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,worldbookPeople);
   }
   const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];
   let config = normalize(stored || seed);
@@ -76,7 +76,6 @@ export function mountInDocument(doc = document, helperApi = null) {
       subtitle:String(x.subtitle||'选择一个开场，故事将从那里继续。').slice(0,400),
       theme:THEMES.some(t=>t[0]===x.theme)?x.theme:'archive',
       excludedTags:String(x.excludedTags||'').slice(0,500),
-      excludedPersonTags:String(x.excludedPersonTags||'').slice(0,500),
       personAliases:String(x.personAliases||'').slice(0,1500),
       entries:Array.isArray(x.entries)?x.entries.map((e,i)=>({
         title:String(e?.title||`开场 ${i+1}`).slice(0,100),
@@ -98,14 +97,14 @@ export function mountInDocument(doc = document, helperApi = null) {
   function infer(text,i,people){
     const source=String(text||''),excluded=excludedTags(config.excludedTags);
     const title=greetingTitle(source,i,excluded),body=narrativeStart(source,excluded);
-    const detected=people||detectGreetingCollection([source],{aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags),worldbookPeople})[0];
+    const detected=people||detectGreetingCollection([source],{aliases:config.personAliases,worldbookPeople})[0];
     return {title,description:body.slice(title.length).trim().slice(0,140),names:detected.names.join('、'),nameSuggestions:detected.suggestions};
   }
   function suggest(text,i){return infer(text,i)}
   function entries(){
     const greetings=greetingList();
     const count=greetings.length || config.entries.length;
-    const people=detectGreetingCollection(greetings,{knownNames:[character()?.data?.name||character()?.name,...config.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[])],aliases:config.personAliases,excludedPersonTags:excludedTags(config.excludedPersonTags),worldbookPeople});
+    const people=detectGreetingCollection(greetings,{knownNames:[character()?.data?.name||character()?.name,...config.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[])],aliases:config.personAliases,worldbookPeople});
     return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i]),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
@@ -251,8 +250,10 @@ export function mountInDocument(doc = document, helperApi = null) {
   function openSettings(){
     const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
-    fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v),field('人物识别排除的 <字段>（逗号分隔）',draft.excludedPersonTags,v=>draft.excludedPersonTags=v),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>draft.personAliases=v,true));
-    const worldbookNote=el('p','uos-help',worldbookMessage);worldbookNote.dataset.worldbookStatus='';const reloadWorldbook=el('button','uos-icon','重新读取世界书');reloadWorldbook.type='button';reloadWorldbook.onclick=async()=>{reloadWorldbook.disabled=true;await refreshWorldbookPeople(true);reloadWorldbook.disabled=false};fields.append(worldbookNote,reloadWorldbook);
+    fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));
+    const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));fields.append(personRules);
+    const worldbookList=el('ul');worldbookList.dataset.worldbookList='';renderWorldbookPeopleList(doc,worldbookList,worldbookPeople);
+    const worldbookNote=el('p','uos-help',worldbookMessage);worldbookNote.dataset.worldbookStatus='';const reloadWorldbook=el('button','uos-icon','重新读取世界书');reloadWorldbook.type='button';reloadWorldbook.onclick=async()=>{reloadWorldbook.disabled=true;await refreshWorldbookPeople(true);reloadWorldbook.disabled=false};personRules.append(worldbookNote,worldbookList,reloadWorldbook,el('p','uos-help','仅读取角色绑定的世界书，按人物名单匹配开场全文，包含所有标签。'),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>draft.personAliases=v,true));
     const list=el('div');fields.append(list);
     const greetings=greetingList();const items=entries(),manuallyEditedNames=new Set();items.forEach((entry,i)=>{
       draft.entries[i]={...entry,...draft.entries[i]};entry=draft.entries[i];const box=el('section','uos-entry');box.append(el('strong','',`第 ${i+1} 条开场`));

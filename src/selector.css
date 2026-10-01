@@ -198,3 +198,5 @@
 .uos[data-theme=rose],.uos-theme-swatch[data-theme=rose]{--theme-icon-position:50% 100%}
 .uos[data-theme=wasteland],.uos-theme-swatch[data-theme=wasteland]{--theme-icon-position:100% 100%}
 @media(max-width:600px){.uos-theme-art{top:4px;right:4px;width:34px}.uos-kicker::after{width:21px;height:21px}.uos-theme-swatch-art{width:32px;height:32px}.uos-search-empty{gap:10px;min-height:82px;padding:12px}.uos-search-empty::before{width:52px;height:52px}.uos-tab-art{width:29px;height:29px}.uos-tabs button{gap:5px;padding:8px 5px;font-size:12px}.uos-empty-music{height:104px}}
+
+.uos-person-rules{grid-column:1/-1}.uos-person-rules summary{cursor:pointer;color:var(--accent)}.uos-worldbook-people{max-height:240px;overflow:auto;padding-left:22px;overflow-wrap:anywhere;font-size:13px}.uos-worldbook-people li{margin:10px 0}.uos-worldbook-people p{margin:4px 0;color:var(--muted);font-size:12px;line-height:1.5}

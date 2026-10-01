@@ -79,7 +79,7 @@ assert.deepEqual(personCases[2].names,['沈挽昼','林安安']);
 assert.equal(personCases[2].evidence['沈挽昼'],'人物标签');
 assert.deepEqual(detectGreetingPeople('<正文>小沈推开门。</正文>',{aliases:'沈挽昼=小沈'}).names,['沈挽昼']);
 assert.deepEqual(detectGreetingPeople('<SceneInfo>场景类型：末日\n时间：凌晨</SceneInfo><正文>雨停了。</正文>').names,[]);
-assert.deepEqual(detectGreetingPeople('<无关设定>姓名：张三</无关设定><content>李四：快跑！</content>',{excludedPersonTags:['无关设定']}).names,['李四']);
+assert.deepEqual(detectGreetingPeople('<无关设定>姓名：张三</无关设定><content>李四：快跑！</content>',{excludedPersonTags:['无关设定']}).names,['张三','李四']);
 const candidate=detectGreetingPeople('<正文>沈挽昼走过走廊。</正文>');
 assert.deepEqual(candidate.names,[]);
 assert.deepEqual(candidate.suggestions,['沈挽昼']);

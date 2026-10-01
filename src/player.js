@@ -1,8 +1,8 @@
-import {isPersonName,createWorldbookPeopleReader} from './worldbook-people.js';
+import {isPersonName,createWorldbookPeopleReader,renderWorldbookPeopleList} from './worldbook-people.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.9-beta.4';
+const VERSION='1.0.9-beta.5';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -25,7 +25,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.uos-user-head h2{margin:0;color:var(--text);font:600 22px/1.3 Georgia,"Noto Serif SC",serif}.uos-user-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
 .uos-user-panel button,.uos-user-panel select{font:inherit}.uos-user-close,.uos-user-select{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}.uos-user-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--muted);font-size:12px}.uos-user-tools select{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
 .uos-user-label-settings{flex:none;min-height:48px;max-height:min(35dvh,240px);overflow:auto;margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.uos-user-label-settings summary{color:var(--accent);cursor:pointer}.uos-user-label-settings label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:12px}.uos-user-label-settings input{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}.uos-user-label-settings button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--accent);color:var(--bg);font-weight:700}
-.uos-user-label-settings textarea{box-sizing:border-box;width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif;resize:vertical}.uos-user-candidates{font-size:12px;color:var(--muted)}
+.uos-user-label-settings textarea{box-sizing:border-box;width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif;resize:vertical}.uos-worldbook-people{max-height:240px;overflow:auto;padding-left:22px;overflow-wrap:anywhere;font-size:13px}.uos-worldbook-people li{margin:10px 0}.uos-worldbook-people p{margin:4px 0;color:var(--muted);font-size:12px;line-height:1.5}.uos-user-candidates{font-size:12px;color:var(--muted)}
 .uos-user-list{display:grid;gap:12px;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 3px 12px}.uos-user-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.uos-user-card h3{margin:0 0 6px;color:var(--text);font:600 17px/1.4 Georgia,"Noto Serif SC",serif}.uos-user-card p{margin:0 0 9px;color:var(--muted);font-size:12px}.uos-user-card details{margin-bottom:10px}.uos-user-card summary{color:var(--accent);cursor:pointer}.uos-user-card pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:9px 0 0;padding:10px;border:1px solid var(--line);border-radius:7px;color:var(--text);font-size:12px;line-height:1.6;font-family:inherit}.uos-user-select{background:var(--accent);color:var(--bg);font-weight:700}.uos-user-select:disabled{opacity:.65;cursor:default}.uos-user-status{min-height:18px;margin:8px 0 0;color:var(--accent);font-size:12px}
 .uos-user-card .uos-user-names{color:var(--accent);font-size:13px}
 .uos-user-search{display:flex;gap:8px;flex:none;margin:0 0 10px}.uos-user-search input,.uos-user-search select{min-width:0;flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}.uos-user-source{opacity:.75;font-size:11px}.uos-user-empty{padding:16px;color:var(--muted)}
@@ -147,19 +147,22 @@ export function personAliases(value){
   }
   return result;
 }
-function storyText(text){
-  const narrative=[...text.matchAll(/<(正文|content)(?:\s[^<>]*)?>([^]*?)<\/\1>/gi)].map(x=>x[2]);
-  const outside=text.replace(/<([\w\p{Script=Han}-]+)(?:\s[^<>]*)?>[\s\S]*?<\/\1>/giu,' ');
-  return [outside,...narrative].join('\n').replace(/<\/?[^<>]*>/g,'\n');
-}
-export function detectGreetingPeople(body,{knownNames=[],aliases='',excludedPersonTags=[],worldbookPeople=[]}={}){
-  const text=stripExcluded(String(body||''),excludedTags(Array.isArray(excludedPersonTags)?excludedPersonTags.join(','):excludedPersonTags)).replace(/<!--[\s\S]*?-->/g,'').replace(/```[\s\S]*?```/g,'');
-  const names=[],evidence={},suggestions=[];
-  const dictionary=personAliases(aliases);
-  for(const name of knownNames)if(PERSON_WORD.test(name)&&!dictionary.has(name))dictionary.set(name,name);
-  const worldbookByName=new Map();
-  for(const person of worldbookPeople){if(!isPersonName(person?.name))continue;worldbookByName.set(person.name,person);for(const alias of [person.name,...(person.aliases||[])])if(isPersonName(alias)&&!dictionary.has(alias))dictionary.set(alias,person.name)}
-  const add=(name,source)=>{const canonical=dictionary.get(name)||name;if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical))return;if(!names.includes(canonical)&&names.length<8)names.push(canonical);if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source};
+export function detectGreetingPeople(body,{knownNames=[],aliases='',worldbookPeople=null}={}){
+  const text=String(body||'');
+  const names=[],evidence={},suggestions=[],vocabularyOnly=Array.isArray(worldbookPeople);
+  const dictionary=new Map(),worldbookByName=new Map(),owners=new Map();
+  for(const person of worldbookPeople||[]){
+    if(!isPersonName(person?.name))continue;worldbookByName.set(person.name,person);
+    for(const alias of [person.name,...(person.aliases||[])])if(isPersonName(alias)){
+      if(!owners.has(alias))owners.set(alias,new Set());owners.get(alias).add(person.name);
+    }
+  }
+  for(const [alias,people] of owners)if(people.size===1)dictionary.set(alias,[...people][0]);
+  // Canonical names and explicit user rules take precedence over keyword aliases.
+  for(const person of worldbookByName.values())dictionary.set(person.name,person.name);
+  for(const name of knownNames)if(PERSON_WORD.test(name))dictionary.set(name,name);
+  for(const [alias,name] of personAliases(aliases))dictionary.set(alias,name);
+  const add=(name,source)=>{if(vocabularyOnly&&!dictionary.has(name))return;const canonical=dictionary.get(name)||name;if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical))return;if(!names.includes(canonical))names.push(canonical);if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source};
   // Metadata labels and person lists are explicit even when inside another tag.
   for(const match of text.matchAll(/(?:姓名|人物姓名|角色名|角色姓名|登场人物|在场角色|名字)[：:]\s*([^\n<>。；;]{1,160})/gmu))for(const name of match[1].split(/[、，,\/]+/).map(x=>x.trim().replace(/[（(].*$/,'')))if(isPersonName(name))add(name,'明确标注');
   for(const match of text.matchAll(/<(姓名|角色名|人物姓名|角色姓名|名字)>\s*([^<>]{2,60})\s*<\/\1>/gmu))add(match[2].trim(),'明确标注');
@@ -183,23 +186,24 @@ export function detectGreetingPeople(body,{knownNames=[],aliases='',excludedPers
   for(const match of text.matchAll(/<([\p{Script=Han}]{2,4})>\s*(?=[：:“「])/gmu)){
     if(!NON_PERSON_TAGS.test(match[1])&&(dictionary.has(match[1])||COMMON_SURNAMES.includes(match[1][0])))add(match[1],'人物标签');
   }
-  const story=storyText(text);
+  const story=text.replace(/<\/?[^<>]*>/g,'\n');
   for(const match of story.matchAll(/(?:^|\n)\s*(?:【|\[)?([^\n：:<>【】\[\]]{2,40})(?:】|\])?\s*[：:]\s*(?=[^\n]{1,80})/gmu)){
     if(isPersonName(match[1].trim())&&!NON_PERSON_LABELS.test(match[1].trim()))add(match[1].trim(),'台词署名');
   }
-  // The card name, author labels and explicit names from other greetings form a local dictionary.
+  // Scan the entire original body, including tag names, metadata, comments and code.
+  // Longer names reserve their spans, preventing 王明 inside 王明月 from matching twice.
+  const occupied=[];
   for(const [alias,canonical] of [...dictionary].sort((a,b)=>b[0].length-a[0].length)){
-    if(names.includes(canonical))continue;
     const safe=alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    const latin=/\p{Script=Latin}/u.test(alias),prefix=latin?'(?<![\\p{L}])':'',suffix=latin?'(?![\\p{L}])':'(?=$|[\\s，,。！？!?：:、\"“”「」的]|[看说问答走来笑哭望转拉抱推站坐跑等回听抬低握拽扶喊叫摇点伸递])';
-    if(new RegExp(`${prefix}${safe}${suffix}`,'u').test(story)){
-      const person=worldbookByName.get(canonical);
-      if(person&&!person.trusted&&!knownNames.includes(canonical)){if(!suggestions.includes(canonical))suggestions.push(canonical)}
-      else add(alias,person?'世界书匹配':'正文提及');
+    const latin=/\p{Script=Latin}/u.test(alias),prefix=latin?'(?<![\\p{Script=Latin}\\p{N}_])':'',suffix=latin?'(?![\\p{Script=Latin}\\p{N}_])':'';
+    for(const match of text.matchAll(new RegExp(`${prefix}${safe}${suffix}`,'gu'))){
+      const start=match.index,end=start+match[0].length;
+      if(occupied.some(([a,b])=>start<b&&end>a))continue;
+      occupied.push([start,end]);add(alias,worldbookByName.has(canonical)?'世界书匹配':'正文提及');
     }
   }
   // A name seen only before a narrative action is offered for review, not silently added to filters.
-  for(const match of story.matchAll(/(?:^|[。！？!?\n])\s*([\p{Script=Han}]{2,4})(?=走|说|问|答|望|看|笑|喊|推|抱|站|坐|跑|听|握|抬|转|递)/gmu)){
+  if(!vocabularyOnly)for(const match of story.matchAll(/(?:^|[。！？!?\n])\s*([\p{Script=Han}]{2,4})(?=走|说|问|答|望|看|笑|喊|推|抱|站|坐|跑|听|握|抬|转|递)/gmu)){
     const name=match[1];if(COMMON_SURNAMES.includes(name[0])&&!NON_PERSON_LABELS.test(name)&&!names.includes(name)&&!suggestions.includes(name))suggestions.push(name);
   }
   return {names,evidence,suggestions:suggestions.slice(0,3)};
@@ -245,7 +249,7 @@ export function readPlayerState(context,helper){
   const settings=data.extensions?.[KEY]||{};
   const metadata=settings.entries||[],excluded=excludedTags(settings.excludedTags);
   const bodies=all.slice(0,count);
-  const people=detectGreetingCollection(bodies,{knownNames:[data.name||c.name,...metadata.flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[])],aliases:settings.personAliases||'',excludedPersonTags:excludedTags(settings.excludedPersonTags)});
+  const people=detectGreetingCollection(bodies,{knownNames:[data.name||c.name,...metadata.flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[])],aliases:settings.personAliases||''});
   return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:bodies.map((body,i)=>({index:i,body,title:!isLegacyGeneratedEntry(body,metadata[i],i)&&metadata[i]?.title||greetingTitle(body,i,excluded),description:isLegacyGeneratedEntry(body,metadata[i],i)?'':metadata[i]?.description||'',names:people[i].names,nameEvidence:people[i].evidence,nameSuggestions:people[i].suggestions,label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
 }
 
@@ -362,31 +366,29 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     let localPersonRules={};try{const saved=JSON.parse(host.localStorage.getItem(personKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localPersonRules=saved}catch{}
     const personSettings=el('details','uos-user-label-settings');personSettings.append(el('summary','','人物识别规则'));
     let worldbookPeople=[];
-    const worldbookStatus=el('p','','正在读取角色世界书人物名单…'),reloadWorldbook=el('button','','重新读取世界书');reloadWorldbook.type='button';personSettings.append(worldbookStatus,reloadWorldbook);
-    personSettings.append(el('p','','每行填写一人及其别名，例如：沈挽昼=挽昼,小沈。排除字段仅影响人物识别，完整原文仍可预览。'));
+    const worldbookList=el('ul');
+    const worldbookStatus=el('p','','正在读取角色世界书人物名单…'),reloadWorldbook=el('button','','重新读取世界书');reloadWorldbook.type='button';personSettings.append(worldbookStatus,worldbookList,reloadWorldbook);
+    personSettings.append(el('p','','每行填写一人及其别名，例如：沈挽昼=挽昼,小沈。仅读取角色绑定的世界书；先列出人物名单，再匹配开场全文（包含所有标签）。'));
     const aliasLabel=el('label');aliasLabel.append(el('span','','人物与别名'));
     const aliasInput=el('textarea');aliasInput.maxLength=1500;aliasInput.value=localPersonRules.personAliases??authorConfig.personAliases??'';aliasInput.placeholder='沈挽昼=挽昼,小沈';aliasLabel.append(aliasInput);personSettings.append(aliasLabel);
     if(authorConfig.personAliases)personSettings.append(el('p','',`作者预设：${authorConfig.personAliases}`));
-    const ignoredLabel=el('label');ignoredLabel.append(el('span','','识别人物时排除的 <字段>（逗号分隔）'));
-    const ignoredInput=el('input');ignoredInput.value=localPersonRules.excludedPersonTags??authorConfig.excludedPersonTags??'';ignoredInput.placeholder='例如：无关设定,系统提示';ignoredLabel.append(ignoredInput);personSettings.append(ignoredLabel);
-    if(authorConfig.excludedPersonTags)personSettings.append(el('p','',`作者排除字段：${authorConfig.excludedPersonTags}`));
     function updatePeople(){
       const known=[character?.data?.name||character?.name,...authorEntries.flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[]),...Object.values(localEdits).flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[])];
-      const detected=detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{knownNames:known,aliases:[authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';'),excludedPersonTags:[...excludedTags(authorConfig.excludedPersonTags),...excludedTags(localPersonRules.excludedPersonTags)],worldbookPeople});
+      const detected=detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{knownNames:known,aliases:[authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';'),worldbookPeople});
       snapshot.entries.forEach((entry,i)=>{entry.names=detected[i].names;entry.nameEvidence=detected[i].evidence;entry.nameSuggestions=detected[i].suggestions});
       for(const {entry,namesInput,candidates} of editFields){namesInput.placeholder=entry.names.join('、')||'未识别，可填写姓名';candidates.replaceChildren();if(entry.nameSuggestions.length){candidates.append(el('span','','待确认：'));for(const name of entry.nameSuggestions){const button=el('button','',name);button.type='button';button.onclick=()=>{namesInput.value=[...new Set([...parseNames(namesInput.value),name])].join('、');status.textContent='已填入候选人物，请保存修正。'};candidates.append(button)}}}
     }
-    const saveLocalPeople=el('button','','仅保存到本机');saveLocalPeople.type='button';saveLocalPeople.onclick=()=>{localPersonRules={personAliases:aliasInput.value.slice(0,1500),excludedPersonTags:excludedTags(ignoredInput.value).join(',')};try{host.localStorage.setItem(personKey,JSON.stringify(localPersonRules));status.textContent='人物识别规则已保存在本机。'}catch{status.textContent='本机存储不可用，本次预览仍可使用规则。'}updatePeople();renderCards()};personSettings.append(saveLocalPeople);
+    const saveLocalPeople=el('button','','仅保存到本机');saveLocalPeople.type='button';saveLocalPeople.onclick=()=>{localPersonRules={personAliases:aliasInput.value.slice(0,1500)};try{host.localStorage.setItem(personKey,JSON.stringify(localPersonRules));status.textContent='人物识别规则已保存在本机。'}catch{status.textContent='本机存储不可用，本次预览仍可使用规则。'}updatePeople();renderCards()};personSettings.append(saveLocalPeople);
     const saveCardPeople=el('button','','保存到角色卡（作者）');saveCardPeople.type='button';saveCardPeople.onclick=async()=>{
       const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
       if(!card?.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return}
       saveCardPeople.disabled=true;try{
         const original=(card.data||card).extensions?.[KEY]||{};
-        const next={...original,personAliases:aliasInput.value.slice(0,1500),excludedPersonTags:excludedTags(ignoredInput.value).join(',')};
+        const next={...original,personAliases:aliasInput.value.slice(0,1500)};delete next.excludedPersonTags;
         const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
         if(!response.ok)throw Error(`HTTP ${response.status}`);
         await context.writeExtensionField(snapshot.characterId,KEY,next);
-        authorConfig.personAliases=next.personAliases;authorConfig.excludedPersonTags=next.excludedPersonTags;localPersonRules={};host.localStorage.removeItem(personKey);updatePeople();renderCards();status.textContent='人物识别规则已写入角色卡；重新导出后即可分享。';
+        authorConfig.personAliases=next.personAliases;localPersonRules={};host.localStorage.removeItem(personKey);updatePeople();renderCards();status.textContent='人物识别规则已写入角色卡；重新导出后即可分享。';
       }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`}finally{saveCardPeople.disabled=false}
     };personSettings.append(saveCardPeople);
     const edits=el('details','uos-user-label-settings');edits.append(el('summary','','修正标题和登场人物'));
@@ -469,8 +471,8 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
         if(overlay!==active||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
-        worldbookPeople=result.people;worldbookStatus.textContent=`世界书候选：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;updatePeople();renderCards();
-      }catch{if(overlay===active)worldbookStatus.textContent='世界书读取失败，仍可使用原有姓名识别。'}finally{reloadWorldbook.disabled=false}
+        worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,worldbookPeople);worldbookStatus.textContent=`世界书人物名单：${result.people.length} 人${result.books.length?` · ${result.books.join('、')}`:''}${result.warnings.length?`；${result.warnings.join('；')}`:''}。仅匹配到开场的姓名会显示。`;updatePeople();renderCards();
+      }catch{if(overlay===active)worldbookStatus.textContent='世界书读取失败，可手动填写姓名与别名。'}finally{reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();
     try{active.showModal()}catch(error){closePanel();console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error);return}
