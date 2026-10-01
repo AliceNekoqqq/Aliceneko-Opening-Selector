@@ -25,6 +25,8 @@ assert.match(regex.replaceString,/data-settings-button/);
 assert.match(regex.replaceString,/data-theme-button/);
 assert.match(regex.replaceString,/Aliceneko-Opening-Selector@v0\.1\.0-beta\.26\/index\.js/);
 assert.match(regex.replaceString,/data-tab="bgm"/);
+assert.match(regex.replaceString,/data-tab="worldbooks"/);
+assert.match(regex.replaceString,/data-tab-art="worldbooks"/);
 assert.match(regex.replaceString,/data-tab="diagnostics"/);
 assert.match(regex.replaceString,/data-diagnostics/);
 assert.match(regex.replaceString,/<style id="uos-css">[\s\S]*?\.uos-fields/);

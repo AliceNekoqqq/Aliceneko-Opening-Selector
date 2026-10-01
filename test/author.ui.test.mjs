@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.3.json','utf8'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.4.json','utf8'));
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
 const loader=payload.content.replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`);
@@ -85,7 +85,7 @@ try{
   await selector.getByLabel('按人物筛选作者开场').selectOption('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
   await selector.getByLabel('按人物筛选作者开场').selectOption('');
-  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.10-beta\.3/);
+  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.10-beta\.4/);
   await selector.locator('.uos-card-details summary').first().click();
   assert.match(await selector.locator('.uos-card-details pre').first().textContent(),/原主开场/);
   assert.equal(await page.locator('iframe[data-uos-author-frame]').evaluate(node=>getComputedStyle(node).pointerEvents),'auto');
@@ -114,6 +114,7 @@ try{
   assert.ok(settingsRect.width<page.viewportSize().width && settingsRect.height<page.viewportSize().height);
   await dialog.getByText('第 1 条开场').waitFor();
   await dialog.locator('[data-tab="worldbooks"]').click();
+  assert.match(await dialog.locator('[data-tab-art="worldbooks"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("data:image\/webp;base64,/,'worldbook tab has its bundled artwork');
   const newPresetName=dialog.locator('input[placeholder="新预设名称（可留空）"]');
   await newPresetName.fill('测试角色预设');
   await dialog.getByRole('button',{name:'新建预设',exact:true}).click();
@@ -121,6 +122,9 @@ try{
   await presetRows.getByText('旧接口人物',{exact:true}).waitFor();
   const presetToggle=presetRows.locator('.uos-worldbook-entry-toggle input').first();
   assert.equal(await presetToggle.isChecked(),true,'worldbook settings show current entry state');
+  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
+  await dialog.locator('[data-uos-unsaved-prompt]').getByRole('button',{name:'继续编辑'}).click();
+  await presetRows.getByText('旧接口人物',{exact:true}).waitFor();
   await dialog.locator('[data-save]').click();
   assert.equal(await page.evaluate(()=>Boolean(window.__state.characters[0].data.extensions.universal_opening_selector)),false,'card save waits for the preset draft to be saved');
   await dialog.getByRole('button',{name:'保存新预设',exact:true}).click();
@@ -139,6 +143,27 @@ try{
   await assignment.selectOption({label:'旧接口独立预设'});
   await dialog.locator('[data-save]').click();
   await page.waitForFunction(()=>{const data=window.__state.characters[0].data.extensions.universal_opening_selector;const preset=data.worldbookPresets.find(item=>item.name==='旧接口独立预设');return preset&&data.entries[0].worldbookPresetId===preset.id&&preset.books[0].entries.find(e=>e.uid===9).enabled===false});
+
+  const savedTitle=await page.evaluate(()=>window.__state.characters[0].data.extensions.universal_opening_selector.entries[0].title);
+  await selector.locator('[data-settings-button]').click();
+  await dialog.locator('.uos-entry .uos-fields input').first().fill('这项改动将放弃');
+  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
+  await dialog.locator('[data-uos-unsaved-prompt]').getByRole('button',{name:'继续编辑'}).click();
+  assert.equal(await page.locator('iframe[data-uos-frame]').count(),1,'continue editing keeps settings open');
+  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
+  await dialog.locator('[data-uos-unsaved-prompt]').getByRole('button',{name:'放弃更改'}).click();
+  await page.locator('iframe[data-uos-frame]').waitFor({state:'detached'});
+  assert.equal(await page.evaluate(()=>window.__state.characters[0].data.extensions.universal_opening_selector.entries[0].title),savedTitle,'discard leaves character-card settings unchanged');
+
+  await selector.locator('[data-settings-button]').click();
+  await dialog.locator('.uos-entry .uos-fields input').first().fill('这项改动会保存');
+  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
+  await dialog.locator('[data-uos-unsaved-prompt]').getByRole('button',{name:'保存并关闭'}).click();
+  await page.waitForFunction(()=>window.__state.characters[0].data.extensions.universal_opening_selector.entries[0].title==='这项改动会保存');
+  await page.locator('iframe[data-uos-frame]').waitFor({state:'detached'});
+  await selector.locator('[data-settings-button]').click();
+  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
+  await page.locator('iframe[data-uos-frame]').waitFor({state:'detached'});
 
   await selector.locator('.uos-card').first().click();
   await page.waitForFunction(()=>window.__state.swipe===1&&window.__worldbooks['旧接口角色书'][0].enabled===false);
