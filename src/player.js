@@ -2,7 +2,7 @@ import {isPersonName,normalizePersonText,createWorldbookPeopleReader,renderWorld
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.9-beta.9';
+const VERSION='1.0.9-beta.10';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -451,7 +451,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       const labelText=el('p','',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
       labelTexts[entry.index]=labelText;card.append(el('h3','',display.title),el('small','uos-user-source',`标题：${display.titleSource}`),labelText);
-      card.append(el('p','uos-user-names',display.names.length?`登场人物 · ${display.names.join(' / ')}（${display.namesSource}）`:`登场人物 · 未识别`));
+      card.append(el('p','uos-user-names',display.names.length?`登场人物 · ${display.names.join(' / ')}`:`登场人物 · 未识别`));
       if(entry.nameSuggestions?.length)card.append(el('p','uos-user-candidates',`待确认 · ${entry.nameSuggestions.join(' / ')}（可在“修正标题和登场人物”中采纳）`));
       const details=el('details','');details.append(el('summary','','预览完整正文'),el('pre','',entry.body));card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
