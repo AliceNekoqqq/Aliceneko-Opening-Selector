@@ -84,3 +84,24 @@ const candidate=detectGreetingPeople('<正文>沈挽昼走过走廊。</正文>'
 assert.deepEqual(candidate.names,[]);
 assert.deepEqual(candidate.suggestions,['沈挽昼']);
 assert.equal(resolveDisplayEntry({index:0,body:'沈挽昼：走。',names:['沈挽昼'],nameEvidence:{沈挽昼:'台词署名'}}).namesSource,'自动提取：台词署名');
+
+// Card display names are title hints, not an automatically confirmed person dictionary.
+for(const title of ['莉娜的楼书','莉娜的故事','沈挽昼的日记',"Alice's Diary"]){
+ const detected=detectGreetingCollection([`<header>${title}</header>\n姓名：莉娜\n莉娜走到门边。`],{characterName:title});
+ assert.deepEqual(detected[0].names,['莉娜']);
+ assert.ok(!detected[0].suggestions.includes(title));
+}
+assert.deepEqual(detectGreetingPeople('莉娜站在窗边。',{characterName:'莉娜'}).names,[]);
+assert.deepEqual(detectGreetingPeople('莉娜站在窗边。',{characterName:'莉娜'}).suggestions,['莉娜']);
+const confirmedHint=detectGreetingCollection(['莉娜：请进。','莉娜站在窗边。'],{characterName:'莉娜'});
+assert.deepEqual(confirmedHint.map(result=>result.names),[['莉娜'],['莉娜']]);
+assert.ok(confirmedHint.every(result=>!result.suggestions.includes('莉娜')));
+assert.deepEqual(detectGreetingPeople('<莉娜>“请进。”</莉娜>',{characterName:'莉娜'}).names,['莉娜']);
+assert.deepEqual(detectGreetingPeople('莉娜走到门边。',{characterName:'莉娜',worldbookPeople:[{name:'莉娜',trusted:true,aliases:[]}]}).names,['莉娜']);
+assert.deepEqual(detectGreetingPeople('名字：莉娜的故事\n莉娜：请进。').names,['莉娜'],'an arbitrary name label does not confirm an owner phrase');
+assert.deepEqual(detectGreetingPeople('莉娜的故事：请进。',{aliases:'莉娜的故事'}).names,['莉娜的故事'],'explicit user confirmation can preserve an unusual fictional name');
+const titledCard={avatar:'title.png',data:{name:'莉娜的楼书',first_mes:'<header>莉娜的楼书</header>\n姓名：莉娜',alternate_greetings:['莉娜端着盘子。']}};
+const titleHelper={getChatMessages:()=>[{role:'assistant',swipe_id:0,swipes:[titledCard.data.first_mes,...titledCard.data.alternate_greetings]}],getLastMessageId:()=>0,setChatMessages:async()=>{}};
+assert.deepEqual(readPlayerState({characters:[titledCard],characterId:0,groupId:null},titleHelper).entries.map(entry=>entry.names),[['莉娜'],['莉娜']]);
+assert.deepEqual(resolveDisplayEntry({index:0,body:'标题',names:[]},{names:'莉娜的故事'}).names,['莉娜的故事'],'saved explicit person fields are not silently erased');
+console.log('Card title hints, possessive phrases, explicit confirmation and preserved manual names passed');

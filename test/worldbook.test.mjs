@@ -276,3 +276,18 @@ const unorderedEntries=[{name:'人物档案',keys:['神秘组','沈挽昼','小�
 const summarize=rows=>extractWorldbookPeople([{name:'顺序检查',entries:rows}]).map(p=>({name:p.name,trusted:p.trusted,aliases:p.aliases.slice().sort()})).sort((a,b)=>a.name.localeCompare(b.name));
 assert.deepEqual(summarize(unorderedEntries),summarize([...unorderedEntries].reverse()),'generic keyword entries must see all confirmed titles');
 assert.deepEqual(extractWorldbookPeople([{name:'物品含年龄属性',entries:[{name:'人物档案：许愿石',keys:['许愿石'],content:'物品名称：许愿石\n年龄：18'}]}]),[],'explicit item identity is stronger than a generic age attribute or decorative title');
+
+const titlePhraseDiagnostics=[];
+const phrasePeople=extractWorldbookPeople([{name:'莉娜的世界书',entries:[
+ {name:'莉娜的楼书',keys:['莉娜的楼书'],content:'她站在门口，外貌：金发'},
+ {name:'莉娜的故事',keys:['莉娜的故事'],content:'年龄：18'},
+ {name:"Alice's Diary",keys:["Alice's Diary"],content:'She is kind.'},
+ {name:'人物：莉娜',keys:['莉娜','莉娜的故事'],content:'性别：女'},
+ {name:'人物速览',content:'- 莉娜的楼书：简介\n- 顾之遥：同学\n- 爱丽丝·温特：旅人'},
+]}],{diagnostics:titlePhraseDiagnostics});
+assert.deepEqual(phrasePeople.map(p=>p.name),['莉娜','顾之遥','爱丽丝·温特']);
+assert.deepEqual(phrasePeople[0].aliases,[]);
+assert.ok(titlePhraseDiagnostics.some(item=>item.title==='莉娜的楼书'));
+assert.deepEqual(detectGreetingPeople('<header>莉娜的楼书</header>莉娜站在门口。',{worldbookPeople:phrasePeople}).names,['莉娜']);
+assert.deepEqual(detectGreetingPeople('莉娜：请进。',{worldbookPeople:[{name:'莉娜的故事',trusted:true,aliases:[]}]}).names,['莉娜'],'rejected title vocabulary must not activate the trusted-person gate');
+console.log('Worldbook title phrases and aliases are excluded without dropping real names passed');
