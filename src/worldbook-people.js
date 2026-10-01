@@ -20,7 +20,7 @@ export function isAutomaticPersonName(value){
   const name=normalizePersonText(value).trim();
   // Possessive phrases describe something owned by a person, rather than that person's name.
   // Explicit user rules still use isPersonName and can confirm an unusual fictional name.
-  return isPersonName(name)&&!/(?:\p{Script=Han}的\p{Script=Han}|['’]s\s+\p{L}|\s+(?:of|the)\s+)/iu.test(name);
+  return isPersonName(name)&&!WB_GENERIC.test(name)&&!/^(?:user|assistant|system|char|bot|you|me)$/iu.test(name)&&!/(?:\p{Script=Han}的\p{Script=Han}|['’]s\s+\p{L}|\s+(?:of|the)\s+)/iu.test(name);
 }
 function wbName(value){
   return normalizePersonText(value).replace(/\*\*|`/g,'').trim().replace(/^[#\s]+/,'')
@@ -76,11 +76,9 @@ function wbBookEvidence(records,found,diagnostics){
     const patterns=new Map();
     for(const record of group.records){
       if(record.overview||record.nonPerson)continue;
-      const title=normalizePersonText(record.title),whole=wbTitle(title);
-      // A full compound name confirmed by a field or key protects its internal tokens.
-      let anchors=[...record.names].filter(name=>title.includes(name));
-      if(!anchors.length&&record.keys.includes(whole))anchors=[whole];
-      if(!anchors.length&&(record.personFields||record.personTitle||record.humanDescription))anchors=wbTitleKeyword(title,record.keys).filter(name=>group.keys.get(name)===1);
+      const title=normalizePersonText(record.title);
+      // Formatting patterns may use only already confirmed identities as anchors.
+      const anchors=wbTitleKeyword(title,[...group.strong]);
       if(anchors.length!==1)continue;
       const anchor=anchors[0],start=title.indexOf(anchor),end=start+anchor.length;
       for(const match of title.matchAll(/[^·・:：|｜/_—\-【】\[\]]+/gu)){
@@ -102,7 +100,7 @@ export function extractWorldbookPeople(books,{diagnostics=[]}={}){
   const add=(name,record,kind,trusted=true)=>{
     name=wbName(name);if(!isAutomaticPersonName(name)||WB_GENERIC.test(name)||WB_PLACE.test(name)||WB_PROSE.test(name))return;
     if(found.size>=1000&&!found.has(name)){record.limit=true;return}
-    const person=found.get(name)||{name,aliases:[],sources:[],trusted:false};person.trusted ||= trusted;
+    const person=found.get(name)||{name,aliases:[],candidateAliases:[],sources:[],trusted:false};person.trusted ||= trusted;
     const source=`${record.book} · ${record.title||'未命名条目'}（${kind}）`;
     if(!person.sources.includes(source))person.sources.push(source);found.set(name,person);record.accepted.add(name);
   };
@@ -154,14 +152,16 @@ export function extractWorldbookPeople(books,{diagnostics=[]}={}){
         const nameColumn=cells.findIndex(x=>new RegExp(`^(?:${WB_NAME_FIELD}|人物|角色)$`,'iu').test(wbName(x)));
         if(nameColumn>=0){tableNameColumn=nameColumn;tableAliasColumn=cells.findIndex(x=>/^(?:别名|昵称|称呼|英文名|外文名|alias(?:es)?)$/i.test(x));continue}
         if(cells.every(x=>/^[-:\s]*$/.test(x)))continue;
-        const cell=tableNameColumn>=0?cells[tableNameColumn]:cells.find(x=>x&&!/^\d+$/.test(x));
+        if(tableNameColumn<0)continue;
+        const cell=cells[tableNameColumn];
         for(const name of overviewNames(cell)){add(name,record,'人物速览');const person=found.get(name);if(person&&tableAliasColumn>=0)person.aliases.push(...wbNames(cells[tableAliasColumn]).filter(x=>x!==name))}
         continue;
       }
       const row=line.trim().replace(/^(?:#{1,6}\s*|[-*•➤]\s*|\d+[.、)]\s*|[①-⑳]\s*)/u,'');
       if(!row||/^[^\p{L}\p{N}]*$/u.test(row))continue;
       if(!/^\s*(?:#|[-*•➤]|\d+[.、)]|[①-⑳])/.test(line)&&!/[：:|｜—、，,]/.test(row)&&row.length>40)continue;
-      for(const name of overviewNames(row))add(name,record,'人物速览');
+      const explicitRow=/^\s*(?:[-*•➤]|\d+[.、)]|\d+\s*(?=\p{L})|[①-⑳])/u.test(line);
+      for(const name of overviewNames(row))add(name,record,explicitRow?'人物速览名单':'速览标题／文字，待确认',explicitRow);
     }
     const personFields=/(?:性别|年龄|外貌|性格|gender|age)["']?\s*[:=]/iu.test(labeled);
     const personTitle=WB_PERSON_MARKER.test(title)&&!WB_OVERVIEW.test(title)&&!/(?:关系|规则|名单|设定集)/u.test(title);
@@ -171,7 +171,7 @@ export function extractWorldbookPeople(books,{diagnostics=[]}={}){
   // Resolve identities only after all structured names and book-wide patterns are available.
   wbBookEvidence(records,found,diagnostics);
   for(const record of records){
-    const {personFields,personTitle,humanDescription,nonPerson}=record,tags=record.bookEvidence.tags;
+    const {personFields,personTitle,nonPerson}=record,tags=record.bookEvidence.tags;
     record.keys=record.keys.filter(key=>!tags.has(key));
     record.titleName=wbTitle(record.title,tags);
     record.titlePhrase=isPersonName(record.titleName)&&!isAutomaticPersonName(record.titleName);
@@ -184,10 +184,8 @@ export function extractWorldbookPeople(books,{diagnostics=[]}={}){
         record.keywordCandidates=true;
       }
     }
-    const likelyName=/^[\p{Script=Han}]{2,4}$/u.test(record.titleName)&&WB_SURNAMES.includes(record.titleName[0])||/[\p{Script=Latin}\p{Script=Hiragana}\p{Script=Katakana}·・]/u.test(record.titleName);
-    const compoundUnconfirmed=/[·・|｜/_—]/u.test(record.titleName)&&!record.keys.includes(record.titleName)&&!record.names.has(record.titleName)&&!found.get(record.titleName)?.trusted;
-    if(record.titleName&&!compoundUnconfirmed&&!nonPerson&&(personTitle||personFields||record.names.has(record.titleName)||record.keys.includes(record.titleName)&&likelyName||humanDescription)){
-      if(!record.names.size||record.names.has(record.titleName)){record.names.add(record.titleName);add(record.titleName,record,[...tags].some(tag=>normalizePersonText(record.title).includes(tag)&&!wbTitleTag(tag))?'整书模式与人物证据':'人物条目标题')}
+    if(record.titleName&&!nonPerson&&(record.names.has(record.titleName)||found.get(record.titleName)?.trusted)){
+      if(!record.names.size||record.names.has(record.titleName)){record.names.add(record.titleName);add(record.titleName,record,'已确认姓名对应标题')}
     }
   }
   // Keyword-only entries are evaluated against the completed identity set, not entry order.
@@ -195,13 +193,8 @@ export function extractWorldbookPeople(books,{diagnostics=[]}={}){
   for(const record of records)if(record.keywordCandidates&&!record.nonPerson){
     const known=record.keys.filter(key=>confirmed.has(key)),dominant=record.keys.filter(key=>!record.keys.some(other=>other!==key&&other.includes(key)));
     const candidates=[...new Set(known.length?known:dominant)];
-    if(candidates.length===1){record.titleName=candidates[0];record.names.add(candidates[0]);add(candidates[0],record,known.length?'已确认姓名对应关键词':'唯一姓名关键词')}
+    if(known.length===1){record.titleName=known[0];record.names.add(known[0]);add(known[0],record,'已确认姓名对应关键词')}
     else record.weakNames=candidates;
-  }
-  for(const record of records){
-    const group=record.bookEvidence;if(!group.keywordOwners)group.keywordOwners=new Map();
-    if(record.names.size!==1)continue;
-    for(const key of record.keys){if(!group.keywordOwners.has(key))group.keywordOwners.set(key,new Set());group.keywordOwners.get(key).add([...record.names][0])}
   }
   // Confirm undecorated titles with the cast overview before evaluating weaker title-only candidates.
   for(const record of records){
@@ -209,26 +202,20 @@ export function extractWorldbookPeople(books,{diagnostics=[]}={}){
     if(record.names.size===1){
       const person=found.get([...record.names][0]);if(!person)continue;
       const compactName=person.name.replace(/\s+/g,'');if(compactName!==person.name&&/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}·・]+$/u.test(compactName))person.aliases.push(compactName);
-      if(record.titleName&&record.titleName!==person.name&&record.keys.includes(record.titleName)&&!person.aliases.includes(record.titleName))person.aliases.push(record.titleName);
       const explicitAliases=[];
-      for(const match of normalizePersonText(record.content).replace(/\*\*|`/g,'').matchAll(/(?:^|[\n,{|])\s*[-*]?\s*["']?(?:别名|昵称|称呼|小名|曾用名|英文名|外文名|aliases?)["']?\s*[:=]\s*([^\n<>。}|]{1,100})/gimu))explicitAliases.push(...wbNames(match[1]));
-      for(const alias of record.keys)if(alias!==person.name&&!person.aliases.includes(alias)){
-        if(record.bookEvidence.keywordOwners.get(alias)?.size>=3&&!explicitAliases.includes(alias)){
-          if(!record.rejectedKeys)record.rejectedKeys=[];record.rejectedKeys.push(alias);continue;
-        }
-        person.aliases.push(alias);
-      }
+      for(const match of normalizePersonText(record.content).replace(/\*\*|`/g,'').matchAll(/(?:^|[\n,{|])\s*[-*]?\s*["']?(?:别名|昵称|称呼|小名|曾用名|英文名|外文名|alias(?:es)?)["']?\s*[:=]\s*([^\n<>。}|]{1,100})/gimu))explicitAliases.push(...wbNames(match[1]));
+      for(const alias of record.keys)if(alias!==person.name&&!explicitAliases.includes(alias)&&!person.aliases.includes(alias))person.candidateAliases.push(alias);
       for(const alias of explicitAliases)if(alias!==person.name&&!person.aliases.includes(alias))person.aliases.push(alias);
     }
   }
   for(const record of records){
     for(const name of record.weakNames||[])add(name,record,'关键词身份不明确，待确认',false);
-    if(record.rejectedKeys?.length)diagnostics.push({book:record.book,title:record.title,reason:`共享触发词未直接作为别名：${record.rejectedKeys.join('、')}`});
     if(!record.accepted.size&&!record.nonPerson&&!/(?:物品|装备|武器|技能|组织|势力)/u.test(record.title)&&record.titleName&&!WB_STRUCTURAL.test(record.titleName)&&!WB_PROSE.test(record.titleName))add(record.titleName,record,'仅标题，待确认',false);
     if(!record.accepted.size)diagnostics.push({book:record.book,title:record.title,reason:record.limit?'人物词表已达到 1000 人上限':record.ambiguousTitle?'标题含多个姓名关键词，无法确定单一人物；可补充姓名字段':record.titlePhrase?'标题为所属短语，不作为人物姓名':'未找到有效姓名、人物速览或可用人名标题'});
   }
   // Relationship activation keys can be another person's real name, not an alias.
   for(const person of found.values())person.aliases=person.aliases.filter(alias=>isAutomaticPersonName(alias)&&!(found.get(alias)?.trusted&&alias!==person.name));
+  for(const person of found.values())person.candidateAliases=[...new Set(person.candidateAliases)].filter(alias=>isAutomaticPersonName(alias)&&!person.aliases.includes(alias)&&!found.get(alias)?.trusted);
   const owners=new Map();for(const person of found.values())for(const alias of [person.name,...person.aliases]){if(!owners.has(alias))owners.set(alias,new Set());owners.get(alias).add(person.name)}
   for(const person of found.values()){person.aliases=[...new Set(person.aliases)];person.ambiguousAliases=person.aliases.filter(alias=>owners.get(alias).size>1)}
   const ordered=new Set(records.flatMap(record=>[...record.accepted]));
@@ -241,6 +228,7 @@ export function renderWorldbookPeopleList(doc,list,people,diagnostics=[]){
     const row=doc.createElement('li'),name=doc.createElement('strong');name.textContent=`${person.name}${person.trusted===false?'（待确认）':''}`;row.append(name);
     const aliases=doc.createElement('p');aliases.textContent=`别名：${person.aliases?.join('、')||'无'}${person.ambiguousAliases?.length?`；冲突别名不自动匹配：${person.ambiguousAliases.join('、')}`:''}`;
     const source=doc.createElement('p');source.textContent=`来源：${person.sources?.join('；')||'人物名单'}`;row.append(aliases,source);list.append(row);
+    if(person.candidateAliases?.length){const candidates=doc.createElement('p');candidates.textContent=`待确认关键词（未用于匹配）：${person.candidateAliases.join('、')}；可在人物与别名中确认。`;row.append(candidates)}
   }
   if(diagnostics.length){
     const row=doc.createElement('li'),details=doc.createElement('details'),summary=doc.createElement('summary');summary.textContent=`读取诊断与未采纳原因（${diagnostics.length} 条）`;details.append(summary);

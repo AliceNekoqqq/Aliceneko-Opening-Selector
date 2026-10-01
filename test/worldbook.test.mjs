@@ -4,8 +4,8 @@ import {detectGreetingPeople,detectGreetingCollection} from '../src/player.js';
 
 const entries=[
   {name:'人物速览',enabled:true,content:'| 编号 | 姓名 | 身份 |\n| --- | --- | --- |\n| 1 | 沈挽昼 | 同伴 |\n| 2 | 林安安 | 同学 |\n- Alice：旅人\n- 爱丽丝·温特（女）：医生'},
-  {name:'【人物】沈挽昼',enabled:true,content:'姓名：沈挽昼\n年龄：18',strategy:{keys:['沈挽昼','挽昼','小沈','哥哥']}},
-  {name:'陆斯年',enabled:true,content:'他背着一把枪。',strategy:{keys:['陆斯年','斯年','魔法']}},
+  {name:'【人物】沈挽昼',enabled:true,content:'姓名：沈挽昼\n年龄：18\n昵称：挽昼、小沈',strategy:{keys:['沈挽昼','挽昼','小沈','哥哥']}},
+  {name:'陆斯年',enabled:true,content:'姓名：陆斯年\n他背着一把枪。',strategy:{keys:['陆斯年','斯年','魔法']}},
   {name:'暮迟市',enabled:true,content:'城市设定'},
   {name:'红色预警',enabled:true,content:'危险提示'},
   {name:'【人物】禁用角色',enabled:false,content:'姓名：张三'},
@@ -40,14 +40,14 @@ console.log('Worldbook cast overview, aliases, matching, caching and bound-only 
 
 // The initial dictionary must be accurate before any greeting is considered.
 const tricky=extractWorldbookPeople([{name:'绑定书',entries:[
- {name:'人物速览',content:'| 身份 | 别名 | 姓名 |\n| --- | --- | --- |\n| 同学 | 小林 | 林安安 |\n### 王明月\n这是一段描述人物的文字。\n她是医生\n## 地点\n- 梧桐公寓：宿舍'},
- {name:'林安安',content:'没有姓名字段的详细经历。',strategy:{keys:['林安安','安安','小月','教室']}},
- {name:'【角色】王明月',content:'年龄：20',strategy:{keys:['王明月','小月']}},
- {name:'人物：王明',content:'性别：男'},
+ {name:'人物速览',content:'| 身份 | 别名 | 姓名 |\n| --- | --- | --- |\n| 同学 | 小林 | 林安安 |\n### 王明月\n- 王明月：医生\n这是一段描述人物的文字。\n她是医生\n## 地点\n- 梧桐公寓：宿舍'},
+ {name:'林安安',content:'没有姓名字段的详细经历。\n昵称：安安、小月',strategy:{keys:['林安安','安安','小月','教室']}},
+ {name:'【角色】王明月',content:'姓名：王明月\n年龄：20\n昵称：小月',strategy:{keys:['王明月','小月']}},
+ {name:'人物：王明',content:'姓名：王明\n性别：男'},
  {name:'蓝色雨幕',content:'普通环境描述'},
  {name:'槐安公寓',content:'地点：宿舍',strategy:{keys:['槐安公寓']}},
  {name:'人物档案',content:'<name>爱丽丝·温特</name>\n昵称：丽丝',strategy:{keys:['爱丽丝·温特']}},
- {name:'人物档案',content:'{"name":"Alice Winter","age":18}',strategy:{keys:['Alice']}},
+ {name:'人物档案',content:'{"name":"Alice Winter","age":18,"alias":"Alice"}',strategy:{keys:['Alice']}},
  {name:'双人档案',content:'姓名：张三\n姓名：李四',strategy:{keys:['小张']}},
 ]}]);
 assert.deepEqual(tricky.filter(p=>p.trusted).map(p=>p.name),['林安安','王明月','王明','爱丽丝·温特','Alice Winter','张三','李四']);
@@ -97,7 +97,7 @@ assert.deepEqual(detectGreetingPeople('小月到了。',{worldbookPeople:tricky}
 
 // Official deprecated helper APIs use comment/keys, not name/strategy.keys.
 const legacyCard={avatar:'legacy.png',data:{extensions:{world:'角色绑定书'},character_book:{entries:[{name:'人物档案',content:'姓名：不该读取'}]}}};
-const legacyEntries=[{comment:'人物档案：沈挽昼',enabled:true,content:'性别：女',keys:['沈挽昼','小沈']},{comment:'人物速览',enabled:true,content:'- 林安安：同学'}];
+const legacyEntries=[{comment:'人物档案：沈挽昼',enabled:true,content:'姓名：沈挽昼\n性别：女\n昵称：小沈',keys:['沈挽昼','小沈']},{comment:'人物速览',enabled:true,content:'- 林安安：同学'}];
 let legacyBooks=[];
 const legacyHelper={marker:true,getCharLorebooks(options){assert.equal(this.marker,true);assert.deepEqual(options,{name:'current',type:'all'});return {primary:'角色绑定书',additional:[]}},getLorebookEntries(name){legacyBooks.push(name);return Promise.resolve(legacyEntries)}};
 const legacyResult=await createWorldbookPeopleReader(legacyHelper)(legacyCard);
@@ -134,15 +134,15 @@ assert.deepEqual(detectGreetingPeople('在场角色：\n- 王明月制服',{worl
 // Formats commonly used in real character worldbooks, not just the original narrow fixtures.
 const richDiagnostics=[];
 const rich=extractWorldbookPeople([{name:'复杂人物书',entries:[
- {name:'01. 【NPC】【核心】沈挽昼（基础设定）',content:'外貌：琥珀色眼瞳',key:['挽昼','小沈']},
- {name:'【角色资料】林安安',content:'| 字段 | 内容 |\n| --- | --- |\n| 姓名 | 「林安安」 |\n| 年龄 | 18 |',keys:['安安']},
- {name:'陆斯年',content:'他背着一把枪。',key:['斯年']},
- {name:'楚泽_人物资料',content:'穿着白色研究服。',key:['楚泽','阿泽']},
+ {name:'01. 【NPC】【核心】沈挽昼（基础设定）',content:'姓名：沈挽昼\n外貌：琥珀色眼瞳\n昵称：挽昼、小沈',key:['挽昼','小沈']},
+ {name:'【角色资料】林安安',content:'| 字段 | 内容 |\n| --- | --- |\n| 姓名 | 「林安安」 |\n| 年龄 | 18 |\n昵称：安安',keys:['安安']},
+ {name:'陆斯年',content:'姓名：陆斯年\n他背着一把枪。\n昵称：斯年',key:['斯年']},
+ {name:'楚泽_人物资料',content:'姓名：楚泽\n穿着白色研究服。\n昵称：阿泽',key:['楚泽','阿泽']},
  {name:'人物档案',content:'- **全名** = 『爱丽丝·温特』 年龄：20\n- **昵称**：丽丝',key:['Alice']},
  {name:'XML档案',content:'<character name="月"><age>20</age></character>',key:['月']},
- {name:'人物档案',content:'<姓名 class="label">綾波レイ</姓名>',key:['レイ']},
+ {name:'人物档案',content:'<姓名 class="label">綾波レイ</姓名>\n昵称：レイ',key:['レイ']},
  {name:'人物档案',content:'本名：２Ｂ',key:['2B','ヨルハ二号B型']},
- {name:'人物 · 速览',content:'① 洛青：同学\n②苏晚 - 医生\n3. 顾云 高三女生\n## 宋遥\n简介：她是护士。\n## 地点\n- 青石公寓：住处'},
+ {name:'人物 · 速览',content:'① 洛青：同学\n②苏晚 - 医生\n3. 顾云 高三女生\n## 宋遥\n- 宋遥：护士\n简介：她是护士。\n## 地点\n- 青石公寓：住处'},
  {name:'朔夜',content:'纯标题，没有其他人物线索。'},
  {name:'河西医院',content:'地点：暮迟市'},
  {name:'世界规则',content:'请遵守剧情设定。'},
@@ -168,8 +168,8 @@ assert.match(list.children[1].children[0].children[0].textContent,/未采纳原�
 console.log('Decorated titles, profile tables, full names, XML attributes, cast descriptions and Japanese/digit names passed');
 
 const variants=extractWorldbookPeople([{name:'人物书',entries:[
- {name:'【NPC·003】沈挽昼[异化模式]',keys:['沈挽昼','小沈'],content:'外貌：琥珀色眼瞳'},
- {name:'人物档案',keys:['林安安','安安'],content:'性别：女\n年龄：18'},
+ {name:'【NPC·003】沈挽昼[异化模式]',keys:['沈挽昼','小沈'],content:'姓名：沈挽昼\n外貌：琥珀色眼瞳\n昵称：小沈'},
+ {name:'人物档案',keys:['林安安','安安'],content:'姓名：林安安\n性别：女\n年龄：18\n昵称：安安'},
  {name:'空标题资料',content:'她名叫苏晚，是医院的护士。'},
  {name:'人物档案',content:'姓名：田中 太郎',keys:['太郎']},
  {name:'急救箱',content:'物品名称：急救箱'},
@@ -184,7 +184,7 @@ assert.deepEqual(detectGreetingPeople('蓝色雨幕遮住走廊。',{worldbookPe
 assert.deepEqual(detectGreetingPeople('蓝色雨幕遮住走廊。',{worldbookPeople:tricky}).suggestions,['蓝色雨幕']);
 
 const weakOnly=extractWorldbookPeople([{name:'环境书',entries:[{name:'蓝色雨幕',content:'落雨的景象。'}]}]);
-assert.deepEqual(detectGreetingPeople('林安安：快走。',{worldbookPeople:weakOnly}).names,['林安安'],'a weak-only list must not disable ordinary explicit recognition');
+assert.deepEqual(detectGreetingPeople('林安安：快走。',{worldbookPeople:weakOnly}).suggestions,['林安安'],'a weak-only list must not disable ordinary explicit recognition');
 assert.deepEqual(detectGreetingPeople('<姓名>月</姓名>').names,['月']);
 const large=extractWorldbookPeople([{name:'多人书',entries:Array.from({length:220},(_,i)=>({name:'人物档案',content:'姓名：顾'+String.fromCodePoint(0x4e00+i)}))}]);
 assert.equal(large.length,220,'more than 200 explicit people must be read');
@@ -198,10 +198,10 @@ assert.deepEqual(detectGreetingPeople('拿起消防斧和急救箱。',{worldboo
 // User screenshot: NPC·姓名·NSFW used to merge many entries into a person named NSFW.
 const cruiseNames=['范婼慧','尹以菽','洛言舟','陆斯年','顾之遥','裴衍','沈既明','江曜'];
 const cruise=extractWorldbookPeople([{name:'银趴邮轮世界书',entries:cruiseNames.map((name,i)=>({
- name:`NPC·${name}·NSFW`,keys:['NSFW',name,`小${name.slice(1)}`,'SFW',cruiseNames[(i+1)%cruiseNames.length]],content:'性格：沉稳',
+ name:`NPC·${name}·NSFW`,keys:['NSFW',name,`小${name.slice(1)}`,'SFW',cruiseNames[(i+1)%cruiseNames.length]],content:`姓名：${name}\n性格：沉稳\n昵称：小${name.slice(1)}`,
 }))}]);
 assert.deepEqual(cruise.map(p=>p.name),cruiseNames);
-assert.ok(cruise.every(p=>p.trusted&&p.sources.length===1));
+assert.ok(cruise.every(p=>p.trusted&&p.sources.every(source=>source.includes(`NPC·${p.name}·NSFW`))));
 assert.ok(cruise.every(p=>!p.aliases.includes('NSFW')&&!p.aliases.includes('SFW')));
 assert.deepEqual(cruise[0].aliases,['小婼慧'],'other canonical names in relationship activation keys are not aliases');
 for(const name of cruiseNames)assert.deepEqual(detectGreetingPeople(`<正文>${name}走进房间。</正文>`,{worldbookPeople:cruise}).names,[name]);
@@ -209,16 +209,16 @@ assert.deepEqual(detectGreetingPeople('NSFW SFW R18',{worldbookPeople:cruise}).n
 assert.deepEqual(detectGreetingPeople('姓名：NSFW\n<NSFW>提示</NSFW>').names,[]);
 
 const taggedNames=extractWorldbookPeople([{name:'标题格式书',entries:[
- {name:'NSFW·NPC·沈挽昼·基础·核心',keys:['NSFW','沈挽昼','小沈'],content:'性别：女'},
- {name:'【NPC·003】【NSFW】林安安【SFW】',keys:['NSFW','林安安','安安'],content:'年龄：18'},
- {name:'NPC｜陆斯年｜SFW',keys:['SFW','陆斯年'],content:''},
- {name:'NPC/楚泽/R-18',keys:['R18','楚泽'],content:''},
- {name:'人物：爱丽丝·温特·NSFW',keys:['NSFW','爱丽丝·温特','丽丝'],content:''},
- {name:'NPC·Alice-Marie·SFW',keys:['Alice-Marie','SFW'],content:''},
+ {name:'NSFW·NPC·沈挽昼·基础·核心',keys:['NSFW','沈挽昼','小沈'],content:'姓名：沈挽昼\n性别：女'},
+ {name:'【NPC·003】【NSFW】林安安【SFW】',keys:['NSFW','林安安','安安'],content:'姓名：林安安\n年龄：18'},
+ {name:'NPC｜陆斯年｜SFW',keys:['SFW','陆斯年'],content:'姓名：陆斯年'},
+ {name:'NPC/楚泽/R-18',keys:['R18','楚泽'],content:'姓名：楚泽'},
+ {name:'人物：爱丽丝·温特·NSFW',keys:['NSFW','爱丽丝·温特','丽丝'],content:'姓名：爱丽丝·温特'},
+ {name:'NPC·Alice-Marie·SFW',keys:['Alice-Marie','SFW'],content:'姓名：Alice-Marie'},
  {name:'NPC·SFW·NSFW',keys:['NSFW','SFW'],content:'性别：女'},
  {name:'NSFW',keys:['NSFW'],content:'这是内容评级提示。'},
  {name:'人物资料',keys:['NSFW','沈挽昼','小沈'],content:'性格：冷静'},
- {name:'NPC·洛言舟·NSFW',keys:['洛言舟','NSFW'],content:'姓名：洛言舟·Winter\n英文名：Luo'},
+ {name:'NPC·洛言舟·NSFW',keys:['洛言舟','NSFW'],content:'姓名：洛言舟·Winter\n英文名：Luo\n昵称：洛言舟'},
 ]}]);
 assert.deepEqual(taggedNames.map(p=>p.name),['沈挽昼','林安安','陆斯年','楚泽','爱丽丝·温特','Alice-Marie','洛言舟·Winter']);
 assert.ok(taggedNames.find(p=>p.name==='洛言舟·Winter').aliases.includes('洛言舟'));
@@ -234,20 +234,20 @@ console.log('Real NPC·name·NSFW titles, category keys, rating variants and can
 for(const [prefix,suffix] of [['CrewBlue','PrivateSheet'],['舟组','夜册'],['CustomAlpha','CustomOmega']]){
  const diagnostic=[];
  const names=['沈挽昼','林安安','陆斯年'];
- const entries=names.map(name=>({name:`${prefix}·${name}·${suffix}`,keys:[suffix,name,'共同触发'],content:'年龄：18'}));
+ const entries=names.map(name=>({name:`${prefix}·${name}·${suffix}`,keys:[suffix,name,'共同触发'],content:'姓名：'+name+'\n年龄：18'}));
  const inferred=extractWorldbookPeople([{name:'自定义格式',entries}],{diagnostics:diagnostic});
  assert.deepEqual(inferred.map(p=>p.name),names,'unknown repeated wrappers are resolved through independent identities');
  assert.ok(inferred.every(p=>p.trusted&&p.aliases.length===0));
  assert.ok(diagnostic.some(item=>item.reason.includes(prefix)&&item.reason.includes(suffix)));
- assert.ok(diagnostic.some(item=>item.reason.includes('共同触发')));
+ assert.ok(inferred.every(person=>person.candidateAliases.includes('共同触发')));
  assert.deepEqual(detectGreetingPeople('林安安走进房间。共同触发。',{worldbookPeople:inferred}).names,['林安安']);
  assert.deepEqual(extractWorldbookPeople([{name:'自定义格式',entries:[...entries].reverse()}]).map(p=>p.name).sort(),names.sort(),'decisions must not depend on entry order');
 }
 
-const sameFamily=extractWorldbookPeople([{name:'复合姓名',entries:['Alice','Bob','Charlie'].map(name=>({name:`${name}·Winter`,keys:[`${name}·Winter`],content:'年龄：20'}))}]);
+const sameFamily=extractWorldbookPeople([{name:'复合姓名',entries:['Alice','Bob','Charlie'].map(name=>({name:`${name}·Winter`,keys:[`${name}·Winter`],content:'姓名：'+name+'·Winter\n年龄：20'}))}]);
 assert.deepEqual(sameFamily.map(p=>p.name),['Alice·Winter','Bob·Winter','Charlie·Winter'],'a repeated surname inside full confirmed names is preserved');
 const scoped=extractWorldbookPeople([
- {name:'甲书',entries:['沈挽昼','林安安','陆斯年'].map(name=>({name:`CrewBlue·${name}·PrivateSheet`,keys:[name,'PrivateSheet'],content:'年龄：20'}))},
+ {name:'甲书',entries:['沈挽昼','林安安','陆斯年'].map(name=>({name:`CrewBlue·${name}·PrivateSheet`,keys:[name,'PrivateSheet'],content:'姓名：'+name+'\n年龄：20'}))},
  {name:'乙书',entries:[{name:'人物资料',content:'姓名：PrivateSheet'}]},
 ]);
 assert.ok(scoped.some(p=>p.name==='PrivateSheet'&&p.trusted),'learned categories do not leak to another bound book');
@@ -262,17 +262,17 @@ const bodyIdentity=extractWorldbookPeople([{name:'姓名优先',entries:[{name:'
 assert.deepEqual(bodyIdentity.map(p=>p.name),['沈挽昼']);
 assert.ok(!bodyIdentity[0].aliases.includes('CrewBlue·沈挽昼·PrivateSheet'),'an opaque decorated title is not automatically an alias');
 
-const explicitShared=extractWorldbookPeople([{name:'共享明确别名',entries:['沈挽昼','林安安','陆斯年'].map(name=>({name:`人物：${name}`,keys:[name,'小月'],content:'别名：小月'}))}]);
+const explicitShared=extractWorldbookPeople([{name:'共享明确别名',entries:['沈挽昼','林安安','陆斯年'].map(name=>({name:`人物：${name}`,keys:[name,'小月'],content:'姓名：'+name+'\n别名：小月'}))}]);
 assert.ok(explicitShared.every(p=>p.aliases.includes('小月')&&p.ambiguousAliases.includes('小月')),'explicit aliases remain visible even when shared');
 assert.deepEqual(detectGreetingPeople('小月站在门口。',{worldbookPeople:explicitShared}).names,[]);
 
 const objects=extractWorldbookPeople([{name:'物品模板',entries:['消防斧','急救箱','手电筒'].map(name=>({name:`CrewBlue·${name}·PrivateSheet`,keys:[name,'PrivateSheet'],content:'物品名称：'+name}))}]);
 assert.ok(!objects.some(p=>p.trusted),'repeated formatting without human identity evidence cannot confirm people');
 console.log('Book-wide unknown title patterns, evidence priority, scoped categories, compound names and uncertain keys passed');
-const repeatedProfiles=extractWorldbookPeople([{name:'同一人物多条资料',entries:['白天','夜晚','雨天'].map(mode=>({name:`人物：沈挽昼（${mode}）`,keys:['沈挽昼','小沈'],content:'年龄：18'}))}]);
+const repeatedProfiles=extractWorldbookPeople([{name:'同一人物多条资料',entries:['白天','夜晚','雨天'].map(mode=>({name:`人物：沈挽昼（${mode}）`,keys:['沈挽昼','小沈'],content:'姓名：沈挽昼\n年龄：18\n昵称：小沈'}))}]);
 assert.deepEqual(repeatedProfiles.map(p=>p.name),['沈挽昼']);
 assert.deepEqual(repeatedProfiles[0].aliases,['小沈'],'repeated profiles of one identity must not turn its alias into a generic key');
-const unorderedEntries=[{name:'人物档案',keys:['神秘组','沈挽昼','小沈'],content:'年龄：18'},{name:'人物：沈挽昼',keys:['沈挽昼'],content:'性格：温柔'}];
+const unorderedEntries=[{name:'人物档案',keys:['神秘组','沈挽昼','小沈'],content:'年龄：18'},{name:'人物：沈挽昼',keys:['沈挽昼'],content:'姓名：沈挽昼\n性格：温柔'}];
 const summarize=rows=>extractWorldbookPeople([{name:'顺序检查',entries:rows}]).map(p=>({name:p.name,trusted:p.trusted,aliases:p.aliases.slice().sort()})).sort((a,b)=>a.name.localeCompare(b.name));
 assert.deepEqual(summarize(unorderedEntries),summarize([...unorderedEntries].reverse()),'generic keyword entries must see all confirmed titles');
 assert.deepEqual(extractWorldbookPeople([{name:'物品含年龄属性',entries:[{name:'人物档案：许愿石',keys:['许愿石'],content:'物品名称：许愿石\n年龄：18'}]}]),[],'explicit item identity is stronger than a generic age attribute or decorative title');
@@ -282,12 +282,51 @@ const phrasePeople=extractWorldbookPeople([{name:'莉娜的世界书',entries:[
  {name:'莉娜的楼书',keys:['莉娜的楼书'],content:'她站在门口，外貌：金发'},
  {name:'莉娜的故事',keys:['莉娜的故事'],content:'年龄：18'},
  {name:"Alice's Diary",keys:["Alice's Diary"],content:'She is kind.'},
- {name:'人物：莉娜',keys:['莉娜','莉娜的故事'],content:'性别：女'},
+ {name:'人物：莉娜',keys:['莉娜','莉娜的故事'],content:'姓名：莉娜\n性别：女'},
  {name:'人物速览',content:'- 莉娜的楼书：简介\n- 顾之遥：同学\n- 爱丽丝·温特：旅人'},
 ]}],{diagnostics:titlePhraseDiagnostics});
 assert.deepEqual(phrasePeople.map(p=>p.name),['莉娜','顾之遥','爱丽丝·温特']);
 assert.deepEqual(phrasePeople[0].aliases,[]);
 assert.ok(titlePhraseDiagnostics.some(item=>item.title==='莉娜的楼书'));
 assert.deepEqual(detectGreetingPeople('<header>莉娜的楼书</header>莉娜站在门口。',{worldbookPeople:phrasePeople}).names,['莉娜']);
-assert.deepEqual(detectGreetingPeople('莉娜：请进。',{worldbookPeople:[{name:'莉娜的故事',trusted:true,aliases:[]}]}).names,['莉娜'],'rejected title vocabulary must not activate the trusted-person gate');
+assert.deepEqual(detectGreetingPeople('莉娜：请进。',{worldbookPeople:[{name:'莉娜的故事',trusted:true,aliases:[]}]}).suggestions,['莉娜'],'rejected title vocabulary must not activate the trusted-person gate');
 console.log('Worldbook title phrases and aliases are excluded without dropping real names passed');
+
+// beta.12: activation words are neither identities nor automatically trusted aliases.
+const strictDiagnostics=[];
+const strictPeople=extractWorldbookPeople([{name:'收紧回归书',entries:[
+ {name:'人物：沈挽昼',content:'姓名：沈挽昼\n昵称：小沈',keys:['沈挽昼','小沈','挽昼','消防斧','门口','林安安']},
+ {name:'人物档案',content:'姓名：林安安\n别名：安安',keys:['林安安','沈挽昼','绷带']},
+ {name:'NPC·陆斯年·NSFW',content:'性别：男\n年龄：18\n他背着一把枪。',keys:['陆斯年','斯年']},
+ {name:'人物档案',content:'年龄：20',keys:['楚泽']},
+ {name:'人物速览',content:'## 月色温柔\n她站在窗边\n宋遥：护士\n| 地点 | 状态 |\n| --- | --- |\n| 门口 | 安全 |\n- 洛青：同学'},
+]}],{diagnostics:strictDiagnostics});
+const strictByName=new Map(strictPeople.map(p=>[p.name,p]));
+assert.deepEqual(strictByName.get('沈挽昼').aliases,['小沈']);
+assert.deepEqual(strictByName.get('沈挽昼').candidateAliases,['挽昼','消防斧','门口']);
+assert.deepEqual(strictByName.get('林安安').aliases,['安安']);
+for(const name of ['陆斯年','楚泽','月色温柔','宋遥'])assert.equal(strictByName.get(name).trusted,false,name);
+assert.equal(strictByName.get('洛青').trusted,true);
+assert.ok(!strictPeople.some(p=>p.name==='门口'),'a table without a person column does not invent names');
+assert.deepEqual(detectGreetingPeople('<道具>消防斧、门口、绷带、挽昼</道具>',{worldbookPeople:strictPeople}).names,[]);
+assert.deepEqual(detectGreetingPeople('小沈与安安站在门边。',{worldbookPeople:strictPeople}).names.sort(),['沈挽昼','林安安'].sort());
+const strictOpenings=detectGreetingCollection(['陆斯年：快走。','陆斯年站在门口。','<陆斯年>“等等。”</陆斯年>'],{worldbookPeople:strictPeople});
+assert.ok(strictOpenings.every(p=>!p.names.includes('陆斯年')&&p.suggestions.includes('陆斯年')),'dialogue and tags must not promote weak worldbook names or propagate them');
+const explicitOpenings=detectGreetingCollection(['姓名：陆斯年','陆斯年站在门口。'],{worldbookPeople:strictPeople});
+assert.ok(explicitOpenings.every(p=>p.names.includes('陆斯年')),'an explicit body identity propagates to other openings');
+assert.deepEqual(detectGreetingPeople('挽昼拿起消防斧。',{worldbookPeople:strictPeople,aliases:'沈挽昼=挽昼'}).names,['沈挽昼']);
+renderWorldbookPeopleList(fakeDoc,list,[strictByName.get('沈挽昼')]);
+assert.match(list.children[0].children[3].textContent,/待确认关键词（未用于匹配）：挽昼、消防斧、门口/);
+const tableAliases=extractWorldbookPeople([{name:'别名书',entries:[
+ {name:'人物速览',content:'| 姓名 | 别名 |\n| --- | --- |\n| 张三 | 阿三 |'},
+ {name:'张三',content:'姓名：张三',keys:['阿三','雨夜']},
+ {name:'李四',content:'{"name":"李四","alias":"小四"}',keys:['小四','门口']},
+]}]);
+assert.deepEqual(tableAliases[0].aliases,['阿三']);assert.deepEqual(tableAliases[0].candidateAliases,['雨夜']);
+assert.deepEqual(tableAliases[1].aliases,['小四']);
+assert.deepEqual(detectGreetingPeople('阿三和小四。',{worldbookPeople:tableAliases}).names.sort(),['张三','李四'].sort());
+const weakLong=[{name:'王明月',trusted:false,aliases:[]},{name:'王明',trusted:true,aliases:[]}];
+assert.deepEqual(detectGreetingPeople('王明月站在门口。',{worldbookPeople:weakLong}).names,['王明'],'an unconfirmed longer candidate cannot mask a confirmed name');
+assert.deepEqual(detectGreetingPeople('姓名：user\n名字：哥哥').names,[]);
+assert.deepEqual(detectGreetingPeople('哥哥：来了。',{aliases:'哥哥'}).names,['哥哥'],'manual rules still confirm special names');
+console.log('Strict identities, untrusted activation keywords, explicit aliases, candidate rendering and manual confirmation passed');
