@@ -1,9 +1,10 @@
 import {bindUpdateControl} from './update-control.js';
 import {isPersonName,isAutomaticPersonName,normalizePersonText,allowsPersonEvidence,extractPersonIdentities,createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
+import {createWorldbookPresetManager} from './worldbook-presets.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.10';
+const VERSION='1.0.11';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -118,6 +119,19 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
 export function excludedTags(value){return [...new Set(String(value||'').split(/[，,、\s]+/).map(x=>x.trim().replace(/^<\/?|\/>?$/g,'')).filter(x=>/^[\w\p{Script=Han}-]{1,40}$/u.test(x)))].slice(0,40)}
 function stripExcluded(text,tags){for(const tag of tags){const safe=tag.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');text=text.replace(new RegExp(`<${safe}(?:\\s[^<>]*)?>[\\s\\S]*?<\\/${safe}\\s*>`,'gi'),' ').replace(new RegExp(`<${safe}(?:\\s[^<>]*)?\\/?>`,'gi'),' ')}return text}
+export function unsavedPlayerGroups(baseline,current){if(!baseline||!current)return[];return Object.keys(current).filter(key=>JSON.stringify(baseline[key])!==JSON.stringify(current[key]))}
+export async function switchOpeningWithPreset(preset,presetManager,changeOpening){
+  let transaction=null;
+  try{
+    if(preset)transaction=await presetManager.apply(preset);
+    await changeOpening();
+    return true;
+  }catch(error){
+    let rollbackMessage='';
+    if(transaction)try{await transaction.rollback()}catch(rollbackError){rollbackMessage=`；世界书状态恢复失败：${rollbackError?.message||rollbackError}`}
+    throw Error(`${error?.message||error}${rollbackMessage}`);
+  }
+}
 export function narrativeStart(body,excluded=[]){
   let text=stripExcluded(String(body||''),excluded).replace(/\r\n?/g,'\n').trim();
   const narrativeTag=/^(?:正文|content)$/i;
@@ -293,6 +307,27 @@ export function readPlayerState(context,helper){
   return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:bodies.map((body,i)=>({index:i,body,title:!isLegacyGeneratedEntry(body,metadata[i],i)&&metadata[i]?.title||greetingTitle(body,i,excluded),description:isLegacyGeneratedEntry(body,metadata[i],i)?'':metadata[i]?.description||'',names:people[i].names,nameEvidence:people[i].evidence,nameSuggestions:people[i].suggestions,label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
 }
 
+function showPlayerUnsavedPrompt(doc,dialog,panel,groups,canSaveToCard){
+  return new Promise(resolve=>{
+    const previous=doc.activeElement,overlay=doc.createElement('div');overlay.dataset.uosPlayerUnsaved='';overlay.setAttribute('role','presentation');
+    overlay.style.cssText='position:absolute;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:#000a;color:var(--text)';
+    const computed=doc.defaultView.getComputedStyle(panel);for(const key of ['--bg','--surface','--text','--muted','--accent','--line'])overlay.style.setProperty(key,computed.getPropertyValue(key));
+    const card=doc.createElement('section');card.setAttribute('role','alertdialog');card.setAttribute('aria-modal','true');card.setAttribute('aria-labelledby','uos-player-unsaved-title');card.style.cssText='width:min(440px,100%);padding:18px;border:1px solid var(--accent);border-radius:14px;background:var(--bg);color:var(--text);box-shadow:0 18px 54px #000b';
+    const title=doc.createElement('h2');title.id='uos-player-unsaved-title';title.textContent='有未保存的改动';title.style.cssText='margin:0 0 8px;font-size:18px';
+    const names={exclusion:'排除字段',people:'人物规则',edits:'开场修正',labels:'开场标签'};
+    const message=doc.createElement('p');message.textContent='未保存：'+groups.map(group=>names[group]||group).join('、');message.style.cssText='margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.5';
+    const actions=doc.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px';
+    let settled=false;const buttons=[];
+    const finish=value=>{if(settled)return;settled=true;doc.removeEventListener('keydown',onKeyDown,true);overlay.remove();try{previous?.focus?.()}catch{}resolve(value)};
+    const addButton=(label,value,primary=false)=>{const button=doc.createElement('button');button.type='button';button.textContent=label;button.style.cssText=`min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:${primary?'var(--accent)':'var(--surface)'};color:${primary?'var(--bg)':'var(--text)'};font:600 12px/1.35 system-ui,sans-serif;cursor:pointer`;button.onclick=()=>finish(value);buttons.push(button);actions.append(button);return button};
+    addButton('保存到本机并关闭','local',true);
+    if(canSaveToCard)addButton('保存到角色卡并关闭','card');
+    addButton('放弃更改并关闭','discard');const stay=addButton('继续编辑','stay');
+    const onKeyDown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();finish('stay');return}if(event.key==='Tab'){const index=buttons.indexOf(doc.activeElement);if(event.shiftKey&&index<=0){event.preventDefault();buttons.at(-1).focus()}else if(!event.shiftKey&&index===buttons.length-1){event.preventDefault();buttons[0].focus()}}};
+    overlay.addEventListener('pointerdown',event=>{if(event.target===overlay)finish('stay')});card.append(title,message,actions);overlay.append(card);dialog.append(overlay);doc.addEventListener('keydown',onKeyDown,true);stay.focus();
+  });
+}
+
 export function mountPlayerSelector(startDocument=document,helperApi){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
@@ -301,8 +336,9 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const host=doc.defaultView||globalThis;
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
+  const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS;(doc.head||doc.documentElement).append(style);
-  let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0;
+  let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
     if(!trigger)return;
@@ -362,18 +398,18 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode){first.before(trigger);applySavedPosition()}
     }finally{updating=false}
   }
-  function closePanel(){stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
+  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
   function openPanel(){
     const snapshot=state();if(!snapshot)return;
     const storageKey=labelKey(snapshot);let customLabels={};
     try{const saved=JSON.parse(host.localStorage.getItem(storageKey));if(saved && typeof saved==='object' && !Array.isArray(saved))customLabels=saved}catch{}
-    closePanel();overlay=el('dialog','uos-user-overlay');
+    closePanel(true);overlay=el('dialog','uos-user-overlay');
     const panel=el('section','uos-user-panel');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','预览和选择开场');
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
     const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`已读取 ${snapshot.entries.length} 条开场，选择后切换首条消息。`));
-    const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=closePanel;head.append(heading,el('small','uos-user-version-badge',`v${VERSION}`),close);
+    const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>closePanel();head.append(heading,el('small','uos-user-version-badge',`v${VERSION}`),close);
     const tools=el('div','uos-user-tools');const updateButton=el('button','uos-user-update');tools.append(updateButton);stopUpdateControl=bindUpdateControl(updateButton,doc);
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[select.value]?`url("${THEME_BACKGROUND_IMAGES[select.value]}")`:'none');kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
@@ -385,11 +421,12 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     let localEdits={};try{const saved=JSON.parse(host.localStorage.getItem(editKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localEdits=saved}catch{}
     const exclusionKey=`uos_player_excluded_${snapshot.avatar}`;
     let localExcluded=[];try{localExcluded=excludedTags(host.localStorage.getItem(exclusionKey))}catch{}
+    let playerBaseline=null,markPlayerSaved=()=>{},persistPlayerGroup=()=>false;
     const exclusion=el('details','uos-user-label-settings');exclusion.append(el('summary','','排除标题中的 <字段>'));
     const hint=el('p','','填写标签名，用逗号隔开，例如：状态, 时间, 角色档案。只影响标题提取，不影响人物识别和完整原文。');exclusion.append(hint);
     if(authorExcluded.length)exclusion.append(el('p','',`作者预设：${authorExcluded.join('、')}`));
     const exclusionInput=el('input');exclusionInput.type='text';exclusionInput.value=localExcluded.join(', ');exclusionInput.placeholder='例如：状态, 时间';exclusionInput.setAttribute('aria-label','要排除的尖括号字段');exclusion.append(exclusionInput);
-    const saveExclusion=el('button','','保存排除字段');saveExclusion.type='button';saveExclusion.onclick=()=>{localExcluded=excludedTags(exclusionInput.value);try{host.localStorage.setItem(exclusionKey,localExcluded.join(','))}catch{};renderCards();status.textContent='排除字段已应用于标题。'};exclusion.append(saveExclusion);
+    const saveExclusion=el('button','','保存排除字段');saveExclusion.type='button';saveExclusion.onclick=()=>persistPlayerGroup('exclusion');exclusion.append(saveExclusion);
     const saveAuthor=el('button','','保存到角色卡（作者）');saveAuthor.type='button';saveAuthor.onclick=async()=>{
       const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
       if(!card?.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return}
@@ -399,7 +436,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
         const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
         if(!response.ok)throw Error(`HTTP ${response.status}`);
         await context.writeExtensionField(snapshot.characterId,KEY,next);
-        authorExcluded.splice(0,authorExcluded.length,...excludedTags(next.excludedTags));renderCards();status.textContent='已写入角色卡，请从酒馆重新导出后分享。';
+        authorExcluded.splice(0,authorExcluded.length,...excludedTags(next.excludedTags));markPlayerSaved('exclusion');renderCards();status.textContent='已写入角色卡，请从酒馆重新导出后分享。';
       }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`}finally{saveAuthor.disabled=false}
     };exclusion.append(saveAuthor);status.setAttribute('role','status');
     const personKey=`uos_player_person_rules_${snapshot.avatar}`;
@@ -420,7 +457,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       snapshot.entries.forEach((entry,i)=>{entry.names=detected[i].names;entry.nameEvidence=detected[i].evidence;entry.nameSuggestions=detected[i].suggestions});
       for(const {entry,namesInput,candidates} of editFields){namesInput.placeholder=entry.names.join('、')||'未识别，可填写姓名';candidates.replaceChildren();if(entry.nameSuggestions.length){candidates.append(el('span','','待确认：'));for(const name of entry.nameSuggestions){const button=el('button','',name);button.type='button';button.onclick=()=>{namesInput.value=[...new Set([...parseNames(namesInput.value),name])].join('、');status.textContent='已填入候选人物，请保存修正。'};candidates.append(button)}}}
     }
-    const saveLocalPeople=el('button','','仅保存到本机');saveLocalPeople.type='button';saveLocalPeople.onclick=()=>{localPersonRules={personAliases:aliasInput.value.slice(0,1500)};try{host.localStorage.setItem(personKey,JSON.stringify(localPersonRules));status.textContent='人物识别规则已保存在本机。'}catch{status.textContent='本机存储不可用，本次预览仍可使用规则。'}updatePeople();renderCards()};personSettings.append(saveLocalPeople);
+    const saveLocalPeople=el('button','','仅保存到本机');saveLocalPeople.type='button';saveLocalPeople.onclick=()=>persistPlayerGroup('people');personSettings.append(saveLocalPeople);
     const saveCardPeople=el('button','','保存到角色卡（作者）');saveCardPeople.type='button';saveCardPeople.onclick=async()=>{
       const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
       if(!card?.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return}
@@ -430,7 +467,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
         const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
         if(!response.ok)throw Error(`HTTP ${response.status}`);
         await context.writeExtensionField(snapshot.characterId,KEY,next);
-        authorConfig.personAliases=next.personAliases;localPersonRules={};host.localStorage.removeItem(personKey);updatePeople();renderCards();status.textContent='人物识别规则已写入角色卡；重新导出后即可分享。';
+        authorConfig.personAliases=next.personAliases;localPersonRules={};try{host.localStorage.removeItem(personKey)}catch{}markPlayerSaved('people');updatePeople();renderCards();status.textContent='人物识别规则已写入角色卡；重新导出后即可分享。';
       }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`}finally{saveCardPeople.disabled=false}
     };personSettings.append(saveCardPeople);
     const edits=el('details','uos-user-label-settings');edits.append(el('summary','','修正标题和登场人物'));
@@ -447,7 +484,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     const collectEdits=()=>Object.fromEntries(editFields.map(({entry,titleInput,namesInput})=>{
       const names=namesInput.value.trim();return [entry.index,{title:titleInput.value.trim().slice(0,100),...(names?{names:names==='无'?'':names.slice(0,200)}:{})}];
     }));
-    const saveEdits=el('button','','仅保存到本机');saveEdits.type='button';saveEdits.onclick=()=>{localEdits=collectEdits();try{host.localStorage.setItem(editKey,JSON.stringify(localEdits));status.textContent='修正已保存在本机。'}catch{status.textContent='本机存储不可用，修正仅在本次预览中有效。'}updatePeople();renderCards()};edits.append(saveEdits);
+    const saveEdits=el('button','','仅保存到本机');saveEdits.type='button';saveEdits.onclick=()=>persistPlayerGroup('edits');edits.append(saveEdits);
     const saveCardEdits=el('button','','保存到角色卡（作者）');saveCardEdits.type='button';saveCardEdits.onclick=async()=>{
       const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
       if(!card?.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return}
@@ -461,7 +498,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
         const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
         if(!response.ok)throw Error(`HTTP ${response.status}`);
         await context.writeExtensionField(snapshot.characterId,KEY,next);
-        authorEntries.splice(0,authorEntries.length,...next.entries);localEdits={};host.localStorage.removeItem(editKey);updatePeople();renderCards();status.textContent='修正已写入角色卡；重新导出后即可分享。';
+        authorEntries.splice(0,authorEntries.length,...next.entries);localEdits={};try{host.localStorage.removeItem(editKey)}catch{}markPlayerSaved('edits');updatePeople();renderCards();status.textContent='修正已写入角色卡；重新导出后即可分享。';
       }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`}finally{saveCardEdits.disabled=false}
     };edits.append(saveCardEdits);
     const labelSettings=el('details','uos-user-label-settings');labelSettings.append(el('summary','','自定义开场标签（仅保存在本机）'));
@@ -469,15 +506,43 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     for(const entry of snapshot.entries){const field=el('label');field.append(el('span','',`第 ${entry.index+1} 条开场`));
       const input=el('input');input.type='text';input.maxLength=60;input.value=typeof customLabels[entry.index]==='string'?customLabels[entry.index]:entry.label;
       input.setAttribute('aria-label',`第 ${entry.index+1} 条开场标签`);field.append(input);labelInputs.push(input);labelSettings.append(field)}
-    const saveLabels=el('button','','保存标签');saveLabels.type='button';saveLabels.onclick=()=>{
-      const next={};for(const entry of snapshot.entries){const value=labelInputs[entry.index].value.trim().slice(0,60);
-        if(value && value!==entry.label)next[entry.index]=value;
-        if(labelTexts[entry.index])labelTexts[entry.index].textContent=(value||entry.label)+(entry.description?` · ${entry.description}`:'');
+    const saveLabels=el('button','','保存标签');saveLabels.type='button';saveLabels.onclick=()=>persistPlayerGroup('labels');labelSettings.append(saveLabels);
+    const readPlayerDraft=()=>({exclusion:exclusionInput.value,people:aliasInput.value,edits:editFields.map(({titleInput,namesInput})=>[titleInput.value,namesInput.value]),labels:labelInputs.map(input=>input.value)});
+    playerBaseline=readPlayerDraft();
+    markPlayerSaved=group=>{if(playerBaseline)playerBaseline[group]=readPlayerDraft()[group]};
+    persistPlayerGroup=group=>{
+      try{
+        if(group==='exclusion'){const next=excludedTags(exclusionInput.value);host.localStorage.setItem(exclusionKey,next.join(','));localExcluded=next;renderCards();status.textContent='排除字段已保存在本机。'}
+        else if(group==='people'){const next={personAliases:aliasInput.value.slice(0,1500)};host.localStorage.setItem(personKey,JSON.stringify(next));localPersonRules=next;updatePeople();renderCards();status.textContent='人物识别规则已保存在本机。'}
+        else if(group==='edits'){const next=collectEdits();host.localStorage.setItem(editKey,JSON.stringify(next));localEdits=next;updatePeople();renderCards();status.textContent='修正已保存在本机。'}
+        else if(group==='labels'){const next={};for(const entry of snapshot.entries){const value=labelInputs[entry.index].value.trim().slice(0,60);if(value&&value!==entry.label)next[entry.index]=value}if(Object.keys(next).length)host.localStorage.setItem(storageKey,JSON.stringify(next));else host.localStorage.removeItem(storageKey);customLabels=next;renderCards();status.textContent='标签已保存在本机。'}
+        else return false;
+        markPlayerSaved(group);return true;
+      }catch(error){status.textContent=`本机保存失败：${error?.message||error}`;return false}
+    };
+    const saveLocalDraft=groups=>{for(const group of groups)if(!persistPlayerGroup(group))return false;return true};
+    const saveCardDraft=async groups=>{
+      const cardGroups=groups.filter(group=>['exclusion','people','edits'].includes(group));
+      if(cardGroups.length){
+        const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
+        if(!card?.avatar||card.avatar!==snapshot.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return false}
+        try{
+          const original=(card.data||card).extensions?.[KEY]||{},next={...original};
+          if(cardGroups.includes('exclusion'))next.excludedTags=excludedTags(exclusionInput.value).join(',');
+          if(cardGroups.includes('people')){next.personAliases=aliasInput.value.slice(0,1500);delete next.excludedPersonTags}
+          if(cardGroups.includes('edits')){const values=collectEdits();next.entries=snapshot.entries.map((entry,i)=>{const saved={...(original.entries?.[i]||{})};if(values[i].title)saved.title=values[i].title;else delete saved.title;if(Object.hasOwn(values[i],'names'))saved.names=values[i].names;else delete saved.names;return saved})}
+          const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
+          if(!response.ok)throw Error(`HTTP ${response.status}`);
+          await context.writeExtensionField(snapshot.characterId,KEY,next);
+          if(cardGroups.includes('exclusion')){authorExcluded.splice(0,authorExcluded.length,...excludedTags(next.excludedTags));authorConfig.excludedTags=next.excludedTags;markPlayerSaved('exclusion')}
+          if(cardGroups.includes('people')){authorConfig.personAliases=next.personAliases;localPersonRules={};try{host.localStorage.removeItem(personKey)}catch{}markPlayerSaved('people')}
+          if(cardGroups.includes('edits')){authorEntries.splice(0,authorEntries.length,...next.entries);localEdits={};try{host.localStorage.removeItem(editKey)}catch{}markPlayerSaved('edits')}
+          updatePeople();renderCards();status.textContent='已写入角色卡，请从酒馆重新导出后分享。';
+        }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`;return false}
       }
-      try{if(Object.keys(next).length)host.localStorage.setItem(storageKey,JSON.stringify(next));else host.localStorage.removeItem(storageKey);
-        status.textContent='标签已保存在本机。';customLabels=next
-      }catch{status.textContent='本机存储不可用，标签仅在本次预览中有效。'}
-    };labelSettings.append(saveLabels);
+      if(groups.includes('labels')&&!persistPlayerGroup('labels'))return false;
+      return true;
+    };
     const search=el('div','uos-user-search'),query=el('input'),person=el('select');query.type='search';query.placeholder='搜索标题、人物或开场正文';query.setAttribute('aria-label','搜索开场');person.setAttribute('aria-label','按人物筛选');search.append(query,person);
     query.oninput=()=>renderCards();person.onchange=()=>renderCards();
     function renderCards(){list.replaceChildren();const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
@@ -494,11 +559,22 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       const details=el('details','');details.append(el('summary','','预览完整正文'),el('pre','',entry.body));card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{
-        const current=state();
+        let current=state();
         if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';return}
-        choose.disabled=true;status.textContent='正在切换开场…';
-        try{await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
-          const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');closePanel();scan();
+        choose.disabled=true;
+        if(!await confirmPlayerChanges()){choose.disabled=false;return}
+        current=state();
+        if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';choose.disabled=false;return}
+        status.textContent='正在切换开场…';
+        try{
+          const presetId=authorEntries[entry.index]?.worldbookPresetId;
+          const preset=Array.isArray(authorConfig.worldbookPresets)?authorConfig.worldbookPresets.find(value=>value.id===presetId):null;
+          if(preset)status.textContent='正在应用此开场的世界书条目预设…';
+          await switchOpeningWithPreset(preset,worldbookPresetManager,async()=>{
+            await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
+            const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');
+          });
+          closePanel(true);scan();
         }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
       };
       card.append(choose);list.append(card);
@@ -509,6 +585,32 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     const mark=el('p','uos-user-watermark',WATERMARK);mark.append(el('span','uos-user-version',`v${VERSION}`));
     panel.append(head,tools,search,exclusion,personSettings,edits,labelSettings,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const active=overlay;
+    const restorePlayerDraft=()=>{
+      if(!playerBaseline)return;
+      exclusionInput.value=playerBaseline.exclusion;aliasInput.value=playerBaseline.people;
+      editFields.forEach(({titleInput,namesInput},i)=>{titleInput.value=playerBaseline.edits[i]?.[0]||'';namesInput.value=playerBaseline.edits[i]?.[1]||''});
+      labelInputs.forEach((input,i)=>{input.value=playerBaseline.labels[i]??''});
+      updatePeople();renderCards();
+    };
+    let closePromptOpen=false;
+    const confirmPlayerChanges=async()=>{
+      if(closePromptOpen)return false;
+      const groups=unsavedPlayerGroups(playerBaseline,readPlayerDraft());
+      if(!groups.length)return true;
+      closePromptOpen=true;
+      try{
+        const canSaveToCard=groups.some(group=>['exclusion','people','edits'].includes(group));
+        const choice=await showPlayerUnsavedPrompt(doc,active,panel,groups,canSaveToCard);
+        if(choice==='stay')return false;
+        if(choice==='discard'){restorePlayerDraft();return true}
+        const saved=choice==='card'?await saveCardDraft(groups):choice==='local'?saveLocalDraft(groups):false;
+        return !!saved;
+      }catch(error){status.textContent=`未保存内容处理失败：${error?.message||error}`}
+      finally{closePromptOpen=false}
+      return false;
+    };
+    const requestPanelClose=async()=>{if(await confirmPlayerChanges())closePanel(true)};
+    panelCloseGuard=requestPanelClose;
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
@@ -517,8 +619,8 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       }catch{if(overlay===active)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();
-    try{active.showModal()}catch(error){closePanel();console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error);return}
-    active.onclick=e=>{if(e.target===active)closePanel()};active.onclose=()=>{stopUpdateControl?.();stopUpdateControl=null;active.remove();if(overlay===active)overlay=null};close.focus();
+    try{active.showModal()}catch(error){closePanel(true);console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error);return}
+    active.addEventListener('cancel',event=>{event.preventDefault();closePanel()});active.onclick=e=>{if(e.target===active)closePanel()};active.onclose=()=>{stopUpdateControl?.();stopUpdateControl=null;active.remove();if(overlay===active)overlay=null};close.focus();
   }
   const observer=new host.MutationObserver(scan);
   if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
@@ -527,7 +629,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:VERSION,scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel();removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:VERSION,scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});

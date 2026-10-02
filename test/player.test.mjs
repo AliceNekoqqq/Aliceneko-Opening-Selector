@@ -1,7 +1,23 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {readPlayerState} from '../index.js';
-import {resolveDisplayEntry,isLegacyGeneratedEntry,detectGreetingPeople,detectGreetingCollection} from '../src/player.js';
+import {resolveDisplayEntry,isLegacyGeneratedEntry,detectGreetingPeople,detectGreetingCollection,unsavedPlayerGroups,switchOpeningWithPreset} from '../src/player.js';
+
+const switchOrder=[];
+await switchOpeningWithPreset(null,null,async()=>switchOrder.push('opening'));
+assert.deepEqual(switchOrder,['opening'],'unassigned openings switch without touching worldbooks');
+switchOrder.length=0;
+let rolledBack=false;
+await switchOpeningWithPreset({id:'preset'},{apply:async()=>{switchOrder.push('preset');return{rollback:async()=>{rolledBack=true;switchOrder.push('rollback')}}}},async()=>{switchOrder.push('opening');throw Error('swipe failed')}).then(
+  ()=>assert.fail('failed opening switch must reject'),
+  error=>assert.match(error.message,/swipe failed/),
+);
+assert.deepEqual(switchOrder,['preset','opening','rollback'],'preset applies before opening and rolls back when switching fails');
+assert.equal(rolledBack,true);
+await assert.rejects(
+  switchOpeningWithPreset({id:'preset'},{apply:async()=>({rollback:async()=>{throw Error('restore failed')}})},async()=>{throw Error('swipe failed')}),
+  /swipe failed；世界书状态恢复失败：restore failed/,
+);
 
 assert.match(fs.readFileSync('src/player.js','utf8'),/唯一来源Discord:♡Aliceneko♡\/红豆粉丨本插件完全免费/);
 
@@ -56,6 +72,9 @@ assert.equal(resolveDisplayEntry(scene.entries[0],{title:'作者标题',names:'�
 assert.deepEqual(resolveDisplayEntry(scene.entries[0],{title:'作者标题',names:'李明'},{title:'玩家标题',names:''}).names,[]);
 assert.equal(resolveDisplayEntry({index:0,body:'<跳过>元信息。</跳过><content>正文标题。</content>',names:[]},{},{},['跳过']).title,'正文标题。');
 const playerSource=fs.readFileSync('src/player.js','utf8');
+assert.deepEqual(unsavedPlayerGroups({people:'旧规则',labels:['甲']},{people:'新规则',labels:['乙']}),['people','labels']);
+assert.deepEqual(unsavedPlayerGroups({people:'规则'},{people:'规则'}),[]);
+for(const action of ['保存到本机并关闭','保存到角色卡并关闭','放弃更改并关闭','继续编辑'])assert.ok(playerSource.includes(action),action);
 assert.match(playerSource,/\.uos-user-background\{[^}]*background-size:cover/);
 for(const feature of ['uos-user-search','修正标题和登场人物','排除标题中的 <字段>','自定义开场标签','预览完整正文','data-number','THEME_CAPTIONS','THEME_BACKGROUND_IMAGES','uos-user-background'])assert.ok(playerSource.includes(feature),feature);
 

@@ -1,6 +1,7 @@
 import {bindUpdateControl} from './update-control.js';
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './player.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
+import {captureWorldbookPreset,createWorldbookPresetManager,migrateWorldbookPresetAssignments} from './worldbook-presets.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
 export async function optimizeCoverData(source,file,doc=document){
   if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
@@ -20,7 +21,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.10';
+  const VERSION = '1.0.11';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -54,13 +55,27 @@ export function mountInDocument(doc = document, helperApi = null) {
   };
   const character = () => { const c=context(); return c?.characters?.[c.characterId]; };
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host]);
+  const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host],character);
   let worldbookPeople=[],worldbookDiagnostics=[],worldbookMessage='正在读取角色世界书人物名单…';
+  let worldbookPresetData={books:[],bindings:[],warnings:[]},worldbookPresetMessage='正在读取绑定世界书…',selectedWorldbookPresetId='',selectedWorldbookPresetEdit=null,selectedWorldbookPresetDirty=false,selectedWorldbookPresetIsNew=false;
+  let settingsDraftBaseline=null,pendingSettingsTasks=0,saveSettingsToCard=async()=>false;
   async function refreshWorldbookPeople(refresh=false){
     const card=character(),identity=card?.avatar;
     try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
       worldbookPeople=result.people;worldbookDiagnostics=result.diagnostics||[];worldbookMessage=formatWorldbookPeopleStatus(result);render();
     }catch{worldbookMessage='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
     const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,worldbookPeople,worldbookDiagnostics);
+  }
+  async function refreshWorldbookPresets(){
+    const identity=character()?.avatar;
+    try{
+      const result=await worldbookPresetManager.read();
+      if(root.isConnected===false||character()?.avatar!==identity)return;
+      worldbookPresetData=result;
+      worldbookPresetMessage=`已读取 ${result.books.length} 本、${result.entryCount} 条。${result.warnings.length?`读取失败：${result.warnings.join('；')}`:''}`;
+    }catch(error){worldbookPresetData={books:[],bindings:[],warnings:[]};worldbookPresetMessage=String(error?.message||error)}
+    const note=$('[data-worldbook-presets-status]');if(note)note.textContent=worldbookPresetMessage;
+    const panel=$('[data-worldbook-presets]');if(panel&&draft)renderWorldbookPresetEditor();
   }
   const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];
   let config = normalize(stored || seed);
@@ -72,19 +87,22 @@ export function mountInDocument(doc = document, helperApi = null) {
   const el = (tag, cls, content) => { const n=doc.createElement(tag); if(cls)n.className=cls; if(content!=null)n.textContent=String(content); return n; };
   function normalize(input) {
     const x=input && typeof input==='object' ? input : {};
+    const worldbookConfig=migrateWorldbookPresetAssignments(x.entries,x.worldbookPresets);
     return {
       version:1, title:String(x.title||'选择故事的起点').slice(0,100),
       subtitle:String(x.subtitle||'选择一个开场，故事将从那里继续。').slice(0,400),
       theme:THEMES.some(t=>t[0]===x.theme)?x.theme:'archive',
       excludedTags:String(x.excludedTags||'').slice(0,500),
       personAliases:String(x.personAliases||'').slice(0,1500),
-      entries:Array.isArray(x.entries)?x.entries.map((e,i)=>({
-        title:String(e?.title||`开场 ${i+1}`).slice(0,100),
+      entries:worldbookConfig.entries.map((e,i)=>({
+        title:String(e?.title||'开场 '+(i+1)).slice(0,100),
         description:String(e?.description||'').slice(0,300),
         label:String(e?.label||'').slice(0,60),
         ...(typeof e?.names==='string'?{names:e.names.slice(0,200)}:{}),
+        ...(typeof e?.worldbookPresetId==='string'&&worldbookConfig.presets.some(preset=>preset.id===e.worldbookPresetId)?{worldbookPresetId:e.worldbookPresetId}:{}),
         image:String(e?.image||''),
-      })):[],
+      })),
+      worldbookPresets:worldbookConfig.presets,
       music:{enabled:x.music?.enabled == null ? Boolean(x.music?.audio) : Boolean(x.music.enabled),title:String(x.music?.title||''),audio:String(x.music?.audio||''),lyrics:String(x.music?.lyrics||'')},
     };
   }
@@ -111,6 +129,38 @@ export function mountInDocument(doc = document, helperApi = null) {
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
   function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled)for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art'])dlg.style.setProperty(key,style.getPropertyValue(key));}
+  function hasUnsavedSettings(){
+    if(!draft)return false;
+    if(selectedWorldbookPresetDirty||pendingSettingsTasks>0)return true;
+    try{return settingsDraftBaseline!==null&&JSON.stringify(normalize({...draft,theme:displayTheme}))!==settingsDraftBaseline}catch{return true}
+  }
+  function showUnsavedSettingsPrompt(frameDoc,sheet){
+    return new Promise(resolve=>{
+      const previous=frameDoc.activeElement,overlay=frameDoc.createElement('div');
+      overlay.dataset.uosUnsavedPrompt='';overlay.setAttribute('role','presentation');
+      overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:16px;background:#0009;color:var(--text)';
+      for(const key of ['--bg','--panel','--text','--muted','--accent','--line'])overlay.style.setProperty(key,sheet.style.getPropertyValue(key));
+      const panel=frameDoc.createElement('section');panel.setAttribute('role','alertdialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','uos-unsaved-title');panel.setAttribute('aria-describedby','uos-unsaved-description');
+      panel.style.cssText='width:min(420px,100%);padding:20px;border:1px solid var(--accent);border-radius:14px;background:var(--bg);color:var(--text);box-shadow:0 18px 54px #000b';
+      const title=frameDoc.createElement('h2');title.id='uos-unsaved-title';title.textContent='有未保存的改动';title.style.cssText='margin:0 0 8px;font-size:18px';
+      const description=frameDoc.createElement('p');description.id='uos-unsaved-description';description.textContent='这些设置还没有写入角色卡。';description.style.cssText='margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.5';
+      const actions=frameDoc.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px';
+      let settled=false;const buttons=[];
+      const finish=value=>{if(settled)return;settled=true;frameDoc.removeEventListener('keydown',onKeyDown,true);overlay.remove();try{previous?.focus?.()}catch{}resolve(value)};
+      const makeButton=(label,className,value)=>{const button=frameDoc.createElement('button');button.type='button';button.className=className;button.textContent=label;button.onclick=()=>finish(value);buttons.push(button);actions.append(button);return button};
+      const save=makeButton('保存并关闭','uos-save','save');makeButton('放弃更改','uos-icon','discard');makeButton('继续编辑','uos-icon','stay');
+      const onKeyDown=event=>{
+        if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();finish('stay');return}
+        if(event.key==='Tab'){
+          const index=buttons.indexOf(frameDoc.activeElement);
+          if(event.shiftKey&&(index<=0)){event.preventDefault();buttons.at(-1).focus()}
+          else if(!event.shiftKey&&(index===buttons.length-1)){event.preventDefault();buttons[0].focus()}
+        }
+      };
+      overlay.addEventListener('pointerdown',event=>{if(event.target===overlay)finish('stay')});
+      panel.append(title,description,actions);overlay.append(panel);frameDoc.body.append(overlay);frameDoc.addEventListener('keydown',onKeyDown,true);save.focus();
+    });
+  }
   function showSheet(selector){
     if(activePopup && !activePopup.frame?.isConnected){activePopup.original.append(activePopup.sheet);activePopup=null;portaled=[]}
     if(activePopup){status('弹窗已打开，请先关闭当前窗口。');return null}
@@ -142,9 +192,27 @@ export function mountInDocument(doc = document, helperApi = null) {
       drag?.addEventListener('pointerdown',e=>{if(e.target.closest('button,input,textarea,select,a'))return;origin={x:e.screenX,y:e.screenY,left:frame.offsetLeft,top:frame.offsetTop};drag.setPointerCapture(e.pointerId);drag.addEventListener('pointermove',move);drag.addEventListener('pointerup',stop);e.preventDefault()});
       const clampWindow=()=>{frame.style.setProperty('left',`${Math.max(0,Math.min(viewport.innerWidth-frame.offsetWidth,frame.offsetLeft))}px`,'important');frame.style.setProperty('top',`${Math.max(0,Math.min(viewport.innerHeight-frame.offsetHeight,frame.offsetTop))}px`,'important')};
       viewport.addEventListener('resize',clampWindow);
-      const close=()=>{stop();viewport.removeEventListener('resize',clampWindow);original.append(sheet);portaled=[];frame.remove();activePopup=null;if(selector.includes('settings') && draft){draft=null;renderMusic(config.music);status('未保存的设置已撤销。')}};
+      let closeInProgress=false;
+      const cleanup=discarded=>{
+        stop();viewport.removeEventListener('resize',clampWindow);original.append(sheet);portaled=[];frame.remove();activePopup=null;
+        if(selector.includes('settings')){const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;selectedWorldbookPresetEdit=null;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;selectedWorldbookPresetId='';renderMusic(config.music);if(discarded&&hadDraft)status('未保存的设置已放弃。')}
+      };
+      const close=async()=>{
+        if(closeInProgress)return;closeInProgress=true;
+        if(selector.includes('settings')&&hasUnsavedSettings()){
+          const choice=await showUnsavedSettingsPrompt(frameDoc,sheet);
+          if(choice==='stay'){closeInProgress=false;return}
+          if(choice==='save'){
+            const saved=await saveSettingsToCard({closeOnSuccess:false,commitPresetDraft:true});
+            if(!saved){closeInProgress=false;return}
+            cleanup(false);return;
+          }
+          cleanup(true);return;
+        }
+        cleanup(false);
+      };
       activePopup={complete:close,frame,original,sheet};
-      frameDoc.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+      frameDoc.addEventListener('keydown',e=>{if(e.key==='Escape'&&!frameDoc.querySelector('[data-uos-unsaved-prompt]')){e.preventDefault();void close()}});
     }catch(e){original.append(sheet);portaled=[];frame.remove();activePopup=null;status(`弹窗打开失败：${e.message||e}`);return null}
     return sheet;
   }
@@ -228,11 +296,19 @@ export function mountInDocument(doc = document, helperApi = null) {
     if(first.swipe_id!==0 || !String(first.swipes[0]||'').includes('<UniversalOpeningSelector/>')){status('当前已离开选择页，请新建聊天后重试。');return}
     status(`正在进入第 ${target} 条开场…`);
     root.querySelectorAll('.uos-card').forEach(b=>b.disabled=true);
+    let worldbookChange=null;
     try{
+      const presetId=entries()[target-1]?.worldbookPresetId;
+      const preset=config.worldbookPresets.find(value=>value.id===presetId);
+      if(preset){status('正在应用此开场的世界书条目预设…');worldbookChange=await worldbookPresetManager.apply(preset)}
       await h.setChatMessages([{message_id:0,swipe_id:target}],{refresh:'all'});
       const current=h.getChatMessages(0,{include_swipes:true})?.[0];
       if(current?.swipe_id!==target)throw new Error('消息页未切换');
-    }catch(e){status(`切换失败：${e?.message||e}。可使用首条消息翻页箭头。`);root.querySelectorAll('.uos-card').forEach(b=>b.disabled=false)}
+    }catch(e){
+      let rollbackMessage='';
+      if(worldbookChange)try{await worldbookChange.rollback()}catch(rollbackError){rollbackMessage=`；世界书状态恢复失败：${rollbackError?.message||rollbackError}`}
+      status(`切换失败：${e?.message||e}${rollbackMessage}。可使用首条消息翻页箭头。`);root.querySelectorAll('.uos-card').forEach(b=>b.disabled=false)
+    }
   }
   function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice');b.type='button';b.setAttribute('aria-label',`切换到${name}`);b.setAttribute('aria-pressed',String(id===displayTheme));const swatch=el('span','uos-theme-swatch');swatch.dataset.theme=id;swatch.append(el('span','uos-theme-swatch-cover','01'),el('span','uos-theme-swatch-lines','Aa · 故事开场'));const icon=el('span','uos-theme-swatch-art');icon.dataset.theme=id;icon.setAttribute('aria-hidden','true');swatch.append(icon);b.append(swatch,el('span','',name));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
   function diagnostics(){
@@ -245,7 +321,145 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
   function toggleField(label,value,change){const wrap=el('label','uos-toggle');const input=el('input');input.type='checkbox';input.checked=Boolean(value);input.onchange=()=>change(input.checked);wrap.append(input,el('span','',label));return wrap}
-  function fileField(label,accept,max,onload){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el('input');input.type='file';input.accept=accept;input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>max){status(`${label}超过 ${Math.round(max/1048576)} MB 限制`);input.value='';return}try{const result=await readFile(file);const message=await onload(result,file);status(message||`${label}已载入，点击保存后随角色卡导出。`)}catch(e){status(`文件读取失败：${e.message}`)}};wrap.append(input);return wrap}
+  function worldbookPresetState(preset,book,item){
+    const uid=item.uid??item.id;
+    const saved=preset?.books?.find(value=>value.name===book.name)?.entries?.find(value=>String(value.uid)===String(uid));
+    return saved?saved.enabled:item.enabled!==false&&item.disable!==true;
+  }
+  function setPresetEntry(preset,book,item,enabled){
+    const uid=item.uid??item.id;if(uid==null||String(uid)==='')throw Error('该条目没有唯一 UID，无法安全记录');
+    let savedBook=preset.books.find(value=>value.name===book.name);
+    if(!savedBook){savedBook={name:book.name,entries:[]};preset.books.push(savedBook)}
+    const saved=savedBook.entries.find(value=>String(value.uid)===String(uid));
+    if(saved)saved.enabled=enabled;else savedBook.entries.push({uid,name:String(item.name||item.comment||'条目 '+uid).slice(0,160),enabled});
+  }
+  function worldbookItemSearchText(item){
+    const keys=Array.isArray(item.keys)?item.keys:Array.isArray(item.strategy?.keys)?item.strategy.keys:[];
+    return [item.name,item.comment,...keys].map(value=>String(value||'')).join(' ').toLocaleLowerCase();
+  }
+  function makeWorldbookPresetId(){
+    const random=doc.defaultView?.crypto?.randomUUID?.()||Math.random().toString(36).slice(2);
+    const base='worldbook-'+Date.now().toString(36)+'-'+String(random).replace(/[^a-zA-Z0-9-]/g,'');
+    let id=base,index=2;while(draft.worldbookPresets.some(preset=>preset.id===id))id=base+'-'+index++;
+    return id;
+  }
+  function worldbookPresetNameTaken(name,exceptId=''){
+    const normalized=String(name||'').trim().toLocaleLowerCase();
+    return draft.worldbookPresets.some(preset=>preset.id!==exceptId&&preset.name.toLocaleLowerCase()===normalized);
+  }
+  function nextWorldbookPresetName(base){
+    const baseName=String(base||'世界书预设').trim().slice(0,120)||'世界书预设';
+    let name=baseName,index=2;
+    while(worldbookPresetNameTaken(name)){const suffix=' '+index++;name=baseName.slice(0,120-suffix.length)+suffix}
+    return name;
+  }
+  function renderWorldbookPresetRows(list,preset,query,onChange=()=>{}){
+    list.replaceChildren();let matches=0,remaining=400,limited=false;
+    if(!preset){list.append(el('p','uos-help','先新建预设。'));return 0}
+    for(const book of worldbookPresetData.books){
+      const items=book.entries.filter(item=>!query||worldbookItemSearchText(item).includes(query));if(!items.length)continue;matches+=items.length;
+      const shown=items.slice(0,Math.min(200,remaining));remaining-=shown.length;if(shown.length<items.length)limited=true;
+      const group=el('details','uos-worldbook-group');group.open=Boolean(query)||(!query&&worldbookPresetData.books.length===1);
+      const summary=el('summary','',book.name+' · '+items.filter(item=>worldbookPresetState(preset,book,item)).length+'/'+items.length+' 条启用');group.append(summary);
+      const rows=el('div','uos-worldbook-entry-list');
+      const renderEntries=()=>{
+        rows.replaceChildren();if(!group.open)return;
+        for(const item of shown){
+          const uid=item.uid??item.id,key=uid==null?'':String(uid),label=el('label','uos-worldbook-entry-toggle'),input=el('input');
+          input.type='checkbox';input.checked=worldbookPresetState(preset,book,item);input.disabled=!key||worldbookPresetData.warnings.length>0;
+          input.onchange=()=>{try{setPresetEntry(preset,book,item,input.checked);summary.textContent=book.name+' · '+items.filter(value=>worldbookPresetState(preset,book,value)).length+'/'+items.length+' 条启用';onChange();status('预设有未保存修改；保存预设后再保存角色卡。')}catch(error){input.checked=worldbookPresetState(preset,book,item);status('无法记录此条目：'+(error.message||error))}};
+          label.append(input,el('span','uos-worldbook-entry-name',String(item.name||item.comment||'未命名条目 '+(key||'（无 UID）'))));
+          const keys=Array.isArray(item.keys)?item.keys:Array.isArray(item.strategy?.keys)?item.strategy.keys:[];
+          if(keys.length)label.append(el('small','uos-worldbook-entry-keys','关键词：'+keys.map(value=>String(value)).slice(0,5).join('、')+(keys.length>5?'…':'')));
+          if(!key)label.append(el('small','uos-worldbook-entry-keys','缺少 UID，无法切换'));
+          rows.append(label);
+        }
+      };
+      group.addEventListener('toggle',renderEntries);group.append(rows);renderEntries();list.append(group);
+    }
+    if(!matches)list.append(el('p','uos-help',query?'没有匹配条目。':'没有可编辑条目。'));
+    if(limited)list.append(el('p','uos-help','结果过多，请缩小搜索范围。'));
+    return matches;
+  }
+  function renderWorldbookPresetEditor(){
+    const panel=$('[data-worldbook-presets]');if(!panel||!draft)return;panel.replaceChildren();
+    const statusLine=el('p','uos-help',worldbookPresetMessage);statusLine.dataset.worldbookPresetsStatus='';panel.append(statusLine);
+    const refresh=el('button','uos-icon','刷新');refresh.type='button';refresh.onclick=async()=>{refresh.disabled=true;await refreshWorldbookPresets();refresh.disabled=false};panel.append(refresh);
+    panel.append(el('p','uos-help','修改后点「保存预设」，最后点页面底部「保存到角色卡」。'));
+    if(worldbookPresetData.warnings.length)panel.append(el('p','uos-help','有世界书未能读取，暂不能新建或编辑预设。'));
+    const presets=draft.worldbookPresets||[];
+    if(selectedWorldbookPresetIsNew){
+      if(!selectedWorldbookPresetEdit||selectedWorldbookPresetEdit.id!==selectedWorldbookPresetId){selectedWorldbookPresetEdit=null;selectedWorldbookPresetIsNew=false;selectedWorldbookPresetDirty=false}
+    }
+    if(!selectedWorldbookPresetIsNew){
+      if(!presets.some(preset=>preset.id===selectedWorldbookPresetId))selectedWorldbookPresetId=presets[0]?.id||'';
+      const saved=presets.find(preset=>preset.id===selectedWorldbookPresetId)||null;
+      if(!saved){selectedWorldbookPresetEdit=null;selectedWorldbookPresetDirty=false}
+      else if(!selectedWorldbookPresetEdit||selectedWorldbookPresetEdit.id!==saved.id)selectedWorldbookPresetEdit=JSON.parse(JSON.stringify(saved));
+    }
+    const active=()=>selectedWorldbookPresetEdit;
+    const updateDirty=()=>{
+      if(selectedWorldbookPresetIsNew){selectedWorldbookPresetDirty=true;return}
+      const saved=presets.find(preset=>preset.id===selectedWorldbookPresetId);
+      selectedWorldbookPresetDirty=!saved||JSON.stringify(saved)!==JSON.stringify(selectedWorldbookPresetEdit);
+    };
+
+    panel.append(el('h3','uos-worldbook-section-title','世界书预设'));
+    const createRow=el('div','uos-worldbook-actions');
+    const newName=el('input','uos-worldbook-name');newName.type='text';newName.maxLength=120;newName.placeholder='新预设名称（可留空）';
+    const create=el('button','uos-icon','新建预设');create.type='button';create.disabled=worldbookPresetData.warnings.length>0||selectedWorldbookPresetDirty;
+    create.onclick=()=>{try{
+      const snapshot=captureWorldbookPreset(worldbookPresetData.books),name=nextWorldbookPresetName(newName.value.trim()||'世界书预设 '+(presets.length+1));
+      selectedWorldbookPresetEdit={id:makeWorldbookPresetId(),name,...snapshot};selectedWorldbookPresetId=selectedWorldbookPresetEdit.id;selectedWorldbookPresetDirty=true;selectedWorldbookPresetIsNew=true;renderWorldbookPresetEditor();status('新预设草稿已创建；保存后才能分配给开场。');
+    }catch(error){status(error.message||String(error))}};
+    createRow.append(newName,create);panel.append(createRow);
+
+    const selectRow=el('div','uos-worldbook-actions');
+    const select=el('select','uos-worldbook-select'),empty=doc.createElement('option');empty.value='';empty.textContent=presets.length?'选择预设':'暂无预设';select.append(empty);
+    for(const preset of presets){const option=doc.createElement('option');option.value=preset.id;option.textContent=preset.name;select.append(option)}
+    select.value=selectedWorldbookPresetIsNew?'':selectedWorldbookPresetId;select.disabled=selectedWorldbookPresetDirty;select.setAttribute('aria-label','选择世界书预设');select.onchange=()=>{if(selectedWorldbookPresetDirty){select.value=selectedWorldbookPresetIsNew?'':selectedWorldbookPresetId;status('请先保存或撤销当前预设修改。');return}selectedWorldbookPresetId=select.value;const saved=presets.find(preset=>preset.id===selectedWorldbookPresetId);selectedWorldbookPresetEdit=saved?JSON.parse(JSON.stringify(saved)):null;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;renderWorldbookPresetEditor()};selectRow.append(select);panel.append(selectRow);
+
+    const selected=active();
+    if(selected){
+      const nameRow=el('div','uos-worldbook-actions'),nameInput=el('input','uos-worldbook-name');nameInput.type='text';nameInput.maxLength=120;nameInput.value=selected.name;nameInput.setAttribute('aria-label','预设名称');
+      const savePreset=el('button','uos-icon',selectedWorldbookPresetIsNew?'保存新预设':'保存预设');savePreset.type='button';savePreset.disabled=!selectedWorldbookPresetDirty;
+      const undo=el('button','uos-icon',selectedWorldbookPresetIsNew?'取消新建':'撤销修改');undo.type='button';undo.disabled=!selectedWorldbookPresetDirty;
+      const duplicate=el('button','uos-icon','复制为新预设');duplicate.type='button';duplicate.disabled=selectedWorldbookPresetDirty||selectedWorldbookPresetIsNew;
+      const syncPresetControls=()=>{updateDirty();savePreset.disabled=!selectedWorldbookPresetDirty;undo.disabled=!selectedWorldbookPresetDirty;duplicate.disabled=selectedWorldbookPresetDirty||selectedWorldbookPresetIsNew;if(remove)remove.disabled=selectedWorldbookPresetDirty;select.disabled=selectedWorldbookPresetDirty;create.disabled=worldbookPresetData.warnings.length>0||selectedWorldbookPresetDirty};
+      const remove=selectedWorldbookPresetIsNew?null:el('button','uos-icon','删除预设');if(remove){remove.type='button';remove.disabled=selectedWorldbookPresetDirty;remove.onclick=()=>{let confirmed=true;try{if(typeof doc.defaultView?.confirm==='function')confirmed=doc.defaultView.confirm('删除预设“'+selected.name+'”？已分配的开场也会清空。')}catch{}if(!confirmed)return;draft.worldbookPresets=draft.worldbookPresets.filter(preset=>preset.id!==selected.id);draft.entries.forEach(entry=>{if(entry.worldbookPresetId===selected.id)delete entry.worldbookPresetId});selectedWorldbookPresetId=draft.worldbookPresets[0]?.id||'';selectedWorldbookPresetEdit=null;selectedWorldbookPresetDirty=false;renderWorldbookPresetEditor();status('预设已删除；点击底部「保存到角色卡」写入角色卡。')}}
+      const capture=el('button','uos-icon','复制当前世界书开关');capture.type='button';capture.disabled=worldbookPresetData.warnings.length>0;capture.title='把酒馆当前的世界书条目开关复制到此预设，不会立即切换条目。';capture.onclick=()=>{try{const snapshot=captureWorldbookPreset(worldbookPresetData.books);selected.books=snapshot.books;updateDirty();renderWorldbookPresetEditor();status('当前世界书开关已复制到预设草稿；点「保存预设」确认。')}catch(error){status(error.message||String(error))}};
+      nameInput.oninput=()=>{selected.name=nameInput.value;syncPresetControls();status(selectedWorldbookPresetDirty?'预设有未保存修改。':'预设修改已撤销。')};
+      savePreset.onclick=()=>{const name=nameInput.value.trim().slice(0,120);if(!name){status('请填写预设名称。');nameInput.focus();return}if(worldbookPresetNameTaken(name,selected.id)){status('已有同名预设，请换一个名称。');nameInput.focus();return}selected.name=name;const saved=JSON.parse(JSON.stringify(selected));if(selectedWorldbookPresetIsNew)presets.push(saved);else{const index=presets.findIndex(preset=>preset.id===selected.id);if(index<0){status('找不到原预设，请刷新后重试。');return}presets[index]=saved}selectedWorldbookPresetEdit=saved;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;renderWorldbookPresetEditor();status('预设已保存；再点页面底部「保存到角色卡」写入角色卡。')};
+      undo.onclick=()=>{if(selectedWorldbookPresetIsNew){selectedWorldbookPresetId=presets[0]?.id||'';selectedWorldbookPresetEdit=presets[0]?JSON.parse(JSON.stringify(presets[0])):null;selectedWorldbookPresetIsNew=false;selectedWorldbookPresetDirty=false}else{const saved=presets.find(preset=>preset.id===selected.id);selectedWorldbookPresetEdit=saved?JSON.parse(JSON.stringify(saved)):null;selectedWorldbookPresetDirty=false}renderWorldbookPresetEditor();status('预设修改已撤销。')};
+      duplicate.onclick=()=>{const copy=JSON.parse(JSON.stringify(selected));copy.id=makeWorldbookPresetId();copy.name=nextWorldbookPresetName(selected.name+' 副本');selectedWorldbookPresetId=copy.id;selectedWorldbookPresetEdit=copy;selectedWorldbookPresetDirty=true;selectedWorldbookPresetIsNew=true;renderWorldbookPresetEditor();status('已复制为新预设草稿；点「保存新预设」确认。')};
+      nameRow.append(nameInput,savePreset,undo,duplicate);if(remove)nameRow.append(remove);nameRow.append(capture);panel.append(nameRow);
+
+      const search=el('input','uos-worldbook-search');search.type='search';search.placeholder='搜索条目名称、注释或关键词';search.setAttribute('aria-label','搜索预设条目');panel.append(search);
+      const bulk=el('div','uos-worldbook-actions'),enable=el('button','uos-icon','在预设中启用搜索结果'),disable=el('button','uos-icon','在预设中停用搜索结果');enable.type=disable.type='button';enable.disabled=disable.disabled=worldbookPresetData.warnings.length>0;bulk.append(enable,disable);panel.append(bulk);
+      const rows=el('div','uos-worldbook-presets-list');panel.append(rows);
+      const renderRows=()=>renderWorldbookPresetRows(rows,selected,search.value.trim().toLocaleLowerCase(),syncPresetControls);search.oninput=renderRows;renderRows();
+      const bulkChange=enabled=>{try{const query=search.value.trim().toLocaleLowerCase();let changed=0;for(const book of worldbookPresetData.books)for(const item of book.entries){if((item.uid??item.id)!=null&&(!query||worldbookItemSearchText(item).includes(query))){setPresetEntry(selected,book,item,enabled);changed++}}syncPresetControls();renderRows();status('已修改 '+changed+' 条预设开关；点「保存预设」确认。')}catch(error){status(error.message||String(error))}};
+      enable.onclick=()=>bulkChange(true);disable.onclick=()=>bulkChange(false);
+    }else{
+      panel.append(el('p','uos-help',worldbookPresetData.books.length?'先新建一个预设。':'未读取到绑定世界书条目。'));
+    }
+
+    panel.append(el('h3','uos-worldbook-section-title','开场分配'));
+    const assignments=el('div','uos-worldbook-assignment-list'),openings=entries();
+    openings.forEach((entry,index)=>{
+      draft.entries[index]={...entry,...draft.entries[index]};entry=draft.entries[index];
+      const row=el('label','uos-worldbook-assignment'),label=el('span','uos-worldbook-assignment-name',(index+1)+' · '+entry.title);
+      const choice=el('select','uos-worldbook-select');choice.setAttribute('aria-label',entry.title+' 世界书预设');
+      const none=doc.createElement('option');none.value='';none.textContent='不切换';choice.append(none);
+      for(const preset of presets){const option=doc.createElement('option');option.value=preset.id;option.textContent=preset.name;choice.append(option)}
+      choice.value=entry.worldbookPresetId||'';
+      choice.onchange=()=>{if(choice.value)entry.worldbookPresetId=choice.value;else delete entry.worldbookPresetId;status('分配已修改，保存到角色卡后生效。')};
+      row.append(label,choice);assignments.append(row);
+    });
+    if(!openings.length)assignments.append(el('p','uos-help','没有可分配的开场。'));
+    panel.append(assignments);
+  }
+  function fileField(label,accept,max,onload){const targetDraft=draft,wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el('input');input.type='file';input.accept=accept;input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>max){status(`${label}超过 ${Math.round(max/1048576)} MB 限制`);input.value='';return}pendingSettingsTasks++;try{const result=await readFile(file);if(targetDraft&&targetDraft!==draft)return;const message=await onload(result,file,targetDraft);if(targetDraft&&targetDraft!==draft)return;status(message||`${label}已载入，点击保存后随角色卡导出。`)}catch(e){if(!targetDraft||targetDraft===draft)status(`文件读取失败：${e.message}`)}finally{pendingSettingsTasks=Math.max(0,pendingSettingsTasks-1)}};wrap.append(input);return wrap}
   const readFile=file=>new Promise((ok,fail)=>{const reader=new FileReader();reader.onload=()=>ok(String(reader.result));reader.onerror=()=>fail(reader.error);reader.readAsDataURL(file)});
   async function lyricsText(file){const text=await file.text();return text.slice(0,300000)}
   function openSettings(){
@@ -279,43 +493,58 @@ export function mountInDocument(doc = document, helperApi = null) {
     const music=$('[data-bgm-fields]');music.replaceChildren();
     const emptyMusic=$('[data-bgm-empty]');if(emptyMusic)emptyMusic.hidden=Boolean(draft.music.audio);
     music.append(toggleField('启用 BGM 播放器',draft.music.enabled,v=>{draft.music.enabled=v;renderMusic(draft.music);loaded.textContent=v?'BGM 已启用，保存后生效。':'BGM 已关闭，播放器已隐藏；保存后生效。'}),field('曲名',draft.music.title,v=>draft.music.title=v),
-      fileField('上传音乐（8 MB 内）','audio/mpeg,audio/mp4,audio/ogg,audio/wav',8*1048576,v=>{draft.music.audio=v;if(emptyMusic)emptyMusic.hidden=true;renderMusic(draft.music);$('[data-bgm-loaded]').textContent=draft.music.enabled?'音乐已载入，可在选择页预览；点击保存写入角色卡。':'音乐已载入。勾选启用 BGM 后显示播放器，点击保存写入角色卡。'}),
-      fileField('上传歌词（LRC 或 TXT）','.lrc,.txt,text/plain',300000,async(_data,file)=>{draft.music.lyrics=await lyricsText(file);renderMusic(draft.music);$('[data-bgm-loaded]').textContent='歌词已载入；点击保存写入角色卡。'}));
+      fileField('上传音乐（8 MB 内）','audio/mpeg,audio/mp4,audio/ogg,audio/wav',8*1048576,(v,_file,settings)=>{settings.music.audio=v;if(emptyMusic)emptyMusic.hidden=true;renderMusic(settings.music);$('[data-bgm-loaded]').textContent=settings.music.enabled?'音乐已载入，可在选择页预览；点击保存写入角色卡。':'音乐已载入。勾选启用 BGM 后显示播放器，点击保存写入角色卡。'}),
+      fileField('上传歌词（LRC 或 TXT）','.lrc,.txt,text/plain',300000,async(_data,file,settings)=>{const lyrics=await lyricsText(file);if(settings!==draft)return;settings.music.lyrics=lyrics;renderMusic(settings.music);$('[data-bgm-loaded]').textContent='歌词已载入；点击保存写入角色卡。'}));
     const loaded=el('p','uos-help');loaded.dataset.bgmLoaded='';loaded.textContent=draft.music.audio?'已载入音乐'+(draft.music.lyrics?'及歌词':'')+'。保存后随卡导出。':'尚未上传音乐';music.append(loaded);
     const clearMusic=el('button','uos-icon','移除音乐');clearMusic.type='button';clearMusic.onclick=()=>{draft.music={enabled:false,title:'',audio:'',lyrics:''};if(emptyMusic)emptyMusic.hidden=false;renderMusic(draft.music);loaded.textContent='音乐已移除，点击保存生效'};music.append(clearMusic);
     music.append(el('p','uos-help','请仅上传你有权分享的歌曲及歌词。下载与非商用不自动授予再分发许可。'));
     const diag=$('[data-diagnostics]');diag.replaceChildren();for(const [key,value] of diagnostics()){const row=el('div','uos-diagnostic-row');row.append(el('span','',key),el('strong','',value));diag.append(row)}
+    renderWorldbookPresetEditor();void refreshWorldbookPresets();
     dlg.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{
       dlg.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b===button)));
       dlg.querySelectorAll('[data-tab-panel]').forEach(panel=>panel.hidden=panel.dataset.tabPanel!==button.dataset.tab);
     });
-    $('[data-save]').onclick=async()=>{
-      const c=context();if(!c || c.characterId==null || !c.writeExtensionField){status('无法写入角色卡：请在支持角色卡扩展字段的酒馆中编辑。');return}
-      const button=$('[data-save]');button.disabled=true;button.textContent='正在保存…';
+    settingsDraftBaseline=JSON.stringify(normalize({...draft,theme:displayTheme}));
+    saveSettingsToCard=async({closeOnSuccess=true,commitPresetDraft=false}={})=>{
+      if(pendingSettingsTasks>0){status('文件仍在处理，请稍候后再保存。');return false}
+      if(selectedWorldbookPresetDirty){
+        if(!commitPresetDraft){status('当前预设尚未保存；请先点「保存预设」或「撤销修改」。');return false}
+        const selected=selectedWorldbookPresetEdit,name=String(selected?.name||'').trim().slice(0,120);
+        if(!selected||!name){status('请先填写预设名称。');return false}
+        if(worldbookPresetNameTaken(name,selected.id)){status('已有同名预设，请换一个名称后再保存。');return false}
+        const saved={...JSON.parse(JSON.stringify(selected)),name};
+        if(selectedWorldbookPresetIsNew)draft.worldbookPresets.push(saved);
+        else{const index=draft.worldbookPresets.findIndex(preset=>preset.id===selected.id);if(index<0){status('找不到原预设，请刷新后重试。');return false}draft.worldbookPresets[index]=saved}
+        selectedWorldbookPresetEdit=saved;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;renderWorldbookPresetEditor();
+      }
+      const c=context();if(!c || c.characterId==null || !c.writeExtensionField){status('无法写入角色卡：请在支持角色卡扩展字段的酒馆中编辑。');return false}
+      const button=$('[data-save]'),controls=[...dlg.querySelectorAll('input,textarea,select,button')],disabled=controls.map(control=>control.disabled);controls.forEach(control=>control.disabled=true);button.textContent='正在保存…';
       try{
-        draft.theme=displayTheme;
-        draft.entries=draft.entries.slice(0,greetingList().length).map((entry,i)=>{
+        const saveData={...draft,theme:displayTheme,entries:draft.entries.slice(0,greetingList().length).map((entry,i)=>{
           const {nameSuggestions,...saved}=entry;
           if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return saved;
           const {names,...rest}=saved;return rest;
-        });
+        })};
         // ST may update the in-memory character while a failed server merge is
         // only logged. Verify persistence before reporting export readiness.
         if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');
         const card=character();if(!card?.avatar)throw Error('无法确认当前角色卡的文件名');
-        const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:draft}}})});
+        const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:saveData}}})});
         if(!response.ok)throw Error(`角色卡写入失败（HTTP ${response.status}），请检查卡片大小或酒馆日志`);
         const verified=await host.fetch('/api/characters/get',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar_url:card.avatar})});
         if(!verified.ok)throw Error(`角色卡复核失败（HTTP ${verified.status}），请重新打开角色卡检查保存结果`);
         const persisted=await verified.json();
         const saved=persisted?.data?.extensions?.[KEY]??persisted?.extensions?.[KEY];
         const same=(actual,expected)=>{if(expected&&typeof expected==='object'){if(!actual||typeof actual!=='object')return false;return Object.keys(expected).every(key=>same(actual[key],expected[key]))}return actual===expected};
-        if(!same(saved,draft))throw Error('角色卡复核未找到刚保存的设置，请重新打开角色卡检查');
-        await c.writeExtensionField(c.characterId,KEY,draft);
-        config=normalize(draft);draft=null;render();activePopup?.complete(null);status('已保存并复核角色卡。导出角色卡时会带上配置和素材。');
-      }catch(e){status(`保存失败：${e.message||e}`)}
-      finally{button.disabled=false;button.textContent='保存到角色卡'}
+        if(!same(saved,saveData))throw Error('角色卡复核未找到刚保存的设置，请重新打开角色卡检查');
+        await c.writeExtensionField(c.characterId,KEY,saveData);
+        config=normalize(saveData);draft=null;settingsDraftBaseline=null;selectedWorldbookPresetEdit=null;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;selectedWorldbookPresetId='';render();status('已保存并复核角色卡。导出角色卡时会带上配置和素材。');
+        if(closeOnSuccess)void activePopup?.complete(null);
+        return true;
+      }catch(e){status(`保存失败：${e.message||e}`);return false}
+      finally{controls.forEach((control,index)=>{if(control.isConnected)control.disabled=disabled[index]});button.textContent='保存到角色卡'}
     };
+    $('[data-save]').onclick=()=>{void saveSettingsToCard()};
   }
   $('[data-theme-button]').onclick=openThemes;
   $('[data-settings-button]').onclick=openSettings;
@@ -329,6 +558,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   audio.ontimeupdate=updatePlayer;audio.onloadedmetadata=updatePlayer;audio.onplay=updatePlayer;audio.onpause=updatePlayer;
   render();
   void refreshWorldbookPeople();
+  void refreshWorldbookPresets();
   root.dataset.uosMounted = '1';
   root.dataset.uosVersion = VERSION;
   return true;

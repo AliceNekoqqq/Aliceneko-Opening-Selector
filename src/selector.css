@@ -185,6 +185,7 @@
 .uos-tabs button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;white-space:nowrap}
 .uos-tab-art{display:block;flex:none;width:34px;height:34px;background-position:center;background-size:contain;background-repeat:no-repeat;filter:drop-shadow(0 2px 4px #0005)}
 .uos-tab-art[data-tab-art=openings]{background-image:url("__TAB_OPENINGS__")}
+.uos-tab-art[data-tab-art=worldbooks]{background-image:url("__TAB_WORLDBOOKS__")}
 .uos-tab-art[data-tab-art=bgm]{background-image:url("__TAB_BGM__")}
 .uos-tab-art[data-tab-art=diagnostics]{background-image:url("__TAB_DIAGNOSTICS__")}
 .uos-empty-music{width:min(100%,180px);height:126px;margin:18px auto 10px;background:url("__TAB_BGM__") center/contain no-repeat;opacity:.92;filter:drop-shadow(0 8px 14px #0006)}
@@ -200,3 +201,24 @@
 @media(max-width:600px){.uos-theme-art{top:4px;right:4px;width:34px}.uos-kicker::after{width:21px;height:21px}.uos-theme-swatch-art{width:32px;height:32px}.uos-search-empty{gap:10px;min-height:82px;padding:12px}.uos-search-empty::before{width:52px;height:52px}.uos-tab-art{width:29px;height:29px}.uos-tabs button{gap:5px;padding:8px 5px;font-size:12px}.uos-empty-music{height:104px}}
 
 .uos-person-rules{grid-column:1/-1}.uos-person-rules summary{cursor:pointer;color:var(--accent)}.uos-worldbook-people{max-height:240px;overflow:auto;padding-left:22px;overflow-wrap:anywhere;font-size:13px}.uos-worldbook-people li{margin:10px 0}.uos-worldbook-people p{margin:4px 0;color:var(--muted);font-size:12px;line-height:1.5}
+.uos-worldbook-opening{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--panel) 86%,transparent)}
+.uos-worldbook-opening>summary,.uos-worldbook-group>summary{cursor:pointer;color:var(--text);font-weight:700;overflow-wrap:anywhere}
+.uos-worldbook-opening>summary{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.uos-worldbook-opening-state{flex:none;color:var(--accent);font-size:11px;font-weight:600}
+.uos-worldbook-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.uos-worldbook-actions>.uos-icon{max-width:100%;white-space:normal;line-height:1.35;overflow-wrap:anywhere}
+.uos-worldbook-search{display:block;width:100%;margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text)}
+.uos-worldbook-group{margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.uos-worldbook-entry-list{max-height:300px;overflow:auto;margin-top:8px}
+.uos-worldbook-entry-toggle{display:grid;grid-template-columns:20px minmax(0,1fr);gap:5px 9px;align-items:start;margin:5px 0;padding:9px;border:1px solid color-mix(in srgb,var(--line) 65%,transparent);border-radius:8px;background:var(--panel);cursor:pointer}
+.uos-worldbook-entry-toggle input{width:17px;height:17px;margin:1px 0 0;accent-color:var(--accent)}
+.uos-worldbook-entry-name{overflow-wrap:anywhere;font-size:13px;line-height:1.45}
+.uos-worldbook-entry-keys{grid-column:2;color:var(--muted);font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.uos-worldbook-presets-list{margin-top:8px}
+.uos-worldbook-section-title{margin:20px 0 8px;padding-top:14px;border-top:1px solid var(--line);color:var(--accent);font-size:15px}
+.uos-worldbook-actions>.uos-worldbook-name,.uos-worldbook-actions>.uos-worldbook-select{flex:1;min-width:120px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text)}
+.uos-worldbook-assignment-list{display:grid;gap:8px;margin-top:8px}
+.uos-worldbook-assignment{display:grid;grid-template-columns:minmax(0,1fr) minmax(140px,.8fr);gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:13px}
+.uos-worldbook-assignment-name{overflow-wrap:anywhere}
+.uos-worldbook-assignment>.uos-worldbook-select{min-width:0;width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
+@media(max-width:600px){.uos-tabs{gap:3px}.uos-tabs button{padding:7px 3px;font-size:11px}.uos-worldbook-opening{padding:9px}.uos-worldbook-actions{gap:5px}.uos-worldbook-actions .uos-icon{padding:7px;font-size:12px}.uos-worldbook-assignment{grid-template-columns:1fr;gap:6px}}
