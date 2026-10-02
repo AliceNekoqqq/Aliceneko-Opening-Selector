@@ -1,10 +1,10 @@
 # PROJECT_STATE.md
 
 ## 项目与发行阶段
-红豆粉开场白选择器，正式版 v1.0.10；`develop` 当前测试版推进到 v1.0.10-beta.4。玩家和作者使用同一份通用脚本；测试启动器先载入固定／本机已确认版本，再检查更新并由用户确认：普通多开场卡显示玩家预览，主开场以 `<UniversalOpeningSelector/>` 开头时显示作者选择页。beta.2 新增角色卡级世界书预设库与按开场分配；beta.1 的逐开场快照会自动迁移。beta.3 增加明确的预设草稿保存与撤销流程；beta.4 增加关闭前未保存提醒和世界书标签图标。正式 Loader 自 v1.0.8 起读取 `main/scripts/runtime-ref.txt`，按 SHA 导入正式运行模块；v1.0.10 指针目标以 `scripts/runtime-ref.txt` 为准。测试指针 `scripts/runtime-ref-preview.txt` 只指向已推送到 `develop` 的运行模块提交；具体 SHA 以该文件内容为准。
+红豆粉开场白选择器，正式版 v1.0.10；`develop` 当前测试版推进到 v1.0.10-beta.5。玩家和作者使用同一份通用脚本；测试启动器先载入固定／本机已确认版本，再检查更新并由用户确认：普通多开场卡显示玩家预览，主开场以 `<UniversalOpeningSelector/>` 开头时显示作者选择页。beta.2 新增角色卡级世界书预设库与按开场分配；beta.1 的逐开场快照会自动迁移。beta.3 增加明确的预设草稿保存与撤销流程；beta.4 增加作者设置关闭前提醒和世界书标签图标；beta.5 增加玩家端未保存提醒。正式 Loader 自 v1.0.8 起读取 `main/scripts/runtime-ref.txt`，按 SHA 导入正式运行模块；v1.0.10 指针目标以 `scripts/runtime-ref.txt` 为准。测试指针 `scripts/runtime-ref-preview.txt` 只指向已推送到 `develop` 的运行模块提交；具体 SHA 以该文件内容为准。
 
 ## 核心文件
-- `src/player.js`：玩家模式、标题与人物解析、搜索和本机设置。
+- `src/player.js`：玩家模式、标题与人物解析、搜索、本机设置和关闭前未保存提醒。
 - `docs/person-matching-audit.md`：beta.13 全链路审查、复现问题、处理规则和准确性边界。
 - `src/worldbook-people.js`：只读绑定世界书读取器、结构化人物词表提取、别名冲突标记、名单渲染和缓存。
 - `src/author.js`：作者标记识别、选择页挂载与生命周期。
@@ -12,17 +12,17 @@
 - `src/worldbook-presets.js`：角色绑定世界书的读取、UID 状态快照、开关写入、预检与失败回滚。
 - `src/author-template.js`：构建生成的作者页面模板，包含主题图像资源。
 - `assets/theme-background-*.webp`：九套 1300×1050、质量 92 的主题背景图；由 `pack.mjs` 内嵌到运行模块，不进入角色卡数据。
-- `scripts/build-author-script.mjs`：`--stable` 仅允许在 `main` 构建正式版；`--preview` 仅允许在 `develop` 构建测试版；当前版本 v1.0.10-beta.4。
+- `scripts/build-author-script.mjs`：`--stable` 仅允许在 `main` 构建正式版；`--preview` 仅允许在 `develop` 构建测试版；当前版本 v1.0.10-beta.5。
 - `scripts/runtime-ref.txt` / `scripts/runtime-ref-preview.txt`：正式与测试通道各自的运行模块指针。
 - `remote.js`：构建生成的自包含模块。
 - `dist/红豆粉开场白选择器_通用脚本_v1.0.10.json`：正式玩家／作者通用导入脚本。
-- `dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.4.json`：测试导入脚本，独立 ID、默认关闭且不随角色卡导出。
+- `dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.5.json`：测试导入脚本，独立 ID、默认关闭且不随角色卡导出。
 
 ## 当前功能与产品规则
 - 用户要求取消自动更新：beta.16 新启动器先加载固定／本机已确认 SHA，再检查新指针；确认才下载并切换新版，取消保留旧版。右下角“检查更新”支持主动检查。选择按通道和导入基线保存；检查／下载失败不替换当前模块。旧启动器必须手动替换一次，更新 remote.js 无法改变旧启动器的自动加载逻辑。正式启动器等验收后迁移。
 - `scripts/confirmed-loader.mjs` 序列化进 JSON，不属于远程运行模块；`test/confirmed-loader.test.mjs` 覆盖取消、手动重试、持久化、通道隔离、失败和清理。
 - 玩家和作者均可预览完整正文、搜索开场并按登场人物筛选。开场卡片的登场人物仅显示姓名，不附加识别／填写来源提示；人物识别规则仍保留来源与诊断。
-- 作者可编辑标题、简介、人物、标签、排除字段、主题、封面、音乐与歌词；作者数据保存到 `data.extensions.universal_opening_selector`。beta.2 在“设置 → 世界书”中集中管理预设，支持新建、编辑、复制、重命名、删除与搜索／批量编辑条目，再给每条开场分配预设；beta.3 的名称与条目编辑先保存为预设草稿，再由页面底部“保存到角色卡”写入卡片，未保存草稿可撤销。beta.4 关闭作者设置时检查整体编辑状态，可保存并关闭、放弃更改或继续编辑；世界书标签使用独立插画图标。多条开场可共享同一预设。beta.1 已保存的逐开场快照在读取配置时自动迁移为独立预设。没有分配预设的开场不改书。切换时按书名和 UID 预检，修改范围限角色主／附加书，保留条目其它字段；任何绑定书读取失败或预设 UID 不存在时停止写入。写入部分失败时回滚已成功书目，后续聊天页切换失败也会请求恢复原状态。
+- 作者可编辑标题、简介、人物、标签、排除字段、主题、封面、音乐与歌词；作者数据保存到 `data.extensions.universal_opening_selector`。beta.2 在“设置 → 世界书”中集中管理预设，支持新建、编辑、复制、重命名、删除与搜索／批量编辑条目，再给每条开场分配预设；beta.3 的名称与条目编辑先保存为预设草稿，再由页面底部“保存到角色卡”写入卡片，未保存草稿可撤销。beta.4 关闭作者设置时检查整体编辑状态，可保存并关闭、放弃更改或继续编辑；世界书标签使用独立插画图标。beta.5 玩家关闭选择器时检查排除字段、人物规则、开场修正和自定义标签，支持分别保存到本机或角色卡，也可放弃或继续编辑。世界书切换只在作者给开场分配预设后生效；未分配则不改书。多条开场可共享同一预设。beta.1 已保存的逐开场快照在读取配置时自动迁移为独立预设。切换时按书名和 UID 预检，修改范围限角色主／附加书，保留条目其它字段；任何绑定书读取失败或预设 UID 不存在时停止写入。写入部分失败时回滚已成功书目，后续聊天页切换失败也会请求恢复原状态。
 - 测试版人物识别先从角色绑定主／附加世界书建立名单，再用名单和手动词表匹配整个开场原文，包括所有标签、属性、注释及代码块；不要求特定后续动作词。英文按单词边界匹配，长姓名优先占用命中范围，防止王明月同时匹配王明。作者／玩家“人物识别规则”列出名单、别名、条目来源和冲突别名。`personAliases` 可随卡导出或仅存本机；旧 `excludedPersonTags` 不再使用且保存规则时清除，标题排除字段仍独立生效。人工修正优先于自动结果。
 - 世界书仅读取 `getCharWorldbookNames('current')` 或旧接口 `getCharLorebooks({name:'current',type:'all'})` 返回的主／附加绑定书；兼容 `getLorebookEntries` 和 `entry.keys`。接口缺失时仅按卡片 `extensions.world` 主书绑定读取，不额外读取卡内 `character_book.entries`、全局或聊天世界书；禁用条目跳过。缓存、刷新、延迟接口、跨窗口接口和异步切卡隔离保留，读取失败不回退到未绑定书。诊断展示绑定书、读取本数、条目数、失败及未采纳原因。
 - beta.13 世界书与正文共用 `extractPersonIdentities`／`allowsPersonEvidence`。明确姓名字段／姓名标签／人物 name 属性／姓名表格／明确人物名单可确认身份；通用 name／名字须有当前人物语境，物品／组织／示例范围否决新身份。JSON 按当前对象类型与自身属性判断，不能借用同一资料的另一个对象。带编号或装饰的人物标题可与已确认身份关联，**标题、人物属性描述、代词、同名触发关键词均不能单独确认身份**。人物速览只在当前名单章节读取，同级／其他章节结束名单；表格须有姓名列，另一张非人物表格不能沿用列号。删除名单分词截名；不把所属短语或长句截成人名。明确 XML 示例／物品块不建立名单。支持 Markdown／JSON／YAML／XML、名叫／姓名为描述、日文、数字、全角及单字姓名，词表上限 1000 人。姓名提取与开场匹配分开，世界书不是强制白名单。
@@ -35,7 +35,7 @@
 - 正式 Loader 仅接受三段数字版本，不加载 beta 模块；测试 Loader 只读 `develop/scripts/runtime-ref-preview.txt`。正式指针在正式运行模块发布后最后更新。
 
 ## 验证与限制
-测试版在 `develop` 上运行 `node scripts/build-author-script.mjs --preview`，以及 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/worldbook.test.mjs`、`node test/worldbook-presets.test.mjs`、`node test/person-rules.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`、`node test/loader.test.mjs`、`node test/confirmed-loader.test.mjs` 和 `node test/update-control.test.mjs`。十个所列 Node 回归脚本已全部通过。`node test/author.ui.test.mjs` 已尝试，但当前环境缺少 Playwright Chromium 可执行文件；正式版发布前仍需完成作者 UI、真实酒馆保存／导出和手机端验收。
+测试版在 `develop` 上运行 `node scripts/build-author-script.mjs --preview`，以及 `node test/author.test.mjs`、`node test/player.test.mjs`、`node test/worldbook.test.mjs`、`node test/worldbook-presets.test.mjs`、`node test/person-rules.test.mjs`、`node test/pack.test.mjs`、`node test/observer.test.mjs`、`node test/loader.test.mjs`、`node test/confirmed-loader.test.mjs` 和 `node test/update-control.test.mjs`。十个所列 Node 回归脚本已全部通过。`node test/ui.test.mjs` 与 `node test/author.ui.test.mjs` 均已尝试，但当前环境缺少 Playwright Chromium 可执行文件；正式版发布前仍需完成作者／玩家 UI、真实酒馆保存／导出和手机端验收。
 
 ## 禁止回归项
 - 不得用“传入了空数组”判断人物名单已完整，从而过滤掉所有明确姓名／人物名单。世界书是补充词表，不是硬性识别前提。
@@ -49,6 +49,8 @@
 - 待确认标题词表不能充当完整白名单，不能自动把普通设定标题加入人物筛选；明确标注或人工采纳可以确认候选。
 
 ## 最近重要修改
+2026-10-02：beta.5 为玩家选择器增加全局未保存检查，列出未保存的分区，支持保存到本机、保存到角色卡、放弃更改或继续编辑。多项角色卡改动通过一次扩展字段写入；标签仍保存到本机。作者分配世界书预设后才会触发玩家端切换，未分配不改书。界面自动化需有 Playwright Chromium 的环境运行；正式版与 `main` 不变。
+
 2026-10-02：beta.4 增加作者设置的全局未保存检查；关闭设置时可保存并关闭、放弃更改或继续编辑，保存时可一并提交预设草稿。世界书标签新增与其他标签统一尺寸的插画图标。作者 UI 自动化增加三种关闭选择流程；正式版与 `main` 不变。
 
 2026-10-01：beta.3 将世界书预设改为清楚的草稿流程：明确“保存预设”与“保存到角色卡”两步；新建／复制后先保存才可分配，未保存时可撤销，并阻止总保存漏存预设。搜索批量按钮明确说明只修改预设，原“记录当前状态”改为“复制当前世界书开关”。作者 UI 自动化已更新但当前环境缺少 Chromium，未运行；正式版与 `main` 不变。
@@ -68,6 +70,6 @@
 2026-10-01：用户要求整体审查高错误率，从 beta.12 推进到 v1.0.9-beta.13。复现并修复：通用名称字段把物品／组织认成人物、无人物主语的名叫描述、人物速览跨章节／跨表格、名单分词截名、关键词错挂明确别名、待确认长姓名触发短姓名、手动别名最后一行覆盖。新增共享证据提取与当前 JSON 对象／XML 容器／章节语境判断、手动别名冲突提示、作者留空恢复自动行为，兼容异步备用主书接口。七项 Node 回归通过，新增 person-rules 审查回归；README 与审查报告同步。真实酒馆／移动端未验收，正式 main 及正式指针保持 v1.0.9。
 
 ## 下一步
-1. 在真实酒馆验证 beta.4 的关闭提醒保存／放弃、预设草稿／保存／撤销、复制／删除、开场分配、卡片保存／导出、beta.1 数据迁移、选择时切换和失败恢复；再检查手机端可读性与世界书图标。
+1. 在真实酒馆验证 beta.5 玩家／作者关闭提醒的本机保存、角色卡保存、放弃与继续编辑，及预设草稿、分配和世界书切换；再检查手机端可读性。
 2. 继续收集真实误判样本：误判姓名、来源世界书条目原文、对应开场原文；再区分错误词表、错误归属、纯全文提及与现场出场，以及旧已保存值。当前规则偏向减少错误确认，可能增加待确认或漏识别；全文包含全部标签且不判断人物是否在场。普通词同形姓名、短别名与同名身份仍可能歧义。
 3. 后续开发仍只更新 develop；用户已授权的 v1.0.10 正式发布完成后，正式指针仅指向已发布的正式模块。

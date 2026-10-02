@@ -67,5 +67,30 @@ try{
   await page.locator('.uos-card').first().waitFor();
   await page.locator('[data-theme-button]').click();
   await dialog.getByText('霓虹夜',{exact:true}).waitFor();
+  await dialog.locator('[data-close="[data-theme-dialog]"]').click();
+  await page.evaluate(()=>{
+    window.__uosAuthor?.close?.();
+    const character=window.__state.characters[0].data;character.first_mes='钟楼的清晨。';character.alternate_greetings=['雨夜车站，最后一次相见。'];window.__state.chat[0].swipe_id=0;
+    if(!document.querySelector('#chat')){const chat=document.createElement('div');chat.id='chat';const message=document.createElement('div');message.className='mes';message.setAttribute('mesid','0');message.append(document.createElement('div'));chat.append(message);document.body.append(chat)}
+    window.__uosPlayer?.scan?.();
+  });
+  await page.locator('.uos-user-trigger').waitFor();
+  await page.locator('.uos-user-trigger').click();
+  const player=page.locator('dialog.uos-user-overlay');
+  await player.waitFor();
+  await player.locator('summary').filter({hasText:'修正标题和登场人物'}).click();
+  await player.locator('.uos-user-label-settings').nth(2).locator('input').first().fill('本机保存的玩家标题');
+  await player.locator('.uos-user-close').click();
+  await player.locator('[data-uos-player-unsaved]').getByRole('button',{name:'保存到本机并关闭'}).click();
+  await player.waitFor({state:'detached'});
+  await page.waitForFunction(()=>Object.keys(localStorage).some(key=>key.includes('_edits_')&&JSON.parse(localStorage.getItem(key))?.[0]?.title==='本机保存的玩家标题'));
+  await page.locator('.uos-user-trigger').click();
+  await player.waitFor();
+  await player.locator('summary').filter({hasText:'修正标题和登场人物'}).click();
+  await player.locator('.uos-user-label-settings').nth(2).locator('input').first().fill('角色卡保存的玩家标题');
+  await player.locator('.uos-user-close').click();
+  await player.locator('[data-uos-player-unsaved]').getByRole('button',{name:'保存到角色卡并关闭'}).click();
+  await player.waitFor({state:'detached'});
+  await page.waitForFunction(()=>window.__state.characters[0].extensions.universal_opening_selector.entries[0].title==='角色卡保存的玩家标题');
   console.log('UI, music save, swipe, and selector re-entry checks passed');
 }finally{await browser.close();fs.rmSync(dir,{recursive:true,force:true})}
