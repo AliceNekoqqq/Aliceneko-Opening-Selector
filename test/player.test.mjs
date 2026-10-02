@@ -1,7 +1,23 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {readPlayerState} from '../index.js';
-import {resolveDisplayEntry,isLegacyGeneratedEntry,detectGreetingPeople,detectGreetingCollection,unsavedPlayerGroups} from '../src/player.js';
+import {resolveDisplayEntry,isLegacyGeneratedEntry,detectGreetingPeople,detectGreetingCollection,unsavedPlayerGroups,switchOpeningWithPreset} from '../src/player.js';
+
+const switchOrder=[];
+await switchOpeningWithPreset(null,null,async()=>switchOrder.push('opening'));
+assert.deepEqual(switchOrder,['opening'],'unassigned openings switch without touching worldbooks');
+switchOrder.length=0;
+let rolledBack=false;
+await switchOpeningWithPreset({id:'preset'},{apply:async()=>{switchOrder.push('preset');return{rollback:async()=>{rolledBack=true;switchOrder.push('rollback')}}}},async()=>{switchOrder.push('opening');throw Error('swipe failed')}).then(
+  ()=>assert.fail('failed opening switch must reject'),
+  error=>assert.match(error.message,/swipe failed/),
+);
+assert.deepEqual(switchOrder,['preset','opening','rollback'],'preset applies before opening and rolls back when switching fails');
+assert.equal(rolledBack,true);
+await assert.rejects(
+  switchOpeningWithPreset({id:'preset'},{apply:async()=>({rollback:async()=>{throw Error('restore failed')}})},async()=>{throw Error('swipe failed')}),
+  /swipe failed；世界书状态恢复失败：restore failed/,
+);
 
 assert.match(fs.readFileSync('src/player.js','utf8'),/唯一来源Discord:♡Aliceneko♡\/红豆粉丨本插件完全免费/);
 

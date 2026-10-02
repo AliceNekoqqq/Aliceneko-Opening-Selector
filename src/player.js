@@ -1,9 +1,10 @@
 import {bindUpdateControl} from './update-control.js';
 import {isPersonName,isAutomaticPersonName,normalizePersonText,allowsPersonEvidence,extractPersonIdentities,createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
+import {createWorldbookPresetManager} from './worldbook-presets.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.10-beta.5';
+const VERSION='1.0.10-beta.6';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -119,6 +120,18 @@ function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{
 export function excludedTags(value){return [...new Set(String(value||'').split(/[，,、\s]+/).map(x=>x.trim().replace(/^<\/?|\/>?$/g,'')).filter(x=>/^[\w\p{Script=Han}-]{1,40}$/u.test(x)))].slice(0,40)}
 function stripExcluded(text,tags){for(const tag of tags){const safe=tag.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');text=text.replace(new RegExp(`<${safe}(?:\\s[^<>]*)?>[\\s\\S]*?<\\/${safe}\\s*>`,'gi'),' ').replace(new RegExp(`<${safe}(?:\\s[^<>]*)?\\/?>`,'gi'),' ')}return text}
 export function unsavedPlayerGroups(baseline,current){if(!baseline||!current)return[];return Object.keys(current).filter(key=>JSON.stringify(baseline[key])!==JSON.stringify(current[key]))}
+export async function switchOpeningWithPreset(preset,presetManager,changeOpening){
+  let transaction=null;
+  try{
+    if(preset)transaction=await presetManager.apply(preset);
+    await changeOpening();
+    return true;
+  }catch(error){
+    let rollbackMessage='';
+    if(transaction)try{await transaction.rollback()}catch(rollbackError){rollbackMessage=`；世界书状态恢复失败：${rollbackError?.message||rollbackError}`}
+    throw Error(`${error?.message||error}${rollbackMessage}`);
+  }
+}
 export function narrativeStart(body,excluded=[]){
   let text=stripExcluded(String(body||''),excluded).replace(/\r\n?/g,'\n').trim();
   const narrativeTag=/^(?:正文|content)$/i;
@@ -323,6 +336,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const host=doc.defaultView||globalThis;
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
+  const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS;(doc.head||doc.documentElement).append(style);
   let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null;
   const positionKey='uos_player_button_position';
@@ -545,11 +559,22 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       const details=el('details','');details.append(el('summary','','预览完整正文'),el('pre','',entry.body));card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{
-        const current=state();
+        let current=state();
         if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';return}
-        choose.disabled=true;status.textContent='正在切换开场…';
-        try{await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
-          const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');closePanel();scan();
+        choose.disabled=true;
+        if(!await confirmPlayerChanges()){choose.disabled=false;return}
+        current=state();
+        if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';choose.disabled=false;return}
+        status.textContent='正在切换开场…';
+        try{
+          const presetId=authorEntries[entry.index]?.worldbookPresetId;
+          const preset=Array.isArray(authorConfig.worldbookPresets)?authorConfig.worldbookPresets.find(value=>value.id===presetId):null;
+          if(preset)status.textContent='正在应用此开场的世界书条目预设…';
+          await switchOpeningWithPreset(preset,worldbookPresetManager,async()=>{
+            await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
+            const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');
+          });
+          closePanel(true);scan();
         }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
       };
       card.append(choose);list.append(card);
@@ -560,22 +585,31 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     const mark=el('p','uos-user-watermark',WATERMARK);mark.append(el('span','uos-user-version',`v${VERSION}`));
     panel.append(head,tools,search,exclusion,personSettings,edits,labelSettings,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const active=overlay;
+    const restorePlayerDraft=()=>{
+      if(!playerBaseline)return;
+      exclusionInput.value=playerBaseline.exclusion;aliasInput.value=playerBaseline.people;
+      editFields.forEach(({titleInput,namesInput},i)=>{titleInput.value=playerBaseline.edits[i]?.[0]||'';namesInput.value=playerBaseline.edits[i]?.[1]||''});
+      labelInputs.forEach((input,i)=>{input.value=playerBaseline.labels[i]??''});
+      updatePeople();renderCards();
+    };
     let closePromptOpen=false;
-    const requestPanelClose=async()=>{
-      if(closePromptOpen)return;
+    const confirmPlayerChanges=async()=>{
+      if(closePromptOpen)return false;
       const groups=unsavedPlayerGroups(playerBaseline,readPlayerDraft());
-      if(!groups.length){closePanel(true);return}
+      if(!groups.length)return true;
       closePromptOpen=true;
       try{
         const canSaveToCard=groups.some(group=>['exclusion','people','edits'].includes(group));
         const choice=await showPlayerUnsavedPrompt(doc,active,panel,groups,canSaveToCard);
-        if(choice==='stay')return;
-        if(choice==='discard'){closePanel(true);return}
+        if(choice==='stay')return false;
+        if(choice==='discard'){restorePlayerDraft();return true}
         const saved=choice==='card'?await saveCardDraft(groups):choice==='local'?saveLocalDraft(groups):false;
-        if(saved)closePanel(true);
+        return !!saved;
       }catch(error){status.textContent=`未保存内容处理失败：${error?.message||error}`}
       finally{closePromptOpen=false}
+      return false;
     };
+    const requestPanelClose=async()=>{if(await confirmPlayerChanges())closePanel(true)};
     panelCloseGuard=requestPanelClose;
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';

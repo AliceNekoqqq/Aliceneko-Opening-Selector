@@ -8,7 +8,7 @@ const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'uos-ui-'));
 const input=path.join(dir,'input.json'), output=path.join(dir,'output.json');
-fs.writeFileSync(input,JSON.stringify({name:'测试卡',data:{name:'测试卡',first_mes:'钟楼的清晨。',alternate_greetings:['雨夜车站，最后一次相见。'],extensions:{regex_scripts:[]}}}));
+fs.writeFileSync(input,JSON.stringify({name:'测试卡',data:{name:'测试卡',first_mes:'钟楼的清晨。',alternate_greetings:['雨夜车站，最后一次相见。'],extensions:{regex_scripts:[],universal_opening_selector:{entries:[{},{worldbookPresetId:'player-worldbook'}],worldbookPresets:[{id:'player-worldbook',name:'第二开场预设',books:[{name:'测试世界书',entries:[{uid:5,name:'目标条目',enabled:false}]}]}]}}}}));
 execFileSync(process.execPath,[path.resolve('pack.mjs'),input,output]);
 const card=JSON.parse(fs.readFileSync(output));
 let html=card.data.extensions.regex_scripts[0].replaceString.replace(/^```html\n/,'').replace(/\n```$/,'');
@@ -26,15 +26,24 @@ try{
     state.characters[0].data=state.characters[0];
     state.characters[0].avatar='test.png';
     state.getRequestHeaders=()=>({'Content-Type':'application/json'});
-    window.fetch=async(url,options)=>{if(url==='/api/characters/merge-attributes'){state.savedOnServer=JSON.parse(options.body);return {ok:true,status:200}};throw Error('Unexpected request')};
+    const worldbooks={'测试世界书':[{uid:5,name:'目标条目',enabled:true,content:'保留正文'}]};
+    window.fetch=async(url,options)=>{
+      if(url==='/api/characters/merge-attributes'){state.savedOnServer=JSON.parse(options.body);return {ok:true,status:200}}
+      if(url==='/api/characters/get')return {ok:true,status:200,json:async()=>state.savedOnServer};
+      throw Error('Unexpected request')
+    };
     state.writeExtensionField=async (_id,key,value)=>{state.characters[0].extensions[key]=value};
     window.SillyTavern={getContext:()=>state};
     window.TavernHelper={
       getChatMessages:()=>[{role:'assistant',swipe_id:state.chat[0].swipe_id,swipes:[card.data.first_mes,...card.data.alternate_greetings]}],
       getLastMessageId:()=>0,
       setChatMessages:async([{swipe_id}])=>{state.chat[0].swipe_id=swipe_id},
+      getCharWorldbookNames:()=>({primary:'测试世界书',additional:[]}),
+      getWorldbook:async name=>structuredClone(worldbooks[name]),
+      updateWorldbookWith:async(name,updater)=>{worldbooks[name]=await updater(worldbooks[name])},
     };
     window.__state=state;
+    window.__worldbooks=worldbooks;
   },{card});
   await page.setContent(html);
   assert.equal(await page.locator('.uos-card').count(),2);
@@ -63,6 +72,7 @@ try{
   await dialog.locator('[data-close="[data-settings-dialog]"]').click();
   await page.locator('.uos-card').nth(1).click();
   await page.waitForFunction(()=>window.__state.chat[0].swipe_id===2);
+  await page.waitForFunction(()=>window.__worldbooks['测试世界书'][0].enabled===false);
   await page.evaluate(markup=>{document.querySelector('[data-uos]').outerHTML=markup;window.__state.chat[0].swipe_id=0},freshMarkup);
   await page.locator('.uos-card').first().waitFor();
   await page.locator('[data-theme-button]').click();
@@ -71,6 +81,7 @@ try{
   await page.evaluate(()=>{
     window.__uosAuthor?.close?.();
     const character=window.__state.characters[0].data;character.first_mes='钟楼的清晨。';character.alternate_greetings=['雨夜车站，最后一次相见。'];window.__state.chat[0].swipe_id=0;
+    window.__worldbooks['测试世界书'][0].enabled=true;
     if(!document.querySelector('#chat')){const chat=document.createElement('div');chat.id='chat';const message=document.createElement('div');message.className='mes';message.setAttribute('mesid','0');message.append(document.createElement('div'));chat.append(message);document.body.append(chat)}
     window.__uosPlayer?.scan?.();
   });
@@ -80,6 +91,10 @@ try{
   await player.waitFor();
   await player.locator('summary').filter({hasText:'修正标题和登场人物'}).click();
   await player.locator('.uos-user-label-settings').nth(2).locator('input').first().fill('本机保存的玩家标题');
+  await player.locator('.uos-user-select').nth(1).click();
+  await player.locator('[data-uos-player-unsaved]').getByRole('button',{name:'继续编辑'}).click();
+  await page.waitForFunction(()=>window.__state.chat[0].swipe_id===0);
+  assert.equal(await player.locator('.uos-user-label-settings').nth(2).locator('input').first().inputValue(),'本机保存的玩家标题');
   await player.locator('.uos-user-close').click();
   await player.locator('[data-uos-player-unsaved]').getByRole('button',{name:'保存到本机并关闭'}).click();
   await player.waitFor({state:'detached'});
@@ -92,5 +107,10 @@ try{
   await player.locator('[data-uos-player-unsaved]').getByRole('button',{name:'保存到角色卡并关闭'}).click();
   await player.waitFor({state:'detached'});
   await page.waitForFunction(()=>window.__state.characters[0].extensions.universal_opening_selector.entries[0].title==='角色卡保存的玩家标题');
+  await page.locator('.uos-user-trigger').click();
+  await player.waitFor();
+  await player.locator('.uos-user-select').nth(1).click();
+  await page.waitForFunction(()=>window.__state.chat[0].swipe_id===1&&window.__worldbooks['测试世界书'][0].enabled===false);
+  await player.waitFor({state:'detached'});
   console.log('UI, music save, swipe, and selector re-entry checks passed');
 }finally{await browser.close();fs.rmSync(dir,{recursive:true,force:true})}
