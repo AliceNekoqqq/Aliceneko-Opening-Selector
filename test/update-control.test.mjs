@@ -1,18 +1,23 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {bindUpdateControl} from '../src/update-control.js';
-function element(){return {style:{},attrs:{},children:[],isConnected:true,setAttribute(k,v){this.attrs[k]=v},append(...v){this.children.push(...v)}}}
-let tick,cleared=false,checks=0,pending=true;
+function element(){return {style:{},attrs:{},dataset:{},children:[],isConnected:true,hidden:false,setAttribute(k,v){this.attrs[k]=v},append(...v){this.children.push(...v)},querySelector(selector){assert.equal(selector,'[data-uos-update-star]');return this.children.find(child=>child.dataset?.uosUpdateStar!==undefined)||null}}}
+let tick,cleared=false,checks=0,savedAuto=true;
 const host={setInterval:fn=>{tick=fn;return 1},clearInterval:()=>{cleared=true}};
 const doc={defaultView:{addEventListener(){},removeEventListener(){}},createElement:element};
-const hostDoc={defaultView:host,__uosUpdater:{hasUpdate:true,busy:false,async check(manual){assert.equal(manual,true);checks++;this.hasUpdate=false}},querySelector:()=>null};
+const api={hasUpdate:true,busy:false,autoCheckEnabled:true,async check(manual){assert.equal(manual,true);checks++;this.hasUpdate=false},setAutoCheckEnabled(value){savedAuto=value;this.autoCheckEnabled=value;return true}};
+const hostDoc={defaultView:host,__uosUpdater:api};
 const b=element();b.ownerDocument=doc;
-const stop=bindUpdateControl(b,hostDoc);assert.equal(b.children[1].hidden,false);await b.onclick();assert.equal(checks,1);assert.equal(b.children[1].hidden,true);
-hostDoc.__uosUpdater.busy=true;tick();assert.equal(b.disabled,true);
+const version=element();const autoCheck=element();autoCheck.checked=true;const hint=element();
+const stop=bindUpdateControl(b,hostDoc,{versionElements:[version],autoCheckInput:autoCheck,autoCheckHint:hint});
+assert.equal(b.children.length,1,'update button has no red dot');assert.equal(b.children[0].textContent,'检查更新');
+const star=version.children[0];assert.equal(star.className,'uos-update-star');assert.equal(star.hidden,false,'available update is marked beside the version');
+await b.onclick();assert.equal(checks,1);assert.equal(star.hidden,true,'resolved update clears the version star');
+autoCheck.checked=false;autoCheck.onchange();assert.equal(savedAuto,false);assert.match(hint.textContent,/仍可手动检查/);
+api.hasUpdate=true;tick();assert.equal(star.hidden,false,'dismissed update can remain subtly marked');
 stop();assert.equal(cleared,true);
-// Existing beta.15 loader has check() but no state getters.
-hostDoc.__uosUpdater={async check(){pending=false}};hostDoc.querySelector=selector=>{assert.match(selector,/:not\(\[data-uos-update-control\]\)/);return pending?{}:null};
-const old=element();old.ownerDocument=doc;bindUpdateControl(old,hostDoc);assert.equal(old.children[1].hidden,false);await old.onclick();assert.equal(old.children[1].hidden,true,'clears legacy loader badge without matching itself');old.isConnected=false;cleared=false;tick();assert.equal(cleared,true);
-const player=fs.readFileSync('src/player.js','utf8'),author=fs.readFileSync('src/selector.js','utf8');
-assert.match(player,/tools.append\(updateButton\)/);assert.match(player,/uos-user-theme-label','主题'/);assert.match(author,/prepend\(updateButton\)/);
-console.log('Visible modal/author update controls, legacy loader badge, manual checking and cleanup passed');
+const player=fs.readFileSync('src/player.js','utf8'),author=fs.readFileSync('src/selector.js','utf8'),log=fs.readFileSync('CHANGELOG.md','utf8');
+assert.match(player,/版本与更新/);assert.match(player,/启动时自动检查更新/);assert.match(player,/versionElements:\[versionBadge,footerVersion\]/);assert.doesNotMatch(player,/tools\.append\(updateButton\)/);
+assert.match(author,/dataset\.tab='updates'/);assert.match(author,/启动时自动检查更新/);assert.doesNotMatch(author,/parentElement\.prepend\(updateButton\)/);
+assert.match(log,/^## v1\.0\.10-beta\.7/m);
+console.log('Settings update controls, per-channel auto-check preference, subtle version marker and release notes passed');

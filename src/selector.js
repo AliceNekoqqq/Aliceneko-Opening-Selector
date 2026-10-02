@@ -21,7 +21,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.10-beta.6';
+  const VERSION = '1.0.10-beta.7';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -321,6 +321,18 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   function field(label,value,change,multiline=false){const wrap=el('label','uos-field');wrap.append(el('span','',label));const input=el(multiline?'textarea':'input');input.value=value||'';input.addEventListener('input',()=>change(input.value));wrap.append(input);return wrap}
   function toggleField(label,value,change){const wrap=el('label','uos-toggle');const input=el('input');input.type='checkbox';input.checked=Boolean(value);input.onchange=()=>change(input.checked);wrap.append(input,el('span','',label));return wrap}
+  function ensureUpdateSettings(dlg){
+    if(dlg.querySelector('[data-tab="updates"]'))return;
+    const tabs=dlg.querySelector('.uos-tabs');if(!tabs)return;
+    const tab=el('button','');tab.type='button';tab.dataset.tab='updates';tab.setAttribute('aria-selected','false');tab.append(el('span','','↻'),el('span','','更新'));
+    const panel=el('section','uos-update-section');panel.dataset.tabPanel='updates';panel.hidden=true;
+    const version=el('p','uos-help',`当前运行版本：v${VERSION}`);
+    const auto=el('label','uos-toggle'),autoCheck=el('input');autoCheck.type='checkbox';auto.append(autoCheck,el('span','','启动时自动检查更新'));
+    const hint=el('p','uos-help','关闭后下次启动不自动检查；仍可手动检查更新。');
+    const check=el('button','uos-icon','检查更新');check.type='button';
+    panel.append(version,auto,hint,check);tabs.after(panel);tabs.append(tab);
+    bindUpdateControl(check,host.document,{versionElements:[...root.querySelectorAll('.uos-version-badge,.uos-version')],autoCheckInput:autoCheck,autoCheckHint:hint});
+  }
   function worldbookPresetState(preset,book,item){
     const uid=item.uid??item.id;
     const saved=preset?.books?.find(value=>value.name===book.name)?.entries?.find(value=>String(value.uid)===String(uid));
@@ -464,6 +476,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   async function lyricsText(file){const text=await file.text();return text.slice(0,300000)}
   function openSettings(){
     const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
+    ensureUpdateSettings(dlg);
     draft ||= normalize(config);const fields=$('[data-settings-fields]');fields.replaceChildren();
     fields.append(field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));
     const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));fields.append(personRules);
@@ -548,8 +561,6 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   $('[data-theme-button]').onclick=openThemes;
   $('[data-settings-button]').onclick=openSettings;
-  const updateButton=doc.createElement('button');updateButton.className='uos-icon';updateButton.dataset.updateButton='';
-  $('[data-theme-button]').parentElement.prepend(updateButton);bindUpdateControl(updateButton,host.document);
   root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>activePopup?.complete(null));
   const audio=$('[data-player] audio');
   $('[data-play]').onclick=()=>{if(audio.paused)audio.play().catch(()=>status('无法播放该音乐文件'));else audio.pause()};
@@ -557,6 +568,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   $('[data-seek]').oninput=e=>{if(Number.isFinite(audio.duration))audio.currentTime=audio.duration*Number(e.target.value)/1000};
   audio.ontimeupdate=updatePlayer;audio.onloadedmetadata=updatePlayer;audio.onplay=updatePlayer;audio.onpause=updatePlayer;
   render();
+  ensureUpdateSettings($('[data-settings-dialog]'));
   void refreshWorldbookPeople();
   void refreshWorldbookPresets();
   root.dataset.uosMounted = '1';
