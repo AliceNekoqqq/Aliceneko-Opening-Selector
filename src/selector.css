@@ -141,7 +141,7 @@
 /* Theme illustrations: one transparent 5×4 sprite, shared by the masthead,
    story covers, theme swatches and the empty-search state. */
 .uos-theme-art,.uos-theme-swatch-art,.uos-kicker::after,.uos-search-empty::before{
-  background-image:url("data:image/webp;base64,__THEME_ICON_SPRITE__");
+  background-image:url("__THEME_ICON_SPRITE__");
   background-size:500% 400%;background-repeat:no-repeat;
 }
 .uos{
@@ -282,13 +282,13 @@
 .uos[data-theme=japan] .uos-background-art{opacity:.62}
 
 /* Generated transparent material ornaments: 4 x 4 atlas, decorative only. */
-.uos{--uos-ornament-sprite:url("data:image/webp;base64,__THEME_ORNAMENT_SPRITE__");--ornament-position:0% 0%}
-.uos-header-ornament,.uos-card-ornament{display:block;pointer-events:none;background-image:var(--uos-ornament-sprite);background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
+.uos{--uos-ornament-sprite:url("__THEME_ORNAMENT_SPRITE__");--ornament-position:0% 0%}
+.uos-header-ornament{display:block;pointer-events:none;background-image:var(--uos-ornament-sprite);background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
 .uos .uos-kicker{display:flex;align-items:center;gap:10px}.uos .uos-kicker::after{display:none}.uos-header-ornament{width:76px;height:76px;flex:none}
-.uos-card-shell{position:relative;isolation:isolate}.uos-card-ornament{position:absolute;z-index:2;top:4px;right:4px;width:112px;height:112px;opacity:.98}
+.uos-card-shell{position:relative;isolation:isolate}
 .uos-cover:not(.has-image){background-image:radial-gradient(ellipse at 70% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 70%),var(--cover,linear-gradient(125deg,var(--art),var(--panel)))}
 .uos-card-shell .uos-card-body{background-image:linear-gradient(125deg,#ffffff05,transparent 45%);box-shadow:inset 0 1px 0 #ffffff0d}
-@media(max-width:600px){.uos-header-ornament{width:56px;height:56px}.uos-card-ornament{width:86px;height:86px}}
+@media(max-width:600px){.uos-header-ornament{width:56px;height:56px}}
 .uos[data-theme=archive]{--ornament-position:0.00000% 0.00000%}
 .uos[data-theme=neon]{--ornament-position:33.33333% 0.00000%}
 .uos[data-theme=paper]{--ornament-position:66.66667% 0.00000%}
@@ -306,11 +306,11 @@
 .uos[data-theme=glasshouse]{--ornament-position:66.66667% 100.00000%}
 .uos[data-theme=japan]{--ornament-position:100.00000% 100.00000%}
 
-/* Keep the large ornament and the opening number in separate cover regions. */
-.uos-card-shell{--card-ornament-size:112px}
-.uos-card-shell .uos-cover{min-height:calc(var(--card-ornament-size) + 8px);padding-right:calc(var(--card-ornament-size) + 12px)}
+/* Keep opening numbers readable on narrow covers. */
+
+
 .uos-card-shell .uos-number{flex:none;white-space:nowrap;max-width:100%}
-@media(max-width:600px){.uos-card-shell{--card-ornament-size:86px}.uos[data-theme] .uos-card-shell .uos-number{font-size:28px;letter-spacing:-.04em}}
+@media(max-width:600px){.uos[data-theme] .uos-card-shell .uos-number{font-size:28px;letter-spacing:-.04em}}
 .uos[data-theme] .uos-card-shell .uos-cover.has-image .uos-number{opacity:1;color:#fff;background:#111a20b3;border-radius:6px;padding:5px 9px;font-size:clamp(24px,4vw,32px);line-height:1}
 
 /* Clear hierarchy with full information available in the preview. */

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const p=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.10.json'));
+const p=JSON.parse(fs.readFileSync('test/fixtures/红豆粉开场白选择器_通用脚本_v1.0.10.json'));
 assert.equal(p.enabled,true);assert.equal(p.export_with.data,true);assert.match(p.content,/main\/scripts\/runtime-ref.txt/);assert.doesNotMatch(p.content,/develop\/scripts/);
 // This is a historical stable-loader fixture; develop's runtime is a newer beta.
 const execute=new (Object.getPrototypeOf(async function(){}).constructor)('globalThis','document','fetch','loadModule','return '+p.content.replace('await import(url)','await loadModule(url)'));

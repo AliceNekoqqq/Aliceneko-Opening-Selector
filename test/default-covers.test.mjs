@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const source=fs.readFileSync(new URL('../src/default-covers.js',import.meta.url),'utf8');
-const {defaultCoverSlot,defaultCoverStyles}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+import {defaultCoverSlot,defaultCoverStyles} from '../src/default-covers.js';
 const values=new Map();const host={localStorage:{getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)}};
 const slots=Array.from({length:100},(_,i)=>defaultCoverSlot('same card',i,host));
 assert(slots.every(slot=>slot>=1&&slot<=5));

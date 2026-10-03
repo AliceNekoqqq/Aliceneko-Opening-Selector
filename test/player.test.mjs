@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {readPlayerState} from '../index.js';
+import {readPlayerState} from '../src/player.js';
 import {resolveDisplayEntry,isLegacyGeneratedEntry,detectGreetingPeople,detectGreetingCollection,unsavedPlayerGroups,switchOpeningWithPreset} from '../src/player.js';
 
 const switchOrder=[];

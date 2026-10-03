@@ -146,7 +146,7 @@ try{
   assert.equal(await dialog.locator('.uos-settings-savebar [data-save]').count(),1,'save remains available');
   assert.equal(await dialog.locator('[data-tab]').count(),5,'all settings categories remain available');
   await dialog.locator('[data-tab="worldbooks"]').click();
-  assert.match(await dialog.locator('[data-tab-art="worldbooks"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("data:image\/webp;base64,/,'worldbook tab has its bundled artwork');
+  assert.match(await dialog.locator('[data-tab-art="worldbooks"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("https:\/\/cdn\.jsdelivr\.net\/gh\//,'worldbook tab uses shared artwork');
   const newPresetName=dialog.locator('input[placeholder="新预设名称（可留空）"]');
   await newPresetName.fill('测试角色预设');
   await dialog.getByRole('button',{name:'新建预设',exact:true}).click();
@@ -205,7 +205,7 @@ try{
   await page.setViewportSize({width:375,height:812});
   await selector.locator('[data-settings-button]').click();
   await dialog.locator('[data-tab="updates"]').click();
-  assert.match(await dialog.locator('[data-tab-art="updates"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("data:image\/webp;base64,/);
+  assert.match(await dialog.locator('[data-tab-art="updates"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("https:\/\/cdn\.jsdelivr\.net\/gh\//);
   assert.equal(await dialog.locator('.uos-tabs button').first().evaluate(el=>getComputedStyle(el).flexDirection),'column');
   const widths=await dialog.locator('.uos-tabs').evaluate(el=>({scroll:el.scrollWidth,client:el.clientWidth}));
   assert.ok(widths.scroll<=widths.client+1,`mobile tabs overflow: ${JSON.stringify(widths)}`);

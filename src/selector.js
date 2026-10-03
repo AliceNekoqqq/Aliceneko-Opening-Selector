@@ -1,9 +1,12 @@
+import {RUNTIME_VERSION} from './version.js';
+import {createThemeBackgroundController} from './theme-backgrounds.js';
+import {THEMES} from './themes.js';
 import {defaultCoverSlot,defaultCoverStyles} from './default-covers.js';
 import {bindUpdateControl} from './update-control.js';
-import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './player.js';
+import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './greeting-analysis.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 import {captureWorldbookPreset,createWorldbookPresetManager,migrateWorldbookPresetAssignments} from './worldbook-presets.js';
-/* 红豆粉开场白选择器 / Aliceneko Opening Selector — embedded card runtime. */
+/* 红豆粉开场白选择器 / Aliceneko Opening Selector — author UI runtime. */
 export async function optimizeCoverData(source,file,doc=document){
   if(file?.type==='image/gif'||!/^data:image\/(?:png|jpeg|webp);base64,/i.test(source))return source;
   try{
@@ -20,11 +23,10 @@ export async function optimizeCoverData(source,file,doc=document){
     return optimized.startsWith('data:image/webp;base64,')&&optimized.length<source.length?optimized:source;
   }catch{return source}
 }
-export function mountInDocument(doc = document, helperApi = null) {
+export function mountInDocument(doc = document, helperApi = null, {backgroundService=null}={}) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.13';
+  const VERSION = RUNTIME_VERSION;
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-  const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场'],['lasttrain','末班列车'],['aurora','极光灯塔'],['glasshouse','琉璃花房'],['japan','月下神社']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
   if (root.dataset.uosMounted === '1') {
@@ -36,6 +38,9 @@ export function mountInDocument(doc = document, helperApi = null) {
     }
     delete root.dataset.uosMounted;
   }
+  root.__uosStopBackground?.();
+  const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
+  root.__uosStopBackground=()=>backgroundControl?.close();
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -129,7 +134,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   const defaultCoverStyle=doc.createElement('style');defaultCoverStyle.textContent=defaultCoverStyles('.uos');root.append(defaultCoverStyle);
-  function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
+  function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;void backgroundControl?.setTheme(value);syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
   function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled){dlg.style.setProperty('color-scheme',style.colorScheme);for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art',...Array.from({length:5},(_,i)=>`--uos-default-cover-${i+1}`)])dlg.style.setProperty(key,style.getPropertyValue(key));}}
   function hasUnsavedSettings(){
     if(!draft)return false;
@@ -268,7 +273,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       if(entry.description)body.append(el('div','uos-description',entry.description));
       const castNames=names.split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean);
       if(castNames.length){const cast=el('p','uos-card-names');cast.append(el('span','uos-cast-label','人物'));for(const name of castNames.slice(0,3))cast.append(el('span','uos-name-chip',name));if(castNames.length>3)cast.append(el('span','uos-name-chip',`+${castNames.length-3}`));body.append(cast)}
-      card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);const corner=el('span','uos-card-ornament');corner.setAttribute('aria-hidden','true');shell.append(corner);
+      card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
       const source=greetings[i];
       if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'));if(entry.description)details.append(el('p','uos-full-description',entry.description));if(castNames.length>3)details.append(el('p','uos-help',`全部人物：${castNames.join('、')}`));if(entry.nameSuggestions?.length)details.append(el('p','uos-help',`待确认人物：${entry.nameSuggestions.join('、')}`));details.append(el('pre','',source));shell.append(details)}
       grid.append(shell);

@@ -1,29 +1,19 @@
+import {THEME_ART} from './theme-art.js';
+import {RUNTIME_VERSION} from './version.js';
+import {THEME_BACKGROUND_IMAGES,createThemeBackgroundController} from './theme-backgrounds.js';
+import {THEMES,THEME_CAPTIONS} from './themes.js';
+import {clean,excludedTags,narrativeStart,greetingTitle,personAliases,detectGreetingPeople,greetingNames,detectGreetingCollection,isLegacyGeneratedEntry} from './greeting-analysis.js';
+export {clean,excludedTags,narrativeStart,greetingTitle,personAliases,detectGreetingPeople,greetingNames,detectGreetingCollection,isLegacyGeneratedEntry} from './greeting-analysis.js';
 import {defaultCoverSlot,defaultCoverStyles} from './default-covers.js';
 import {bindUpdateControl} from './update-control.js';
-import {isPersonName,isAutomaticPersonName,normalizePersonText,allowsPersonEvidence,extractPersonIdentities,createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
+import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 import {createWorldbookPresetManager} from './worldbook-presets.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.10-beta.12';
-const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场'],['lasttrain','末班列车'],['aurora','极光灯塔'],['glasshouse','琉璃花房'],['japan','月下神社']];
-const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报',deepsea:'DEEP SEA ECHO · 深海回响',amber:'AMBER MIRAGE · 琥珀沙海',theatre:'MOONLIT THEATRE · 月光剧场',lasttrain:'LAST TRAIN HOME · 末班列车',aurora:'LIGHTHOUSE UNDER AURORA · 极光灯塔',glasshouse:'GLASSHOUSE IN BLOOM · 琉璃花房',japan:'MOONLIT SHRINE · 月下神社'};
-const THEME_BACKGROUND_IMAGES=(()=>{
-  const html=typeof AUTHOR_HTML==='string'?AUTHOR_HTML:'';
-  return Object.fromEntries(THEMES.map(([id])=>[id,html.match(new RegExp(`--uos-theme-bg-${id}:url\\("([^"]+)"\\)`))?.[1]||'']));
-})()
-const THEME_ORNAMENT_SPRITE=(()=>{
-  const html=typeof AUTHOR_HTML==='string'?AUTHOR_HTML:'';
-  return html.match(/--uos-ornament-sprite:url\("([^"\n]+)"\)/)?.[1]||'';
-})();
-const THEME_ICON_SPRITE=(()=>{
-  const html=typeof AUTHOR_HTML==='string'?AUTHOR_HTML:'';
-  const marker='.uos-theme-art,.uos-theme-swatch-art,.uos-kicker::after,.uos-search-empty::before{';
-  const rule=html.indexOf(marker);if(rule<0)return '';
-  const start=html.indexOf('data:image/webp;base64,',rule);if(start<0)return '';
-  const from=start+'data:image/webp;base64,'.length,end=html.indexOf('\")',from);
-  return end<0?'':html.slice(from,end);
-})();
+const VERSION=RUNTIME_VERSION;
+const THEME_ORNAMENT_SPRITE=THEME_ART.ornaments;
+const THEME_ICON_SPRITE=THEME_ART.icons;
 const CSS=`
 .uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
 .uos-user-trigger[data-floating=true]{position:fixed;z-index:2147483645;margin:0;touch-action:none}
@@ -181,16 +171,16 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=japan] .uos-user-card::after{border-radius:8px 8px 13px 13px;border-color:#d8b78370}
 .uos-user-panel[data-theme=japan] .uos-user-card::before{content:"⛩";font-style:normal;font-size:70px;opacity:.12}
 .uos-user-panel[data-theme=japan] .uos-user-background{opacity:.62}
-.uos-user-panel[data-theme=japan] .uos-user-kicker::after{content:"";display:inline-block;width:23px;height:23px;margin-left:8px;vertical-align:middle;background-image:url("data:image/webp;base64,${THEME_ICON_SPRITE}");background-size:500% 400%;background-position:0% 100%;background-repeat:no-repeat;filter:drop-shadow(0 2px 5px #0008)}
+.uos-user-panel[data-theme=japan] .uos-user-kicker::after{content:"";display:inline-block;width:23px;height:23px;margin-left:8px;vertical-align:middle;background-image:url("${THEME_ICON_SPRITE}");background-size:500% 400%;background-position:0% 100%;background-repeat:no-repeat;filter:drop-shadow(0 2px 5px #0008)}
 
 /* Same generated ornament atlas as the author page; pointer events stay disabled. */
 .uos-user-panel{--ornament-position:0% 0%}
-.uos-user-header-ornament,.uos-user-card-ornament{display:block;pointer-events:none;background-image:url("${THEME_ORNAMENT_SPRITE}");background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
+.uos-user-header-ornament{display:block;pointer-events:none;background-image:url("${THEME_ORNAMENT_SPRITE}");background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
 .uos-user-kicker{display:flex;align-items:center;gap:10px}.uos-user-panel[data-theme=japan] .uos-user-kicker::after{display:none}
 .uos-user-header-ornament{width:72px;height:72px;flex:none}
-.uos-user-card-ornament{position:absolute;right:5px;top:5px;width:108px;height:108px;opacity:.96;z-index:1}
-.uos-user-card h3{padding-right:98px}.uos-user-card>.uos-user-source{max-width:calc(100% - 98px)}.uos-user-card>p:not(.uos-user-names):not(.uos-user-candidates){padding-right:98px}.uos-user-card{box-shadow:inset 0 1px 0 #ffffff0d,0 9px 22px #0002}
-@media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}.uos-user-card-ornament{width:82px;height:82px}.uos-user-card h3{padding-right:72px}.uos-user-card>.uos-user-source{max-width:calc(100% - 72px)}.uos-user-card>p:not(.uos-user-names):not(.uos-user-candidates){padding-right:72px}}
+
+.uos-user-card{box-shadow:inset 0 1px 0 #ffffff0d,0 9px 22px #0002}
+@media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}}
 /* Opening number lives beside the title, away from the right-hand ornament. */
 .uos-user-panel[data-theme] .uos-user-card::before{content:attr(data-number);position:relative;float:left;inset:auto;z-index:auto;font:600 22px/1.5 Georgia,serif;letter-spacing:0;opacity:.8;margin:2px 10px 0 0;pointer-events:none}
 .uos-user-card>.uos-user-source{clear:left}
@@ -222,9 +212,6 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 
 `;
 
-function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
-export function excludedTags(value){return [...new Set(String(value||'').split(/[，,、\s]+/).map(x=>x.trim().replace(/^<\/?|\/>?$/g,'')).filter(x=>/^[\w\p{Script=Han}-]{1,40}$/u.test(x)))].slice(0,40)}
-function stripExcluded(text,tags){for(const tag of tags){const safe=tag.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');text=text.replace(new RegExp(`<${safe}(?:\\s[^<>]*)?>[\\s\\S]*?<\\/${safe}\\s*>`,'gi'),' ').replace(new RegExp(`<${safe}(?:\\s[^<>]*)?\\/?>`,'gi'),' ')}return text}
 export function unsavedPlayerGroups(baseline,current){if(!baseline||!current)return[];return Object.keys(current).filter(key=>JSON.stringify(baseline[key])!==JSON.stringify(current[key]))}
 export async function switchOpeningWithPreset(preset,presetManager,changeOpening){
   let transaction=null;
@@ -237,147 +224,6 @@ export async function switchOpeningWithPreset(preset,presetManager,changeOpening
     if(transaction)try{await transaction.rollback()}catch(rollbackError){rollbackMessage=`；世界书状态恢复失败：${rollbackError?.message||rollbackError}`}
     throw Error(`${error?.message||error}${rollbackMessage}`);
   }
-}
-export function narrativeStart(body,excluded=[]){
-  let text=stripExcluded(String(body||''),excluded).replace(/\r\n?/g,'\n').trim();
-  const narrativeTag=/^(?:正文|content)$/i;
-  for(let i=0;i<12 && text;i++){
-    const before=text;
-    text=text.replace(/^<!--[\s\S]*?-->\s*/,'').replace(/^(?:```|~~~)[^\n]*\n[\s\S]*?\n(?:```|~~~)\s*/,'').trimStart();
-    const pair=text.match(/^<([^\s<>/]+)(?:\s[^<>]*)?>\s*([\s\S]*?)\s*<\/\1>\s*/i);
-    if(pair){text=(narrativeTag.test(pair[1])?pair[2]:'')+text.slice(pair[0].length);text=text.trimStart()}
-    else text=text.replace(/^<[^<>\n]{1,120}\/?>\s*/,'').trimStart();
-    if(text===before)break;
-  }
-  return clean(text);
-}
-export function greetingTitle(body,index,excluded=[]){
-  const content=narrativeStart(body,excluded),sentence=content.match(/^.{1,64}?[。！？!?]/)?.[0];
-  return sentence||(`${content.slice(0,56)}${content.length>56?'…':''}`)||`开场 ${index+1}`;
-}
-const NON_PERSON_TAGS=/^(?:正文|content|scene|sceneinfo|status|state|thinking|think|时间|地点|日期|天气|状态|旁白|系统|说明|剧情|备注|年龄|性别|身份|关系|职业|外貌|角色|人物|姓名|名字|角色档案|人物档案|设定|世界观|标题|简介|开场|玩家|用户)$/i;
-const NON_PERSON_LABELS=/^(?:时间|地点|日期|天气|姓名|名字|人物姓名|角色名|角色姓名|登场人物|在场角色|人物|角色|正文|内容|旁白|系统|状态|说明|剧情|备注|年龄|性别|身份|关系|身高|职业|性格|外貌|你|我|她|他|玩家|用户|场景类型)$/;
-const COMMON_SURNAMES='赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫经房裘缪干解应宗丁宣贲邓郁单杭洪包诸左石崔吉钮龚程嵇邢滑裴陆荣翁荀羊甄曲封芮储靳邴松井段富巫乌焦巴弓牧隗山谷车侯宓蓬全郗班仰秋仲伊宫宁仇栾暴甘钭厉戎祖武符刘景詹束龙叶幸司韶黎薄印宿白怀蒲台从鄂索咸籍赖卓蔺屠蒙池乔阴胥能苍双闻莘党翟谭贡劳逄姬申扶堵冉宰郦雍却璩桑桂濮牛寿通边扈燕冀浦尚农温别庄晏柴瞿阎充慕连茹习宦艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚那简饶空曾毋沙乜养鞠须丰巢关蒯相查后荆红游竺权逯盖益桓公';
-const PERSON_WORD={test:isPersonName};
-export function personAliases(value){
-  const result=new Map(),owners=new Map(),canonicalNames=new Set();
-  for(const line of normalizePersonText(value).slice(0,1500).split(/[;；\n]+/).slice(0,40)){
-    const [canonical,...rest]=line.split(/[=＝]/),name=canonical?.trim();
-    if(!PERSON_WORD.test(name))continue;canonicalNames.add(name);
-    for(const alias of [name,...rest.join('=').split(/[，,、/]+/).map(x=>x.trim())])if(PERSON_WORD.test(alias)){
-      if(!owners.has(alias))owners.set(alias,new Set());owners.get(alias).add(name);
-    }
-  }
-  for(const [alias,names] of owners)if(names.size===1)result.set(alias,[...names][0]);
-  for(const name of canonicalNames)result.set(name,name);
-  result.conflicts=[...owners].filter(([alias,names])=>names.size>1&&!canonicalNames.has(alias)).map(([alias])=>alias);
-  return result;
-}
-export function detectGreetingPeople(body,{knownNames=[],characterName='',aliases='',worldbookPeople=null}={}){
-  const text=normalizePersonText(body);
-  knownNames=knownNames.map(normalizePersonText);
-  characterName=normalizePersonText(characterName).trim();
-  const manual=personAliases(aliases);
-  const userNames=new Set([...knownNames,...manual.values()]);
-  const names=[],evidence={},suggestions=[];
-  const dictionary=new Map(),worldbookByName=new Map(),owners=new Map();
-  for(const person of worldbookPeople||[]){
-    if(!isAutomaticPersonName(person?.name))continue;worldbookByName.set(person.name,person);
-    for(const alias of [person.name,...(person.aliases||[])])if(isAutomaticPersonName(alias)){
-      if(!owners.has(alias))owners.set(alias,new Set());owners.get(alias).add(person.name);
-    }
-  }
-  for(const [alias,people] of owners)if(people.size===1)dictionary.set(alias,[...people][0]);
-  // Canonical names and explicit user rules take precedence over keyword aliases.
-  for(const person of worldbookByName.values())dictionary.set(person.name,person.name);
-  for(const name of knownNames)if(PERSON_WORD.test(name))dictionary.set(name,name);
-  for(const [alias,name] of manual)dictionary.set(alias,name);
-  for(const alias of manual.conflicts)if(!userNames.has(alias)&&dictionary.get(alias)!==alias)dictionary.delete(alias);
-  const weakCharacterName=isAutomaticPersonName(characterName)&&!manual.conflicts.includes(characterName)&&!dictionary.has(characterName)?characterName:'';
-  if(weakCharacterName)dictionary.set(weakCharacterName,weakCharacterName);
-  const add=(name,source)=>{
-    if((owners.get(name)?.size>1||manual.conflicts.includes(name))&&!dictionary.has(name))return;
-    const canonical=dictionary.get(name)||name;
-    if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical)||!userNames.has(canonical)&&!isAutomaticPersonName(canonical))return;
-    const confirmed=userNames.has(canonical)||worldbookByName.has(canonical)&&worldbookByName.get(canonical).trusted!==false||names.includes(canonical);
-    if(source!=='明确标注'&&!confirmed){
-      if(!suggestions.includes(canonical))suggestions.push(canonical);return;
-    }
-    if(!names.includes(canonical))names.push(canonical);
-    if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source;
-  };
-  // The same scoped identity evidence is used by the worldbook reader and the opening parser.
-  for(const identity of extractPersonIdentities(text,{descriptions:false})){
-    if(identity.trusted)add(identity.name,'明确标注');
-    else if(!suggestions.includes(identity.name))suggestions.push(identity.name);
-  }
-  for(const match of text.matchAll(/(?:^|[\n>])\s*(?:登场人物|在场角色)[：:]\s*([^\n<>。；;]{1,160})/gmu)){
-    if(!allowsPersonEvidence(text,match.index+match[0].search(/登场人物|在场角色/u)))continue;
-    for(const name of match[1].split(/[、，,\/]+/).map(x=>x.trim()))if(isAutomaticPersonName(name))add(name,'明确标注');
-  }
-  const lines=text.replace(/<\/?[^<>]*>/g,tag=>' '.repeat(tag.length)).split('\n'),lineOffsets=[];
-  let offset=0;for(const line of lines){lineOffsets.push(offset);offset+=line.length+1}
-  for(let i=0;i<lines.length;i++){
-    if(!/^(?:(?:在场|出场|登场|主要|当前)?(?:角色|人物|人员|名单)|(?:角色|人物|人员)(?:名单|列表))[：:]\s*$/.test(lines[i].trim()))continue;
-    if(!allowsPersonEvidence(text,lineOffsets[i]+lines[i].search(/\S/)))continue;
-    for(let j=i+1;j<Math.min(i+15,lines.length);j++){
-      const item=lines[j].trim().match(/^(?:[-*•·]|\d+[.、])\s*([\p{Script=Han}]{2,12})(.*)$/u);
-      if(!item)break;
-      if(!allowsPersonEvidence(text,lineOffsets[j]+lines[j].search(/\S/)))continue;
-      const head=item[1],tail=item[2];
-      // Never split a sentence into a guessed identity, or promote a name inside an owned object.
-      if(/的/u.test(head)||tail&&!/^[\s:：|（(、，,]/u.test(tail))continue;
-      const costume=head.match(/^(.{2,4})(?:制服|校服|便服|常服|泳装)$/u);
-      const name=costume?.[1]||head;
-      if(isAutomaticPersonName(name)){
-        if(dictionary.has(name)||costume||[...name].length<=4)add(name,'明确标注');
-        else if(!suggestions.includes(name))suggestions.push(name);
-      }
-    }
-  }
-  // An actual person's name may be used as a paired dialogue tag, e.g. <沈挽昼>别开门。</沈挽昼>.
-  for(const match of text.matchAll(/<([\p{Script=Han}]{2,4})>\s*([^<>]{1,300})\s*<\/\1>/gmu)){
-    if(!NON_PERSON_TAGS.test(match[1])&&(dictionary.has(match[1])||COMMON_SURNAMES.includes(match[1][0])&&/[：“”「」]/u.test(match[2]))&&/[。！？!?：“”「」]/u.test(match[2]))add(match[1],'人物标签');
-  }
-  for(const match of text.matchAll(/<([\p{Script=Han}]{2,4})>\s*(?=[：:“「])/gmu)){
-    if(!NON_PERSON_TAGS.test(match[1])&&(dictionary.has(match[1])||COMMON_SURNAMES.includes(match[1][0])))add(match[1],'人物标签');
-  }
-  const story=text.replace(/<\/?[^<>]*>/g,'\n');
-  for(const match of story.matchAll(/(?:^|\n)\s*(?:【|\[)?([^\n：:<>【】\[\]]{2,40})(?:】|\])?\s*[：:]\s*(?=[^\n]{1,80})/gmu)){
-    if(isPersonName(match[1].trim())&&!NON_PERSON_LABELS.test(match[1].trim()))add(match[1].trim(),'台词署名');
-  }
-  // Scan the entire original body, including tag names, metadata, comments and code.
-  // Longer names reserve their spans, preventing 王明 inside 王明月 from matching twice.
-  const occupied=[];
-  const blockedAliases=new Set([...manual.conflicts,...[...owners].filter(([alias,names])=>names.size>1&&!dictionary.has(alias)).map(([alias])=>alias)]);
-  for(const alias of new Set([...dictionary.keys(),...blockedAliases].sort((a,b)=>b.length-a.length))){
-    const canonical=dictionary.get(alias);
-    const safe=alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    const boundary=[...alias].length===1?'[\\p{L}\\p{N}_]':/[\p{Script=Latin}\p{N}]/u.test(alias)?'[\\p{Script=Latin}\\p{N}_]':null;
-    const prefix=boundary?`(?<!${boundary})`:'',suffix=boundary?`(?!${boundary})`:'';
-    for(const match of text.matchAll(new RegExp(`${prefix}${safe}${suffix}`,'gu'))){
-      const start=match.index,end=start+match[0].length;
-      if(occupied.some(([a,b])=>start<b&&end>a))continue;
-      occupied.push([start,end]);if(blockedAliases.has(alias)&&!dictionary.has(alias))continue;
-      add(alias,worldbookByName.has(canonical)?'世界书匹配':'正文提及');
-    }
-  }
-  // A name seen only before a narrative action is offered for review, not silently added to filters.
-  for(const match of story.matchAll(/(?:^|[。！？!?\n])\s*([\p{Script=Han}]{2,4})(?=走|说|问|答|望|看|笑|喊|推|抱|站|坐|跑|听|握|抬|转|递)/gmu)){
-    const name=match[1];if(isAutomaticPersonName(name)&&COMMON_SURNAMES.includes(name[0])&&!NON_PERSON_LABELS.test(name)&&!names.includes(name)&&!suggestions.includes(name))suggestions.push(name);
-  }
-  return {names,evidence,suggestions:suggestions.filter(name=>!names.includes(name)).slice(0,3)};
-}
-export function greetingNames(body,options){return detectGreetingPeople(body,options).names}
-export function detectGreetingCollection(bodies,options={}){
-  const first=bodies.map(body=>detectGreetingPeople(body,options));
-  const known=[...new Set([...(options.knownNames||[]),...first.flatMap(result=>result.names.filter(name=>result.evidence[name]==='明确标注'))])];
-  return bodies.map(body=>detectGreetingPeople(body,{...options,knownNames:known}));
-}
-export function isLegacyGeneratedEntry(body,entry,index){
-  if(!entry||typeof entry!=='object')return false;
-  const plain=clean(body),title=plain.slice(0,20)||`开场 ${index+1}`;
-  return entry.title===title && (entry.description||'')===plain.slice(20,88);
 }
 function labelKey(snapshot){
   const identity=`${snapshot.avatar}\u0000${snapshot.entries.map(entry=>entry.body).join('\u0000')}`;
@@ -434,7 +280,7 @@ function showPlayerUnsavedPrompt(doc,dialog,panel,groups,canSaveToCard){
   });
 }
 
-export function mountPlayerSelector(startDocument=document,helperApi){
+export function mountPlayerSelector(startDocument=document,helperApi,{backgroundService=null}={}){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
   // Script replacement rebinds the helper API even if the same version runs again.
@@ -504,7 +350,8 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode){first.before(trigger);applySavedPosition()}
     }finally{updating=false}
   }
-  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;updateGuard=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
+  let backgroundControl=null;
+  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;updateGuard=null;backgroundControl?.close();backgroundControl=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
   function openPanel(){
     const snapshot=state();if(!snapshot)return;
     const storageKey=labelKey(snapshot);let customLabels={};
@@ -513,11 +360,11 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     const panel=el('section','uos-user-panel');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','预览和选择开场');
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
-    const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);
+    const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);backgroundControl=createThemeBackgroundController(panel,'--uos-user-background',doc.defaultView,{service:backgroundService});void backgroundControl.setTheme(panel.dataset.theme);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>closePanel();const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
-    const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[select.value]?`url("${THEME_BACKGROUND_IMAGES[select.value]}")`:'none');kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
+    const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
     const settings=el('section','uos-user-settings');settings.hidden=true;settings.id='uos-player-settings';settings.setAttribute('aria-label','开场设置');
     const settingsButton=el('button','uos-user-settings-button','设置');settingsButton.type='button';settingsButton.setAttribute('aria-controls',settings.id);settingsButton.setAttribute('aria-expanded','false');settingsButton.onclick=()=>{settings.hidden=!settings.hidden;settingsButton.setAttribute('aria-expanded',String(!settings.hidden))};tools.append(settingsButton);
@@ -664,7 +511,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       for(const name of new Set(resolved.flatMap(x=>x.names))){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
       let visible=0;for(const entry of snapshot.entries){const display=resolved[entry.index],term=query.value.trim().toLocaleLowerCase();
       if((person.value&&!display.names.includes(person.value))||(term&&![display.title,...display.names,entry.body].some(x=>x.toLocaleLowerCase().includes(term))))continue;visible++;
-      const card=el('article','uos-user-card');const cornerArt=el('span','uos-user-card-ornament');cornerArt.setAttribute('aria-hidden','true');card.append(cornerArt);card.dataset.current=String(entry.index===snapshot.swipeId);card.dataset.number=String(entry.index+1).padStart(2,'0');
+      const card=el('article','uos-user-card');card.dataset.current=String(entry.index===snapshot.swipeId);card.dataset.number=String(entry.index+1).padStart(2,'0');
       const illustration=el('div','uos-user-default-cover');illustration.setAttribute('aria-hidden','true');const customCover=authorEntries[entry.index]?.image;const validCover=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(customCover||'');illustration.style.backgroundImage=validCover?`url("${customCover.replace(/["\\]/g,'')}")`:`var(--uos-default-cover-${defaultCoverSlot(entry.body,entry.index,host)})`;card.append(illustration);
       const labelText=el('p','uos-user-description',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
@@ -705,7 +552,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     const advancedGroup=el('section','uos-user-settings-group');advancedGroup.append(el('h3','','识别规则'),exclusion,personSettings);
     const systemGroup=el('section','uos-user-settings-group');systemGroup.append(el('h3','','插件'),updateSettings);
     settings.append(settingsIntro,commonGroup,advancedGroup,systemGroup);panel.append(head,tools,settings,search,results,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
-    const active=overlay;
+    const active=overlay,activeBackgroundControl=backgroundControl;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;
       exclusionInput.value=playerBaseline.exclusion;aliasInput.value=playerBaseline.people;
@@ -741,7 +588,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();
     try{active.showModal()}catch(error){closePanel(true);console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error);return}
-    active.addEventListener('cancel',event=>{event.preventDefault();closePanel()});active.onclick=e=>{if(e.target===active)closePanel()};active.onclose=()=>{stopUpdateControl?.();stopUpdateControl=null;active.remove();if(overlay===active)overlay=null};close.focus();
+    active.addEventListener('cancel',event=>{event.preventDefault();closePanel()});active.onclick=e=>{if(e.target===active)closePanel()};active.onclose=()=>{activeBackgroundControl?.close();if(backgroundControl===activeBackgroundControl)backgroundControl=null;stopUpdateControl?.();stopUpdateControl=null;active.remove();if(overlay===active)overlay=null};close.focus();
   }
   const observer=new host.MutationObserver(scan);
   if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});

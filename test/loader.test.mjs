@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_通用脚本_v1.0.8.json','utf8'));
-const preview=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.13.json','utf8'));
+const payload=JSON.parse(fs.readFileSync('test/fixtures/红豆粉开场白选择器_通用脚本_v1.0.8.json','utf8'));
+const preview=JSON.parse(fs.readFileSync('test/fixtures/红豆粉开场白选择器_测试版脚本_v1.0.9-beta.13.json','utf8'));
 assert.notEqual(preview.id,payload.id,'test and release scripts need separate identities');
 assert.match(preview.name,/测试版/);
 assert.equal(preview.enabled,false,'test script must require explicit enabling');

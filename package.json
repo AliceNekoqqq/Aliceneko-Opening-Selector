@@ -1,0 +1,13 @@
+{
+  "name": "aliceneko-opening-selector",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:preview": "node scripts/build-author-script.mjs --preview",
+    "build:stable": "node scripts/build-author-script.mjs --stable",
+    "test": "node scripts/test-node.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
