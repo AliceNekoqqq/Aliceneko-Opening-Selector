@@ -76,7 +76,7 @@ try{
  }
  await player.getByLabel('选择主题').selectOption('neon');
  assert.equal(await player.getByLabel('按人物筛选').evaluate(el=>getComputedStyle(el).colorScheme),'dark');
- for(const theme of ['deepsea','amber','theatre','lasttrain','aurora','glasshouse']){
+ for(const theme of ['deepsea','amber','theatre','lasttrain','aurora','glasshouse','japan']){
   await player.getByLabel('选择主题').selectOption(theme);
   assert.notEqual(await player.evaluate(()=>getComputedStyle(document.querySelector('.uos-user-panel')).getPropertyValue('--uos-user-background').trim()),'none',`${theme} player theme has a background image`);
  }

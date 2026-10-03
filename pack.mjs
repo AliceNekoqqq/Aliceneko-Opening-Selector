@@ -36,7 +36,7 @@ const config = {
 };
 
 const iconSprite = fs.readFileSync(new URL('./assets/theme-icons.webp',import.meta.url)).toString('base64');
-const themeBackgrounds = Object.fromEntries(['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse'].map(name=>[
+const themeBackgrounds = Object.fromEntries(['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse','japan'].map(name=>[
   name,`data:image/webp;base64,${fs.readFileSync(new URL(`./assets/theme-background-${name}.webp`,import.meta.url)).toString('base64')}`
 ]));
 const tabArt = Object.fromEntries(['openings','worldbooks','bgm','diagnostics','updates'].map(name=>[
@@ -60,6 +60,7 @@ const css = fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8'
   .replaceAll('__THEME_BG_LASTTRAIN__',themeBackgrounds.lasttrain)
   .replaceAll('__THEME_BG_AURORA__',themeBackgrounds.aurora)
   .replaceAll('__THEME_BG_GLASSHOUSE__',themeBackgrounds.glasshouse)
+  .replaceAll('__THEME_BG_JAPAN__',themeBackgrounds.japan)
   .replaceAll('__TAB_OPENINGS__',cssDataUrl.openings)
   .replaceAll('__TAB_WORLDBOOKS__',cssDataUrl.worldbooks)
   .replaceAll('__TAB_BGM__',cssDataUrl.bgm)

@@ -81,8 +81,8 @@ assert.match(remote,/--uos-empty-opening-art/);
 assert.match(remote,/--uos-diagnostics-art/);
 assert.match(remote,/showSetupHints:true/);
 assert.match(remote,/showSetupHints&&reason&&container&&hasAuthorMarker\(\)/);
-assert.match(remote,/--theme-icon-position:75% 50%/);
-assert.match(remote,/--theme-icon-position:100% 100%/);
+assert.match(remote,/--theme-icon-position:75% 33\.333%/);
+assert.match(remote,/--theme-icon-position:100% 66\.667%/);
 assert.match(remote,/卷·故事/);
 assert.doesNotMatch(remote,/卷 · 故事/);
 assert.match(remote,/pointer-events:auto!important/);
@@ -98,13 +98,13 @@ for(const theme of ['starmap','rose','wasteland']){
 }
 assert.ok(remote.includes(String.raw`class=\"uos-background-art\"`));
 assert.match(remote,/\.uos-background-art\{[^}]*background-size:cover/);
-for(const theme of ['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse']){
+for(const theme of ['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse','japan']){
   assert.ok(remote.includes(String.raw`--uos-theme-bg-${theme}:url(\"data:image/webp;base64,`),theme);
 }
 assert.ok(remote.includes('THEME_BACKGROUND_IMAGES'));
 assert.ok(remote.includes('uos-user-background'));
 assert.doesNotMatch(remote,/__THEME_BG_[A-Z]+__/);
-const backgroundFiles=['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse'].map(theme=>`assets/theme-background-${theme}.webp`);
+const backgroundFiles=['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse','japan'].map(theme=>`assets/theme-background-${theme}.webp`);
 assert.ok(backgroundFiles.every(file=>fs.statSync(file).size>1000));
 assert.ok(backgroundFiles.reduce((sum,file)=>sum+fs.statSync(file).size,0)<1_300_000);
 assert.match(remote,/搜索作者开场/);
