@@ -263,15 +263,16 @@ export function mountInDocument(doc = document, helperApi = null) {
         cover.classList.add('has-image');cover.style.backgroundImage=`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`;
       }
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
-      const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title));
+      const body=el('div','uos-card-body');if(entry.label)body.append(el('span','uos-label',entry.label));body.append(el('strong','',entry.title));
       if(entry.description)body.append(el('div','uos-description',entry.description));
-      const cast=el('p','uos-card-names');cast.append(el('span','uos-cast-label','登场人物'));for(const name of names?names.split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean):['未识别'])cast.append(el('span','uos-name-chip',name));body.append(cast);
-      if(entry.nameSuggestions?.length)body.append(el('p','uos-help',`待确认人物 · ${entry.nameSuggestions.join(' / ')}`));
+      const castNames=names.split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean);
+      if(castNames.length){const cast=el('p','uos-card-names');cast.append(el('span','uos-cast-label','人物'));for(const name of castNames.slice(0,3))cast.append(el('span','uos-name-chip',name));if(castNames.length>3)cast.append(el('span','uos-name-chip',`+${castNames.length-3}`));body.append(cast)}
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);const corner=el('span','uos-card-ornament');corner.setAttribute('aria-hidden','true');shell.append(corner);
       const source=greetings[i];
-      if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'),el('pre','',source));shell.append(details)}
+      if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'));if(entry.description)details.append(el('p','uos-full-description',entry.description));if(castNames.length>3)details.append(el('p','uos-help',`全部人物：${castNames.join('、')}`));if(entry.nameSuggestions?.length)details.append(el('p','uos-help',`待确认人物：${entry.nameSuggestions.join('、')}`));details.append(el('pre','',source));shell.append(details)}
       grid.append(shell);
     });
+    let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=query||person.value?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
     if(!visible)grid.append(el('p','uos-search-empty','没有匹配的开场，请换个关键词或人物。'));
     renderMusic(config.music);
     const kicker=root.querySelector('.uos-kicker');if(kicker&&!kicker.querySelector('.uos-version-badge'))kicker.append(el('small','uos-version-badge',`v${VERSION}`));

@@ -80,7 +80,7 @@ try{
   const selector=page.frameLocator('iframe[data-uos-author-frame]');
   await selector.locator('.uos-card').first().waitFor();
   assert.equal(await page.locator('.uos-user-trigger').count(),0);
-  assert.match(await selector.locator('.uos-card-names').nth(1).textContent(),/张子薇/);
+  assert.match(await selector.locator('.uos-card-shell').nth(1).locator('.uos-card-names').textContent(),/张子薇/);
   assert.equal(await selector.locator('.uos-card-details').count(),2);
   await selector.getByLabel('搜索作者开场').fill('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);

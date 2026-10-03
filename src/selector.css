@@ -312,3 +312,10 @@
 .uos-card-shell .uos-number{flex:none;white-space:nowrap;max-width:100%}
 @media(max-width:600px){.uos-card-shell{--card-ornament-size:86px}.uos[data-theme] .uos-card-shell .uos-number{font-size:28px;letter-spacing:-.04em}}
 .uos[data-theme] .uos-card-shell .uos-cover.has-image .uos-number{opacity:1;color:#fff;background:#111a20b3;border-radius:6px;padding:5px 9px;font-size:clamp(24px,4vw,32px);line-height:1}
+
+/* Clear hierarchy with full information available in the preview. */
+.uos-results{margin:0 0 14px;color:var(--muted);font-size:12px}
+.uos-card .uos-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.7}
+.uos-card .uos-card-names{margin:10px 0;font-size:12px}
+.uos-full-description{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+.uos-card-body>strong{line-height:1.5;overflow-wrap:anywhere}

@@ -210,6 +210,16 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=aurora]{--ornament-position:33.33333% 100.00000%}
 .uos-user-panel[data-theme=glasshouse]{--ornament-position:66.66667% 100.00000%}
 .uos-user-panel[data-theme=japan]{--ornament-position:100.00000% 100.00000%}
+/* Browse first; edit and inspect details on demand. */
+.uos-user-panel .uos-user-settings[hidden]{display:none}
+.uos-user-settings-button{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;min-height:38px}
+.uos-user-settings{margin:0 0 16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.uos-user-results{margin:0 0 12px;color:var(--muted);font-size:12px}
+.uos-user-panel .uos-user-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.7;padding-right:0}
+.uos-user-panel .uos-user-card h3{padding-right:0}
+.uos-user-card .uos-user-names{margin:10px 0;font-size:12px}
+.uos-user-diagnostics{margin-top:12px;border-top:1px solid var(--line)}
+
 `;
 
 function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
@@ -504,11 +514,13 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
     const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);
-    const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`已读取 ${snapshot.entries.length} 条开场，选择后切换首条消息。`));
+    const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>closePanel();const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[select.value]?`url("${THEME_BACKGROUND_IMAGES[select.value]}")`:'none');kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
+    const settings=el('section','uos-user-settings');settings.hidden=true;settings.id='uos-player-settings';settings.setAttribute('aria-label','开场设置');
+    const settingsButton=el('button','uos-user-settings-button','设置');settingsButton.type='button';settingsButton.setAttribute('aria-controls',settings.id);settingsButton.setAttribute('aria-expanded','false');settingsButton.onclick=()=>{settings.hidden=!settings.hidden;settingsButton.setAttribute('aria-expanded',String(!settings.hidden))};tools.append(settingsButton);
     const character=host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
     const authorConfig=(character?.data||character)?.extensions?.[KEY]||{};
     const authorEntries=Array.isArray(authorConfig.entries)?authorConfig.entries.map((entry,i)=>isLegacyGeneratedEntry(snapshot.entries[i]?.body,entry,i)?{...entry,title:'',description:''}:entry):[];
@@ -645,6 +657,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       return true;
     };
     const search=el('div','uos-user-search'),query=el('input'),person=el('select');query.type='search';query.placeholder='搜索标题、人物或开场正文';query.setAttribute('aria-label','搜索开场');person.setAttribute('aria-label','按人物筛选');search.append(query,person);
+    const results=el('p','uos-user-results');results.setAttribute('role','status');
     query.oninput=()=>renderCards();person.onchange=()=>renderCards();
     function renderCards(){list.replaceChildren();const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
       const selected=person.value;person.replaceChildren();const any=el('option','','全部人物');any.value='';person.append(any);
@@ -653,12 +666,11 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       if((person.value&&!display.names.includes(person.value))||(term&&![display.title,...display.names,entry.body].some(x=>x.toLocaleLowerCase().includes(term))))continue;visible++;
       const card=el('article','uos-user-card');const cornerArt=el('span','uos-user-card-ornament');cornerArt.setAttribute('aria-hidden','true');card.append(cornerArt);card.dataset.current=String(entry.index===snapshot.swipeId);card.dataset.number=String(entry.index+1).padStart(2,'0');
       const illustration=el('div','uos-user-default-cover');illustration.setAttribute('aria-hidden','true');const customCover=authorEntries[entry.index]?.image;const validCover=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(customCover||'');illustration.style.backgroundImage=validCover?`url("${customCover.replace(/["\\]/g,'')}")`:`var(--uos-default-cover-${defaultCoverSlot(entry.body,entry.index,host)})`;card.append(illustration);
-      const labelText=el('p','',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
+      const labelText=el('p','uos-user-description',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
-      labelTexts[entry.index]=labelText;card.append(el('h3','',display.title),el('small','uos-user-source',`标题：${display.titleSource}`),labelText);
-      const cast=el('p','uos-user-names');cast.append(el('span','uos-cast-label','登场人物'));for(const name of display.names.length?display.names:['未识别'])cast.append(el('span','uos-name-chip',name));card.append(cast);
-      if(entry.nameSuggestions?.length)card.append(el('p','uos-user-candidates',`待确认 · ${entry.nameSuggestions.join(' / ')}（可在“修正标题和登场人物”中采纳）`));
-      const details=el('details','');details.append(el('summary','','预览完整正文'),el('pre','',entry.body));card.append(details);
+      labelTexts[entry.index]=labelText;card.append(el('h3','',display.title));if(labelText.textContent)card.append(labelText);
+      if(display.names.length){const cast=el('p','uos-user-names');cast.append(el('span','uos-cast-label','人物'));for(const name of display.names.slice(0,3))cast.append(el('span','uos-name-chip',name));if(display.names.length>3)cast.append(el('span','uos-name-chip',`+${display.names.length-3}`));card.append(cast)}
+      const details=el('details','');details.append(el('summary','','预览完整正文'));if(labelText.textContent)details.append(el('p','',labelText.textContent));if(display.names.length>3)details.append(el('p','',`全部人物：${display.names.join('、')}`));const diagnostics=el('details','uos-user-diagnostics');diagnostics.append(el('summary','','识别信息'),el('small','uos-user-source',`标题：${display.titleSource}`));if(entry.nameSuggestions?.length)diagnostics.append(el('p','uos-user-candidates',`待确认：${entry.nameSuggestions.join('、')} · 可在设置中修正`));details.append(el('pre','',entry.body),diagnostics);card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{
         let current=state();
@@ -681,14 +693,14 @@ export function mountPlayerSelector(startDocument=document,helperApi){
         }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
       };
       card.append(choose);list.append(card);
-    }if(!visible)list.append(el('p','uos-user-empty','没有匹配的开场，请换个关键词。'))}
+    }results.textContent=query.value.trim()||person.value?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty','没有匹配的开场，请换个关键词。'))}
     const settingsSheets=[exclusion,personSettings,edits,labelSettings,updateSettings];
     for(const sheet of settingsSheets)sheet.addEventListener('toggle',()=>{if(sheet.open)for(const other of settingsSheets)if(other!==sheet)other.open=false});
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
     stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});
-    panel.append(head,tools,search,exclusion,personSettings,edits,labelSettings,updateSettings,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
+    settings.append(exclusion,personSettings,edits,labelSettings,updateSettings);panel.append(head,tools,settings,search,results,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const active=overlay;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;
