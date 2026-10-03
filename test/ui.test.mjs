@@ -67,6 +67,19 @@ try{
  await page.evaluate(()=>{__state.characterId=0;__state.characters[0].data.first_mes='钟楼的清晨。';__state.characters[0].data.alternate_greetings=['雨夜车站。'];document.__uosAuthor.scan();document.__uosPlayer.scan();__state.writeExtensionField=async(id,key,value)=>{__state.characters[id].data.extensions[key]=structuredClone(value)}});
  await page.locator('.uos-user-trigger').click();
  const player=page.locator('dialog.uos-user-overlay');
+ await page.addStyleTag({content:'select{background:#333!important;color:#111!important;color-scheme:dark!important}'});
+ await player.getByLabel('选择主题').selectOption('paper');
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.uos-user-panel select')).backgroundColor==='rgb(249, 242, 228)');
+ for(const name of ['选择主题','按人物筛选']){
+  const style=await player.getByLabel(name).evaluate(el=>{const s=getComputedStyle(el);return {background:s.backgroundColor,color:s.color,scheme:s.colorScheme}});
+  assert.deepEqual(style,{background:'rgb(249, 242, 228)',color:'rgb(41, 41, 38)',scheme:'light'},`${name} respects paper theme under hostile Tavern styles`);
+ }
+ await player.getByLabel('选择主题').selectOption('neon');
+ assert.equal(await player.getByLabel('按人物筛选').evaluate(el=>getComputedStyle(el).colorScheme),'dark');
+ await player.getByLabel('选择主题').selectOption('paper');
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.uos-user-panel select')).backgroundColor==='rgb(249, 242, 228)');
+ await page.setViewportSize({width:375,height:812});
+ await page.screenshot({path:'/tmp/uos-player-paper-controls.png'});
  await player.locator('summary').filter({hasText:'修正标题和登场人物'}).click();
  const title=player.locator('.uos-user-label-settings').nth(2).locator('input').first();
  await title.fill('玩家未保存标题');
