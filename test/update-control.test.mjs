@@ -20,5 +20,5 @@ stop();assert.equal(cleared,true);
 const player=fs.readFileSync('src/player.js','utf8'),author=fs.readFileSync('src/selector.js','utf8'),log=fs.readFileSync('CHANGELOG.md','utf8');
 assert.match(player,/版本与更新/);assert.match(player,/启动时自动检查更新/);assert.match(player,/versionElements:\[versionBadge,footerVersion\]/);assert.doesNotMatch(player,/tools\.append\(updateButton\)/);
 assert.match(author,/dataset\.tab='updates'/);assert.match(author,/启动时自动检查更新/);assert.doesNotMatch(author,/parentElement\.prepend\(updateButton\)/);
-assert.match(log,/^## v1\.0\.10-beta\.9/m);
+assert.match(log,/^## v1\.0\.10-beta\.10/m);
 console.log('Settings update controls, per-channel auto-check preference, subtle version marker and release notes passed');

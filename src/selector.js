@@ -21,7 +21,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.10-beta.9';
+  const VERSION = '1.0.10-beta.10';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -324,7 +324,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   function ensureUpdateSettings(dlg){
     if(dlg.querySelector('[data-tab="updates"]'))return;
     const tabs=dlg.querySelector('.uos-tabs');if(!tabs)return;
-    const tab=el('button','');tab.type='button';tab.dataset.tab='updates';tab.setAttribute('aria-selected','false');tab.append(el('span','','↻'),el('span','','更新'));
+    const tab=el('button','');tab.type='button';tab.dataset.tab='updates';tab.setAttribute('aria-selected','false');const art=el('span','uos-tab-art');art.dataset.tabArt='updates';art.setAttribute('aria-hidden','true');tab.append(art,el('span','','更新'));
     const panel=el('section','uos-update-section');panel.dataset.tabPanel='updates';panel.hidden=true;
     const version=el('p','uos-help',`当前运行版本：v${VERSION}`);
     const auto=el('label','uos-toggle'),autoCheck=el('input');autoCheck.type='checkbox';auto.append(autoCheck,el('span','','启动时自动检查更新'));

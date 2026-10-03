@@ -188,6 +188,7 @@
 .uos-tab-art[data-tab-art=worldbooks]{background-image:url("__TAB_WORLDBOOKS__")}
 .uos-tab-art[data-tab-art=bgm]{background-image:url("__TAB_BGM__")}
 .uos-tab-art[data-tab-art=diagnostics]{background-image:url("__TAB_DIAGNOSTICS__")}
+.uos-tab-art[data-tab-art=updates]{background-image:url("__TAB_UPDATES__")}
 .uos-empty-music{width:min(100%,180px);height:126px;margin:18px auto 10px;background:url("__TAB_BGM__") center/contain no-repeat;opacity:.92;filter:drop-shadow(0 8px 14px #0006)}
 .uos[data-theme=archive],.uos-theme-swatch[data-theme=archive]{--theme-icon-position:0% 0%}
 .uos[data-theme=neon],.uos-theme-swatch[data-theme=neon]{--theme-icon-position:50% 0%}

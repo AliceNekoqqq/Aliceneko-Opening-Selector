@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.9.json'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.10.json'));
 assert.match(payload.name,/确认更新/);
 assert.equal(payload.enabled,false);assert.equal(payload.export_with.data,false);
 const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
 const next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
-const nextReleaseNotes='# 更新日志\n\n## v1.0.10-beta.9\n- 更新入口移入设置。\n- 更新前显示逐版本说明。\n\n## v1.0.10-beta.6\n- 玩家切换开场前先处理未保存改动。\n';
+const nextReleaseNotes='# 更新日志\n\n## v1.0.10-beta.10\n- 更新入口移入设置。\n- 更新前显示逐版本说明。\n\n## v1.0.10-beta.6\n- 玩家切换开场前先处理未保存改动。\n';
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
-async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,notes=nextReleaseNotes,moduleVersion='1.0.10-beta.9',currentVersion='1.0.10-beta.6',autoCheck=null,dismissed=null,holdPrompt=false,modalFails=false,timeout=false}={}){
+async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,notes=nextReleaseNotes,moduleVersion='1.0.10-beta.10',currentVersion='1.0.10-beta.6',autoCheck=null,dismissed=null,holdPrompt=false,modalFails=false,timeout=false}={}){
  const imports=[],mounts=[],prompts=[],messages=[],requests=[],storage=new Map(stored?[["uos-approved-runtime-preview",JSON.stringify(stored)]]:[]);
  if(autoCheck!==null)storage.set('uos-auto-check-preview',String(autoCheck));
  if(dismissed!==null)storage.set('uos-dismissed-update-preview',dismissed);
@@ -30,19 +30,19 @@ async function run({accept=false,stored=null,pointer=next,fail=false,storageFail
  },async url=>{imports.push(url);if(fail&&url.includes(next))throw Error('offline module');return {OPENING_SELECTOR_VERSION:url.includes(next)?moduleVersion:currentVersion,mountUniversalSelector:()=>mounts.push(url)}});
  return {doc,imports,mounts,prompts,messages,storage,requests,get activeDialog(){return activeDialog},get pointerChecks(){return pointerChecks},get notesChecks(){return notesChecks}};
 }
-const cancelled=await run();assert.equal(cancelled.prompts.length,1);assert.equal(cancelled.imports.length,1,'cancel never imports the new runtime');assert.equal(cancelled.doc.__uosUpdater.hasUpdate,true);assert.match(cancelled.prompts[0],/【v1\.0\.10-beta\.9】/);assert.doesNotMatch(cancelled.prompts[0],/【v1\.0\.10-beta\.6】/,'already-installed version notes are omitted');assert.ok(cancelled.storage.get('uos-dismissed-update-preview'),'cancel stores the dismissed candidate');
+const cancelled=await run();assert.equal(cancelled.prompts.length,1);assert.equal(cancelled.imports.length,1,'cancel never imports the new runtime');assert.equal(cancelled.doc.__uosUpdater.hasUpdate,true);assert.match(cancelled.prompts[0],/【v1\.0\.10-beta\.10】/);assert.doesNotMatch(cancelled.prompts[0],/【v1\.0\.10-beta\.6】/,'already-installed version notes are omitted');assert.ok(cancelled.storage.get('uos-dismissed-update-preview'),'cancel stores the dismissed candidate');
 await cancelled.doc.__uosUpdater.check(true);assert.equal(cancelled.prompts.length,2,'manual check may show notes again after cancel');assert.equal(cancelled.imports.length,1);
 const silentlyDismissed=await run({stored:{bootstrap:old,ref:old},autoCheck:true,dismissed:next});assert.equal(silentlyDismissed.prompts.length,0,'cancelled candidate does not repeat the startup prompt');assert.equal(silentlyDismissed.doc.__uosUpdater.hasUpdate,true);assert.equal(silentlyDismissed.notesChecks,0,'a dismissed candidate does not reload unchanged notes');
 const newTarget='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
-const laterNotes=nextReleaseNotes+'\n## v1.0.10-beta.10\n- 新增新版本内容。\n';
-const newRelease=await run({stored:{bootstrap:old,ref:old},pointer:newTarget,notes:laterNotes});assert.equal(newRelease.prompts.length,1,'a different candidate prompts once');assert.match(newRelease.prompts[0],/【v1\.0\.10-beta\.10】/);
+const laterNotes=nextReleaseNotes+'\n## v1.0.10-beta.11\n- 新增新版本内容。\n';
+const newRelease=await run({stored:{bootstrap:old,ref:old},pointer:newTarget,notes:laterNotes});assert.equal(newRelease.prompts.length,1,'a different candidate prompts once');assert.match(newRelease.prompts[0],/【v1\.0\.10-beta\.11】/);
 const projectNotes=fs.readFileSync('CHANGELOG.md','utf8');
-for(let version=1;version<=9;version++){
+for(let version=1;version<=10;version++){
  const header=`## v1.0.10-beta.${version}`;const section=projectNotes.split(/^## /m).find(part=>part.startsWith(header.slice(3)));
  assert.ok(section,`CHANGELOG includes ${header}`);assert.match(section,/^\s*-\s+\S/m,`${header} has user-facing notes`);
 }
 const multiVersion=await run({currentVersion:'1.0.10-beta.3',notes:projectNotes});
-const shownVersions=[4,5,6,7,8,9].map(version=>`【v1.0.10-beta.${version}】`);
+const shownVersions=[4,5,6,7,8,9,10].map(version=>`【v1.0.10-beta.${version}】`);
 let lastPosition=-1;for(const version of shownVersions){const position=multiVersion.prompts[0].indexOf(version);assert.ok(position>lastPosition,`${version} is included in chronological order`);lastPosition=position}
 assert.doesNotMatch(multiVersion.prompts[0],/【v1\.0\.10-beta\.[123]】/,'installed and older release notes are omitted');
 const approved=await run({accept:true});assert.equal(approved.imports.length,2);assert.equal(approved.mounts.length,2);assert.equal(JSON.parse(approved.storage.get('uos-approved-runtime-preview')).ref,next);assert.equal(approved.storage.has('uos-dismissed-update-preview'),false);
