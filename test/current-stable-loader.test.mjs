@@ -6,7 +6,8 @@ if(stable){
  assert.equal(payload.id,'b499bdc3-d6c2-46cc-a56a-80eef52df75c');
  assert.match(payload.content,/"channel":"stable"/);assert.match(bootstrapScript,/main\/scripts\/runtime-ref.txt/);assert.doesNotMatch(payload.content,/develop\/scripts/);
  const old=bootstrapScript.match(/"fallbackRef":"([a-f0-9]{40})"/)[1],next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
- const targetVersion='1.0.14';
+ const parts=runtimeVersion.split('.').map(Number);
+ const targetVersion=[parts[0],parts[1],parts[2]+1].join('.');
  const source=fs.readFileSync(bootstrapFile,'utf8');
  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
  const execute=new AsyncFunction('globalThis','document','fetch','loadModule','return '+payload.content.replace('await import(url)','await loadModule(url)'));
@@ -37,7 +38,7 @@ if(stable){
  function verifyPrompt(run){
   const text=fullText(run.prompts[0]);assert.doesNotMatch(text,/1\.0\.15-beta/);
   assert.ok(text.includes(`正式通道 · v${runtimeVersion} → v${targetVersion}`),'prompt shows current and target versions');
-  assert.match(text,/【v1\.0\.14】\s+• 正式更新。/,'prompt shows target release contents');
+  assert.ok(text.includes(`【v${targetVersion}】`)&&text.includes('• 正式更新。'),'prompt shows target release contents');
  }
  const autoCancel=await run({autoCheck:true});verifyPrompt(autoCancel);assert.equal(autoCancel.imports.length,1);assert.equal(autoCancel.mounts.length,1,'startup prompt does not download until approved');
  assert.equal(autoCancel.storage.get('uos-dismissed-update-stable'),next);
@@ -48,7 +49,7 @@ if(stable){
  const dismissed=await run({autoCheck:true,dismissed:next});assert.equal(dismissed.prompts.length,0);assert.equal(dismissed.doc.__uosUpdater.hasUpdate,true);
  const beta=await run({accept:true,candidateVersion:'1.0.14-beta.1'});await beta.doc.__uosUpdater.check(true);assert.equal(beta.mounts.length,1);assert.equal(beta.imports.length,4);assert.equal(beta.storage.has('uos-approved-runtime-stable'),false);
  const missing=await run({notes:false,autoCheck:true});assert.equal(missing.prompts.length,0);assert.equal(missing.mounts.length,1);assert.match(missing.messages.at(-1),/无法读取更新说明/);
- const mismatch=await run({accept:true,autoCheck:true,candidateVersion:'1.0.15'});assert.equal(mismatch.mounts.length,1);assert.match(mismatch.messages.at(-1),/不一致/);
+ const mismatch=await run({accept:true,autoCheck:true,candidateVersion:[parts[0],parts[1],parts[2]+2].join('.')});assert.equal(mismatch.mounts.length,1);assert.match(mismatch.messages.at(-1),/不一致/);
  const offline=await run({autoCheck:true,pointer:null});assert.equal(offline.mounts.length,1);assert.match(offline.messages.at(-1),/继续使用当前版本/);
  const blocked=await run({accept:true,autoCheck:true,guard:async()=>false});assert.equal(blocked.imports.length,1);assert.equal(blocked.mounts.length,1);
  const lateBlocked=await run({accept:true,autoCheck:true,lateGuard:async()=>false});assert.equal(lateBlocked.imports.length,2);assert.equal(lateBlocked.mounts.length,1);assert.equal(lateBlocked.storage.has('uos-approved-runtime-stable'),false);
