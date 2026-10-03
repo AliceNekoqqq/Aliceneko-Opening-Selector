@@ -21,7 +21,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.10-beta.8';
+  const VERSION = '1.0.10-beta.9';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -128,7 +128,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
-  function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled)for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art'])dlg.style.setProperty(key,style.getPropertyValue(key));}
+  function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled){dlg.style.setProperty('color-scheme',style.colorScheme);for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art'])dlg.style.setProperty(key,style.getPropertyValue(key));}}
   function hasUnsavedSettings(){
     if(!draft)return false;
     if(selectedWorldbookPresetDirty||pendingSettingsTasks>0)return true;
@@ -176,13 +176,13 @@ export function mountInDocument(doc = document, helperApi = null) {
     const viewport=hostDoc.defaultView;
     const width=Math.min(kind==='theme'?460:780,Math.max(260,viewport.innerWidth-24));
     const height=Math.min(kind==='theme'?520:740,Math.max(260,viewport.innerHeight-24));
-    frame.style.cssText=`position:fixed!important;left:${Math.max(12,(viewport.innerWidth-width)/2)}px!important;top:${Math.max(12,(viewport.innerHeight-height)/2)}px!important;width:${width}px!important;height:${height}px!important;border:0!important;margin:0!important;padding:0!important;z-index:2147483647!important;background:transparent!important;display:block!important;pointer-events:auto!important`;
+    frame.style.cssText=`position:fixed!important;left:${Math.max(12,(viewport.innerWidth-width)/2)}px!important;top:${Math.max(12,(viewport.innerHeight-height)/2)}px!important;width:${width}px!important;height:${height}px!important;border:0!important;margin:0!important;padding:0!important;z-index:99990!important;background:transparent!important;border-radius:16px!important;clip-path:inset(0 round 16px)!important;color-scheme:normal!important;display:block!important;pointer-events:auto!important`;
     try{
       (hostDoc.body||hostDoc.documentElement).append(frame);
       const frameDoc=frame.contentDocument;
       if(!frameDoc)throw Error('设置 iframe 无法访问');
       const css=doc.getElementById('uos-css')?.textContent||'';
-      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>.uos-dialog{display:block!important;position:static!important;width:100%!important;height:100%!important;padding:0!important;overflow:hidden!important;background:transparent!important}.uos-sheet{width:100%!important;height:100%!important;max-height:100%!important;max-width:100%!important;overflow:auto!important;box-shadow:none!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0;cursor:grab;touch-action:none;user-select:none}.uos-sheet-head:active{cursor:grabbing}.uos-sheet-head button{cursor:pointer;touch-action:auto}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:600px){.uos-sheet{border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}}</style></head><body data-kind="${kind}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
+      frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>html,body{background:transparent!important;color-scheme:normal!important}.uos-dialog{display:block!important;position:static!important;width:100%!important;height:100%!important;padding:0!important;overflow:hidden!important;background:transparent!important}.uos-sheet{width:100%!important;height:100%!important;max-height:100%!important;max-width:100%!important;overflow:auto!important;box-shadow:none!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0;cursor:grab;touch-action:none;user-select:none}.uos-sheet-head:active{cursor:grabbing}.uos-sheet-head button{cursor:pointer;touch-action:auto}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:600px){.uos-sheet{border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}}</style></head><body data-kind="${kind}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
       const drag=sheet.querySelector('.uos-sheet-head');

@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.8.json','utf8'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.9.json','utf8'));
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
 const loader=payload.content.replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`);
@@ -112,6 +112,10 @@ try{
   await selector.locator('[data-settings-button]').click();
   const settingsRect=await page.locator('iframe[data-uos-frame]').boundingBox();
   assert.ok(settingsRect.width<page.viewportSize().width && settingsRect.height<page.viewportSize().height);
+  assert.ok(Number(await page.locator('iframe[data-uos-frame]').evaluate(el=>getComputedStyle(el).zIndex))<999999,'Tavern notifications are above the settings frame');
+  assert.equal(await page.locator('iframe[data-uos-frame]').evaluate(el=>getComputedStyle(el).borderRadius),'16px');
+  assert.equal(await dialog.locator('html').evaluate(el=>getComputedStyle(el).colorScheme),'normal');
+  assert.equal(await dialog.locator('html').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
   await dialog.getByText('第 1 条开场').waitFor();
   await dialog.locator('[data-tab="worldbooks"]').click();
   assert.match(await dialog.locator('[data-tab-art="worldbooks"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("data:image\/webp;base64,/,'worldbook tab has its bundled artwork');

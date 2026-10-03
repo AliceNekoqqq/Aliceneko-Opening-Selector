@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {bindUpdateControl} from '../src/update-control.js';
-function element(){return {style:{},attrs:{},dataset:{},children:[],isConnected:true,hidden:false,setAttribute(k,v){this.attrs[k]=v},append(...v){this.children.push(...v)},querySelector(selector){assert.equal(selector,'[data-uos-update-star]');return this.children.find(child=>child.dataset?.uosUpdateStar!==undefined)||null}}}
+function element(){return {style:{},attrs:{},dataset:{},children:[],isConnected:true,hidden:false,setAttribute(k,v){this.attrs[k]=v},append(...v){this.children.push(...v)},after(node){this.next=node},querySelector(selector){assert.equal(selector,'[data-uos-update-star]');return this.children.find(child=>child.dataset?.uosUpdateStar!==undefined)||null}}}
 let tick,cleared=false,checks=0,savedAuto=true;
 const host={setInterval:fn=>{tick=fn;return 1},clearInterval:()=>{cleared=true}};
 const doc={defaultView:{addEventListener(){},removeEventListener(){}},createElement:element};
@@ -15,10 +15,10 @@ const star=version.children[0];assert.equal(star.className,'uos-update-star');as
 await b.onclick();assert.equal(checks,1);assert.equal(star.hidden,true,'resolved update clears the version star');
 autoCheck.checked=false;autoCheck.onchange();assert.equal(savedAuto,false);assert.match(hint.textContent,/仍可手动检查/);
 api.hasUpdate=true;tick();assert.equal(star.hidden,false,'dismissed update can remain subtly marked');
-api.statusMessage='检查失败：请求超时';tick();assert.equal(hint.textContent,api.statusMessage,'results stay visible without native alert');
+api.statusMessage='检查失败：请求超时';tick();assert.equal(b.next.textContent,api.statusMessage,'results stay visible beside the check button');assert.equal(b.next.hidden,false);assert.equal(b.next.attrs['aria-live'],'polite');assert.match(hint.textContent,/仍可手动检查/);
 stop();assert.equal(cleared,true);
 const player=fs.readFileSync('src/player.js','utf8'),author=fs.readFileSync('src/selector.js','utf8'),log=fs.readFileSync('CHANGELOG.md','utf8');
 assert.match(player,/版本与更新/);assert.match(player,/启动时自动检查更新/);assert.match(player,/versionElements:\[versionBadge,footerVersion\]/);assert.doesNotMatch(player,/tools\.append\(updateButton\)/);
 assert.match(author,/dataset\.tab='updates'/);assert.match(author,/启动时自动检查更新/);assert.doesNotMatch(author,/parentElement\.prepend\(updateButton\)/);
-assert.match(log,/^## v1\.0\.10-beta\.8/m);
+assert.match(log,/^## v1\.0\.10-beta\.9/m);
 console.log('Settings update controls, per-channel auto-check preference, subtle version marker and release notes passed');
