@@ -1,3 +1,4 @@
+import {defaultCoverSlot,defaultCoverStyles} from './default-covers.js';
 import {bindUpdateControl} from './update-control.js';
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './player.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
@@ -127,8 +128,9 @@ export function mountInDocument(doc = document, helperApi = null) {
     return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i]),saved=config.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
+  const defaultCoverStyle=doc.createElement('style');defaultCoverStyle.textContent=defaultCoverStyles('.uos');root.append(defaultCoverStyle);
   function setTheme(value,remember=true){displayTheme=value;root.dataset.theme=value;syncDialogTheme();if(remember)try{host.localStorage.setItem('uos_theme_'+(character()?.avatar||character()?.name||'current'),value)}catch{}}
-  function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled){dlg.style.setProperty('color-scheme',style.colorScheme);for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art'])dlg.style.setProperty(key,style.getPropertyValue(key));}}
+  function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled){dlg.style.setProperty('color-scheme',style.colorScheme);for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art',...Array.from({length:5},(_,i)=>`--uos-default-cover-${i+1}`)])dlg.style.setProperty(key,style.getPropertyValue(key));}}
   function hasUnsavedSettings(){
     if(!draft)return false;
     if(selectedWorldbookPresetDirty||pendingSettingsTasks>0)return true;
@@ -256,6 +258,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       const card=el('button','uos-card');card.type='button';card.setAttribute('aria-label',`选择 ${entry.title}`);
       const cover=el('div','uos-cover');
       const art=el('span','uos-theme-art');art.setAttribute('aria-hidden','true');cover.append(art);
+      cover.classList.add('has-image');cover.style.backgroundImage=`linear-gradient(0deg,#0005,transparent),var(--uos-default-cover-${defaultCoverSlot(greetings[i]||entry.title,i,host)}),linear-gradient(var(--art),var(--panel))`;
       if (/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image)) {
         cover.classList.add('has-image');cover.style.backgroundImage=`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`;
       }
@@ -511,7 +514,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       const preview=el('div','uos-card uos-card-preview'),cover=el('div','uos-cover'),body=el('div','uos-card-body');
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
       const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description'),namesPreview=el('p','uos-card-names');body.append(label,title,description,namesPreview);preview.append(cover,body);box.append(preview);
-      const updatePreview=()=>{label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;const image=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image);cover.classList.toggle('has-image',image);cover.style.backgroundImage=image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:''};updatePreview();
+      const updatePreview=()=>{label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;const image=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry.image);cover.classList.add('has-image');cover.style.backgroundImage=image?`linear-gradient(0deg,#0005,transparent),url("${entry.image.replace(/["\\]/g,'')}")`:`linear-gradient(0deg,#0005,transparent),var(--uos-default-cover-${defaultCoverSlot(greetings[i]||entry.title,i,host)}),linear-gradient(var(--art),var(--panel))`};updatePreview();
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
         field('标签',entry.label,v=>{entry.label=v;updatePreview()}),

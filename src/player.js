@@ -1,3 +1,4 @@
+import {defaultCoverSlot,defaultCoverStyles} from './default-covers.js';
 import {bindUpdateControl} from './update-control.js';
 import {isPersonName,isAutomaticPersonName,normalizePersonText,allowsPersonEvidence,extractPersonIdentities,createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 import {createWorldbookPresetManager} from './worldbook-presets.js';
@@ -432,7 +433,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS;(doc.head||doc.documentElement).append(style);
+  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
   let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null,updateGuard=null;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
@@ -651,6 +652,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       let visible=0;for(const entry of snapshot.entries){const display=resolved[entry.index],term=query.value.trim().toLocaleLowerCase();
       if((person.value&&!display.names.includes(person.value))||(term&&![display.title,...display.names,entry.body].some(x=>x.toLocaleLowerCase().includes(term))))continue;visible++;
       const card=el('article','uos-user-card');const cornerArt=el('span','uos-user-card-ornament');cornerArt.setAttribute('aria-hidden','true');card.append(cornerArt);card.dataset.current=String(entry.index===snapshot.swipeId);card.dataset.number=String(entry.index+1).padStart(2,'0');
+      const illustration=el('div','uos-user-default-cover');illustration.setAttribute('aria-hidden','true');const customCover=authorEntries[entry.index]?.image;const validCover=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(customCover||'');illustration.style.backgroundImage=validCover?`url("${customCover.replace(/["\\]/g,'')}")`:`var(--uos-default-cover-${defaultCoverSlot(entry.body,entry.index,host)})`;card.append(illustration);
       const labelText=el('p','',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
       labelTexts[entry.index]=labelText;card.append(el('h3','',display.title),el('small','uos-user-source',`标题：${display.titleSource}`),labelText);
