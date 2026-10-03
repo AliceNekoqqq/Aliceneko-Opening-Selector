@@ -104,3 +104,35 @@ await legacy.apply({books:[{name:'Legacy',entries:[{uid:8,enabled:false}]}]});
 assert.equal(setBooks.Legacy[0].disable,true,'supports the older setLorebookEntries patch API');
 
 console.log('Worldbook presets: bound books, UID snapshots, rollback, stale entries and helper compatibility passed');
+
+const mixedEntries=[{uid:8,disable:true,content:'keep legacy content'}];
+const mixed=createWorldbookPresetManager(()=>[{
+ getCharWorldbookNames:()=>({primary:'Legacy',additional:[]}),getWorldbook:async()=>structuredClone(mixedEntries),
+ updateWorldbookWith:async(_name,updater)=>{mixedEntries.splice(0,mixedEntries.length,...await updater(mixedEntries))},
+}],()=>card);
+const mixedTransaction=await mixed.apply({books:[{name:'Legacy',entries:[{uid:8,enabled:true}]}]});
+assert.deepEqual(mixedEntries,[{uid:8,disable:false,content:'keep legacy content'}],'modern update API preserves disable-only entry shape');
+await mixedTransaction.rollback();assert.equal(mixedEntries[0].disable,true);assert.equal('enabled' in mixedEntries[0],false);
+let currentCard=card,raceWrites=0;
+const racing=createWorldbookPresetManager(()=>[{
+ getCharWorldbookNames:()=>({primary:'A',additional:[]}),getWorldbook:async()=>{currentCard={avatar:'other.png'};return [{uid:1,enabled:true}]},
+ updateWorldbookWith:async()=>raceWrites++,
+}],()=>currentCard);
+await assert.rejects(racing.apply({books:[{name:'A',entries:[{uid:1,enabled:false}]}]}),/当前角色已切换/);assert.equal(raceWrites,0);
+currentCard=card;
+const callbackRace=createWorldbookPresetManager(()=>[{
+ getCharWorldbookNames:()=>({primary:'A',additional:[]}),getWorldbook:async()=>[{uid:1,enabled:true}],
+ updateWorldbookWith:async(_name,updater)=>{currentCard={avatar:'other.png'};await updater([{uid:1,enabled:true}]);raceWrites++},
+}],()=>currentCard);
+await assert.rejects(callbackRace.apply({books:[{name:'A',entries:[{uid:1,enabled:false}]}]}),/当前角色已切换/);
+// A switch after the first write must still allow restoring the original book.
+currentCard=card;const switchedBooks={A:[{uid:1,enabled:true}],B:[{uid:2,enabled:true}]};
+const duringWrite=createWorldbookPresetManager(()=>[{
+ getCharWorldbookNames:()=>({primary:'A',additional:['B']}),getWorldbook:async name=>structuredClone(switchedBooks[name]),
+ updateWorldbookWith:async(name,updater)=>{switchedBooks[name]=await updater(switchedBooks[name]);currentCard={avatar:'other.png'}},
+}],()=>currentCard);
+await assert.rejects(duringWrite.apply({books:[{name:'A',entries:[{uid:1,enabled:false}]},{name:'B',entries:[{uid:2,enabled:false}]}]}),/已恢复切换前状态/);
+assert.deepEqual([switchedBooks.A[0].enabled,switchedBooks.B[0].enabled],[true,true]);
+console.log('Mixed legacy entry format and asynchronous character-switch protections passed');
+
+mixedEntries[0].enabled=false;await mixed.apply({books:[{name:'Legacy',entries:[{uid:8,enabled:true}]}]});assert.equal(mixedEntries[0].enabled,true);assert.equal(mixedEntries[0].disable,false,'hybrid enabled/disable flags remain consistent');

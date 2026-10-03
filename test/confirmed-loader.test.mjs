@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.10.json'));
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.11.json'));
 assert.match(payload.name,/确认更新/);
 assert.equal(payload.enabled,false);assert.equal(payload.export_with.data,false);
 const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
 const next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
 const nextReleaseNotes='# 更新日志\n\n## v1.0.10-beta.10\n- 更新入口移入设置。\n- 更新前显示逐版本说明。\n\n## v1.0.10-beta.6\n- 玩家切换开场前先处理未保存改动。\n';
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
-async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,notes=nextReleaseNotes,moduleVersion='1.0.10-beta.10',currentVersion='1.0.10-beta.6',autoCheck=null,dismissed=null,holdPrompt=false,modalFails=false,timeout=false}={}){
+async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,notes=nextReleaseNotes,moduleVersion='1.0.10-beta.10',currentVersion='1.0.10-beta.6',autoCheck=null,dismissed=null,holdPrompt=false,modalFails=false,timeout=false,guard=null,lateGuard=null}={}){
  const imports=[],mounts=[],prompts=[],messages=[],requests=[],storage=new Map(stored?[["uos-approved-runtime-preview",JSON.stringify(stored)]]:[]);
  if(autoCheck!==null)storage.set('uos-auto-check-preview',String(autoCheck));
  if(dismissed!==null)storage.set('uos-dismissed-update-preview',dismissed);
@@ -20,6 +20,7 @@ async function run({accept=false,stored=null,pointer=next,fail=false,storageFail
  const append=doc.body.append.bind(doc.body);doc.body.append=(...items)=>{append(...items);if(modalFails)items.filter(item=>item.tag==='dialog').forEach(show)};
  const runnerDoc={defaultView:{parent:{document:doc}}};
  const globals={$:()=>[{ownerDocument:runnerDoc}],toastr:{info:text=>messages.push(text),error:text=>messages.push(text)},addEventListener(){},removeEventListener(){}};
+ if(guard)doc.__uosPlayer={prepareForUpdate:guard};
  let pointerChecks=0,notesChecks=0;
  const script=payload.content.replace('await import(url)','await loadModule(url)');
  await new AsyncFunction('globalThis','document','fetch','loadModule',`return ${script}`)(globals,doc,async(url)=>{
@@ -27,7 +28,7 @@ async function run({accept=false,stored=null,pointer=next,fail=false,storageFail
    if(timeout)return new Promise(()=>{});
    if(url.endsWith('/CHANGELOG.md')){notesChecks++;if(notes===null)throw Error('offline');return {ok:true,text:async()=>notes}}
    pointerChecks++;if(pointer===null)throw Error('offline');return {ok:true,text:async()=>pointer};
- },async url=>{imports.push(url);if(fail&&url.includes(next))throw Error('offline module');return {OPENING_SELECTOR_VERSION:url.includes(next)?moduleVersion:currentVersion,mountUniversalSelector:()=>mounts.push(url)}});
+ },async url=>{imports.push(url);if(url.includes(next)&&lateGuard)doc.__uosAuthor={prepareForUpdate:lateGuard};if(fail&&url.includes(next))throw Error('offline module');return {OPENING_SELECTOR_VERSION:url.includes(next)?moduleVersion:currentVersion,mountUniversalSelector:()=>mounts.push(url)}});
  return {doc,imports,mounts,prompts,messages,storage,requests,get activeDialog(){return activeDialog},get pointerChecks(){return pointerChecks},get notesChecks(){return notesChecks}};
 }
 const cancelled=await run();assert.equal(cancelled.prompts.length,1);assert.equal(cancelled.imports.length,1,'cancel never imports the new runtime');assert.equal(cancelled.doc.__uosUpdater.hasUpdate,true);assert.match(cancelled.prompts[0],/【v1\.0\.10-beta\.10】/);assert.doesNotMatch(cancelled.prompts[0],/【v1\.0\.10-beta\.6】/,'already-installed version notes are omitted');assert.ok(cancelled.storage.get('uos-dismissed-update-preview'),'cancel stores the dismissed candidate');
@@ -68,3 +69,7 @@ const escape=await run({autoCheck:false,holdPrompt:true});const escapeCheck=esca
 while(!escape.activeDialog)await new Promise(resolve=>setImmediate(resolve));
 escape.activeDialog.listeners.cancel({preventDefault(){}});await escapeCheck;assert.equal(escape.imports.length,1);assert.ok(escape.storage.get('uos-dismissed-update-preview'),'Escape remembers the dismissed candidate');
 console.log('Confirmed update: channel preference, release notes, per-version prompts, cancellation memory, manual retry, persistence, failures and cleanup passed');
+
+const blockedDraft=await run({accept:true,guard:async()=>false});assert.equal(blockedDraft.imports.length,1);assert.equal(blockedDraft.mounts.length,1);assert.match(blockedDraft.doc.__uosUpdater.statusMessage,/未保存/);
+const changedDuringDownload=await run({accept:true,lateGuard:async()=>false});assert.equal(changedDuringDownload.imports.length,2);assert.equal(changedDuringDownload.mounts.length,1);assert.equal(changedDuringDownload.storage.has("uos-approved-runtime-preview"),false);
+const savedDraft=await run({accept:true,guard:async()=>true});assert.equal(savedDraft.mounts.length,2);

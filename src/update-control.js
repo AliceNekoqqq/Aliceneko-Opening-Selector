@@ -29,6 +29,7 @@ export function bindUpdateControl(button,hostDocument,{versionElements=[],autoCh
   button.onclick=async()=>{
     const api=hostDocument.__uosUpdater;
     if(!api?.check){if(autoCheckHint)autoCheckHint.textContent='当前启动脚本不支持检查更新，请替换为最新导入脚本。';return}
+    for(const selector of [hostDocument.__uosPlayer,hostDocument.__uosAuthor])if(await selector?.prepareForUpdate?.()===false)return;
     const checking=api.check(true);sync();await checking;sync();
   };
   sync();const timer=host.setInterval(()=>{if(button.isConnected===false)stop();else sync()},1000);

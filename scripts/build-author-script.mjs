@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Maintainer build step. The same JSON runs in a global or character script.
 import fs from 'node:fs';
+import {stampRuntimeVersion} from './runtime-version.mjs';
 import {confirmedLoader} from './confirmed-loader.mjs';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,7 +11,7 @@ const channel=process.argv[2]==='--preview'?'preview':process.argv[2]==='--stabl
 if(!channel||process.argv.length!==3)throw Error('Specify exactly one build channel: --preview or --stable');
 const branch=execFileSync('git',['branch','--show-current'],{encoding:'utf8'}).trim();
 if(branch!==(channel==='preview'?'develop':'main'))throw Error(`${channel} build must run on ${channel==='preview'?'develop':'main'}, current branch: ${branch||'(detached)'}`);
-const version=channel==='preview'?'1.0.10-beta.10':'1.0.11';
+const version=channel==='preview'?'1.0.10-beta.11':'1.0.11';
 const pointerBranch=channel==='preview'?'develop':'main';
 const pointerFile=channel==='preview'?'scripts/runtime-ref-preview.txt':'scripts/runtime-ref.txt';
 const versionPattern=channel==='preview'?String.raw`\d+\.\d+\.\d+-beta\.\d+`:String.raw`\d+\.\d+\.\d+`;
@@ -30,7 +31,7 @@ try{
   const worldbook=fs.readFileSync('src/worldbook-people.js','utf8').replace(/^export /gm,'');
   const worldbookPresets=fs.readFileSync('src/worldbook-presets.js','utf8').replace(/^export /gm,'');
   const updateControl=fs.readFileSync('src/update-control.js','utf8').replace(/^export /gm,'');
-  const runtimeBody=`const AUTHOR_HTML=${JSON.stringify(html).replace(/</g,'\\u003c')};\n${worldbook}\n${worldbookPresets}\n${updateControl}\n${runtime}\n${author}\n${player}`;
+  const runtimeBody=stampRuntimeVersion(`const AUTHOR_HTML=${JSON.stringify(html).replace(/</g,'\\u003c')};\n${worldbook}\n${worldbookPresets}\n${updateControl}\n${runtime}\n${author}\n${player}`,version);
   const moduleSource=`${runtimeBody}\nexport const OPENING_SELECTOR_VERSION='${version}';\nexport function mountUniversalSelector(startDocument=document,helperApi=null){const doc=startDocument?.nodeType===9?startDocument:document;const helper=helperApi||globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null);mountPlayerSelector(doc,helper);mountAuthorSelector(doc,helper,{showSetupHints:true});return {player:doc.__uosPlayer,author:doc.__uosAuthor}};\n`;
   fs.writeFileSync('remote.js',moduleSource);
   // Each channel reads only its own pointer, then imports a module by immutable SHA.

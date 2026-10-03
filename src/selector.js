@@ -21,7 +21,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.10-beta.10';
+  const VERSION = '1.0.10-beta.11';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -161,6 +161,24 @@ export function mountInDocument(doc = document, helperApi = null) {
       panel.append(title,description,actions);overlay.append(panel);frameDoc.body.append(overlay);frameDoc.addEventListener('keydown',onKeyDown,true);save.focus();
     });
   }
+  function confirmPresetDelete(name){
+    const frameDoc=activePopup?.frame?.contentDocument;if(!frameDoc)return Promise.resolve(false);
+    return new Promise(resolve=>{
+      const dialog=frameDoc.createElement('dialog');dialog.dataset.uosPresetDelete='';
+      dialog.style.cssText='width:min(420px,calc(100% - 32px));padding:20px;border:1px solid var(--accent);border-radius:14px;background:var(--bg);color:var(--text)';
+      for(const key of ['--bg','--panel','--text','--accent'])dialog.style.setProperty(key,activePopup.sheet.style.getPropertyValue(key));
+      const text=frameDoc.createElement('p');text.textContent='删除预设“'+name+'”？已分配的开场也会清空。';
+      const actions=frameDoc.createElement('div');actions.style.cssText='display:flex;justify-content:flex-end;gap:8px';
+      const cancel=frameDoc.createElement('button'),remove=frameDoc.createElement('button');cancel.type=remove.type='button';cancel.className='uos-icon';remove.className='uos-save';cancel.textContent='取消';remove.textContent='删除预设';
+      let settled=false;const finish=value=>{if(settled)return;settled=true;dialog.remove();resolve(value)};
+      cancel.onclick=()=>finish(false);remove.onclick=()=>finish(true);
+      dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false)});
+      dialog.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();finish(false)}});
+      actions.append(cancel,remove);dialog.append(text,actions);frameDoc.body.append(dialog);
+      try{dialog.showModal()}catch{dialog.setAttribute('open','');dialog.style.cssText+=';position:fixed;inset:0;margin:auto;height:fit-content;z-index:2147483647';dialog.setAttribute('role','alertdialog');dialog.setAttribute('aria-modal','true')}
+      cancel.focus();
+    });
+  }
   function showSheet(selector){
     if(activePopup && !activePopup.frame?.isConnected){activePopup.original.append(activePopup.sheet);activePopup=null;portaled=[]}
     if(activePopup){status('弹窗已打开，请先关闭当前窗口。');return null}
@@ -296,11 +314,13 @@ export function mountInDocument(doc = document, helperApi = null) {
     if(first.swipe_id!==0 || !String(first.swipes[0]||'').includes('<UniversalOpeningSelector/>')){status('当前已离开选择页，请新建聊天后重试。');return}
     status(`正在进入第 ${target} 条开场…`);
     root.querySelectorAll('.uos-card').forEach(b=>b.disabled=true);
+    const openingCharacterId=context()?.characterId,openingAvatar=character()?.avatar;
     let worldbookChange=null;
     try{
       const presetId=entries()[target-1]?.worldbookPresetId;
       const preset=config.worldbookPresets.find(value=>value.id===presetId);
       if(preset){status('正在应用此开场的世界书条目预设…');worldbookChange=await worldbookPresetManager.apply(preset)}
+      if(context()?.characterId!==openingCharacterId||character()?.avatar!==openingAvatar||Number(h.getLastMessageId?.()??0)>0)throw Error('角色或聊天已变化，请重新打开选择器');
       await h.setChatMessages([{message_id:0,swipe_id:target}],{refresh:'all'});
       const current=h.getChatMessages(0,{include_swipes:true})?.[0];
       if(current?.swipe_id!==target)throw new Error('消息页未切换');
@@ -438,10 +458,10 @@ export function mountInDocument(doc = document, helperApi = null) {
       const undo=el('button','uos-icon',selectedWorldbookPresetIsNew?'取消新建':'撤销修改');undo.type='button';undo.disabled=!selectedWorldbookPresetDirty;
       const duplicate=el('button','uos-icon','复制为新预设');duplicate.type='button';duplicate.disabled=selectedWorldbookPresetDirty||selectedWorldbookPresetIsNew;
       const syncPresetControls=()=>{updateDirty();savePreset.disabled=!selectedWorldbookPresetDirty;undo.disabled=!selectedWorldbookPresetDirty;duplicate.disabled=selectedWorldbookPresetDirty||selectedWorldbookPresetIsNew;if(remove)remove.disabled=selectedWorldbookPresetDirty;select.disabled=selectedWorldbookPresetDirty;create.disabled=worldbookPresetData.warnings.length>0||selectedWorldbookPresetDirty};
-      const remove=selectedWorldbookPresetIsNew?null:el('button','uos-icon','删除预设');if(remove){remove.type='button';remove.disabled=selectedWorldbookPresetDirty;remove.onclick=()=>{let confirmed=true;try{if(typeof doc.defaultView?.confirm==='function')confirmed=doc.defaultView.confirm('删除预设“'+selected.name+'”？已分配的开场也会清空。')}catch{}if(!confirmed)return;draft.worldbookPresets=draft.worldbookPresets.filter(preset=>preset.id!==selected.id);draft.entries.forEach(entry=>{if(entry.worldbookPresetId===selected.id)delete entry.worldbookPresetId});selectedWorldbookPresetId=draft.worldbookPresets[0]?.id||'';selectedWorldbookPresetEdit=null;selectedWorldbookPresetDirty=false;renderWorldbookPresetEditor();status('预设已删除；点击底部「保存到角色卡」写入角色卡。')}}
+      const remove=selectedWorldbookPresetIsNew?null:el('button','uos-icon','删除预设');if(remove){remove.type='button';remove.disabled=selectedWorldbookPresetDirty;remove.onclick=async()=>{if(!await confirmPresetDelete(selected.name)||!draft)return;draft.worldbookPresets=draft.worldbookPresets.filter(preset=>preset.id!==selected.id);draft.entries.forEach(entry=>{if(entry.worldbookPresetId===selected.id)delete entry.worldbookPresetId});selectedWorldbookPresetId=draft.worldbookPresets[0]?.id||'';selectedWorldbookPresetEdit=null;selectedWorldbookPresetDirty=false;renderWorldbookPresetEditor();status('预设已删除；点击底部「保存到角色卡」写入角色卡。')}}
       const capture=el('button','uos-icon','复制当前世界书开关');capture.type='button';capture.disabled=worldbookPresetData.warnings.length>0;capture.title='把酒馆当前的世界书条目开关复制到此预设，不会立即切换条目。';capture.onclick=()=>{try{const snapshot=captureWorldbookPreset(worldbookPresetData.books);selected.books=snapshot.books;updateDirty();renderWorldbookPresetEditor();status('当前世界书开关已复制到预设草稿；点「保存预设」确认。')}catch(error){status(error.message||String(error))}};
       nameInput.oninput=()=>{selected.name=nameInput.value;syncPresetControls();status(selectedWorldbookPresetDirty?'预设有未保存修改。':'预设修改已撤销。')};
-      savePreset.onclick=()=>{const name=nameInput.value.trim().slice(0,120);if(!name){status('请填写预设名称。');nameInput.focus();return}if(worldbookPresetNameTaken(name,selected.id)){status('已有同名预设，请换一个名称。');nameInput.focus();return}selected.name=name;const saved=JSON.parse(JSON.stringify(selected));if(selectedWorldbookPresetIsNew)presets.push(saved);else{const index=presets.findIndex(preset=>preset.id===selected.id);if(index<0){status('找不到原预设，请刷新后重试。');return}presets[index]=saved}selectedWorldbookPresetEdit=saved;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;renderWorldbookPresetEditor();status('预设已保存；再点页面底部「保存到角色卡」写入角色卡。')};
+      savePreset.onclick=()=>{const name=nameInput.value.trim().slice(0,120);if(!name){status('请填写预设名称。');nameInput.focus();return}if(worldbookPresetNameTaken(name,selected.id)){status('已有同名预设，请换一个名称。');nameInput.focus();return}selected.name=name;const saved=JSON.parse(JSON.stringify(selected));if(selectedWorldbookPresetIsNew)presets.push(saved);else{const index=presets.findIndex(preset=>preset.id===selected.id);if(index<0){status('找不到原预设，请刷新后重试。');return}presets[index]=saved}selectedWorldbookPresetEdit=JSON.parse(JSON.stringify(saved));selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;renderWorldbookPresetEditor();status('预设已保存；再点页面底部「保存到角色卡」写入角色卡。')};
       undo.onclick=()=>{if(selectedWorldbookPresetIsNew){selectedWorldbookPresetId=presets[0]?.id||'';selectedWorldbookPresetEdit=presets[0]?JSON.parse(JSON.stringify(presets[0])):null;selectedWorldbookPresetIsNew=false;selectedWorldbookPresetDirty=false}else{const saved=presets.find(preset=>preset.id===selected.id);selectedWorldbookPresetEdit=saved?JSON.parse(JSON.stringify(saved)):null;selectedWorldbookPresetDirty=false}renderWorldbookPresetEditor();status('预设修改已撤销。')};
       duplicate.onclick=()=>{const copy=JSON.parse(JSON.stringify(selected));copy.id=makeWorldbookPresetId();copy.name=nextWorldbookPresetName(selected.name+' 副本');selectedWorldbookPresetId=copy.id;selectedWorldbookPresetEdit=copy;selectedWorldbookPresetDirty=true;selectedWorldbookPresetIsNew=true;renderWorldbookPresetEditor();status('已复制为新预设草稿；点「保存新预设」确认。')};
       nameRow.append(nameInput,savePreset,undo,duplicate);if(remove)nameRow.append(remove);nameRow.append(capture);panel.append(nameRow);
@@ -459,7 +479,7 @@ export function mountInDocument(doc = document, helperApi = null) {
     panel.append(el('h3','uos-worldbook-section-title','开场分配'));
     const assignments=el('div','uos-worldbook-assignment-list'),openings=entries();
     openings.forEach((entry,index)=>{
-      draft.entries[index]={...entry,...draft.entries[index]};entry=draft.entries[index];
+      draft.entries[index]||={...entry};entry=draft.entries[index];
       const row=el('label','uos-worldbook-assignment'),label=el('span','uos-worldbook-assignment-name',(index+1)+' · '+entry.title);
       const choice=el('select','uos-worldbook-select');choice.setAttribute('aria-label',entry.title+' 世界书预设');
       const none=doc.createElement('option');none.value='';none.textContent='不切换';choice.append(none);
@@ -528,7 +548,7 @@ export function mountInDocument(doc = document, helperApi = null) {
         const saved={...JSON.parse(JSON.stringify(selected)),name};
         if(selectedWorldbookPresetIsNew)draft.worldbookPresets.push(saved);
         else{const index=draft.worldbookPresets.findIndex(preset=>preset.id===selected.id);if(index<0){status('找不到原预设，请刷新后重试。');return false}draft.worldbookPresets[index]=saved}
-        selectedWorldbookPresetEdit=saved;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;renderWorldbookPresetEditor();
+        selectedWorldbookPresetEdit=JSON.parse(JSON.stringify(saved));selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;renderWorldbookPresetEditor();
       }
       const c=context();if(!c || c.characterId==null || !c.writeExtensionField){status('无法写入角色卡：请在支持角色卡扩展字段的酒馆中编辑。');return false}
       const button=$('[data-save]'),controls=[...dlg.querySelectorAll('input,textarea,select,button')],disabled=controls.map(control=>control.disabled);controls.forEach(control=>control.disabled=true);button.textContent='正在保存…';
@@ -541,7 +561,7 @@ export function mountInDocument(doc = document, helperApi = null) {
         // ST may update the in-memory character while a failed server merge is
         // only logged. Verify persistence before reporting export readiness.
         if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');
-        const card=character();if(!card?.avatar)throw Error('无法确认当前角色卡的文件名');
+        const card=character(),saveCharacterId=c.characterId;if(!card?.avatar)throw Error('无法确认当前角色卡的文件名');
         const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:saveData}}})});
         if(!response.ok)throw Error(`角色卡写入失败（HTTP ${response.status}），请检查卡片大小或酒馆日志`);
         const verified=await host.fetch('/api/characters/get',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar_url:card.avatar})});
@@ -550,7 +570,8 @@ export function mountInDocument(doc = document, helperApi = null) {
         const saved=persisted?.data?.extensions?.[KEY]??persisted?.extensions?.[KEY];
         const same=(actual,expected)=>{if(expected&&typeof expected==='object'){if(!actual||typeof actual!=='object')return false;return Object.keys(expected).every(key=>same(actual[key],expected[key]))}return actual===expected};
         if(!same(saved,saveData))throw Error('角色卡复核未找到刚保存的设置，请重新打开角色卡检查');
-        await c.writeExtensionField(c.characterId,KEY,saveData);
+        if(context()?.characterId!==saveCharacterId||character()?.avatar!==card.avatar)throw Error('原角色卡已保存，但当前角色已切换，请重新打开设置');
+        await c.writeExtensionField(saveCharacterId,KEY,saveData);
         config=normalize(saveData);draft=null;settingsDraftBaseline=null;selectedWorldbookPresetEdit=null;selectedWorldbookPresetDirty=false;selectedWorldbookPresetIsNew=false;selectedWorldbookPresetId='';render();status('已保存并复核角色卡。导出角色卡时会带上配置和素材。');
         if(closeOnSuccess)void activePopup?.complete(null);
         return true;
@@ -572,6 +593,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   void refreshWorldbookPeople();
   void refreshWorldbookPresets();
   root.dataset.uosMounted = '1';
+  root.__uosPrepareForUpdate=async()=>{if(!hasUnsavedSettings())return true;await activePopup?.complete();return !hasUnsavedSettings()};
   root.dataset.uosVersion = VERSION;
   return true;
 }

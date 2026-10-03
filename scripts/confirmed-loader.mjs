@@ -60,6 +60,7 @@ export async function confirmedLoader({fallbackRef,pointerUrls,versionPattern,ch
     for(const url of urls){try{const module=await import(url);if(!new RegExp('^'+versionPattern+'$').test(module.OPENING_SELECTOR_VERSION)||typeof module.mountUniversalSelector!=='function')throw Error('运行模块格式不兼容');return module}catch(error){errors.push(String(error?.message||error))}}
     throw Error(errors.join(' | '));
   }
+  async function prepareUpdate(){for(const selector of [doc.__uosPlayer,doc.__uosAuthor])if(await selector?.prepareForUpdate?.()===false){statusMessage='更新已暂停，请先处理未保存的设置。';return false}return !closed}
   function mount(module){module.mountUniversalSelector(doc,globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null));currentVersion=module.OPENING_SELECTOR_VERSION}
   function compareVersion(a,b){
     const parse=value=>{const m=/^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$/.exec(String(value||''));return m?{core:m.slice(1,4).map(Number),beta:m[4]==null?null:Number(m[4])}:null};
@@ -125,9 +126,11 @@ export async function confirmedLoader({fallbackRef,pointerUrls,versionPattern,ch
         statusMessage='已取消更新，继续使用 v'+currentVersion+'。';
         return;
       }
+      if(!await prepareUpdate())return;
       statusMessage='正在下载并加载新版…';
       const module=await load(candidate);if(closed)return;
       if(module.OPENING_SELECTOR_VERSION!==notes.version)throw Error(`更新说明版本 v${notes.version} 与运行模块 v${module.OPENING_SELECTOR_VERSION} 不一致`);
+      if(!await prepareUpdate())return;
       mount(module);ref=candidate;hasUpdate=false;dismissedRef='';
       try{host.localStorage.setItem(key,JSON.stringify({bootstrap:fallbackRef,ref}));host.localStorage.removeItem(dismissedKey)}catch{notify('本次已更新，但无法保存版本选择；下次打开将使用导入脚本中的版本。',true);return}
       notify('已更新至 v'+currentVersion);

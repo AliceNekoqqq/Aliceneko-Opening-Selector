@@ -3,14 +3,14 @@ import fs from 'node:fs';
 import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
-const {chromium}=require('playwright');
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.10.json','utf8'));
+import {launchTestBrowser} from './browser.mjs';
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.11.json','utf8'));
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
 const loader=payload.content.replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`);
 const first='<UniversalOpeningSelector/>\n\n【请选择开场】';
 const card={avatar:'test.png',data:{first_mes:'原主开场。',alternate_greetings:['<SceneInfo>在场角色：\n- 张子薇制服</SceneInfo>\n<content>雨夜车站的重逢。</content>'],extensions:{}}};
-const browser=await chromium.launch({headless:true});
+const browser=await launchTestBrowser();
 try{
   const page=await browser.newPage();
   const runtimeRef=payload.content.match(/\"fallbackRef\":\"([a-f0-9]{40})\"/)[1];
@@ -45,7 +45,7 @@ try{
   await page.locator('.uos-user-trigger').click();
   await page.locator('dialog.uos-user-overlay').getByText('选择故事的起点').waitFor();
   const rules=page.locator('dialog.uos-user-overlay details').filter({has:page.getByText('人物识别规则',{exact:true})});
-  await rules.locator('summary').click();
+  await rules.locator('summary').first().click();
   await rules.locator('.uos-worldbook-people').getByText('张子薇',{exact:true}).waitFor();
   assert.match(await rules.locator('.uos-worldbook-people').textContent(),/子薇/);
   assert.match(await rules.locator('.uos-worldbook-people').textContent(),/测试角色书/);
@@ -85,7 +85,7 @@ try{
   await selector.getByLabel('按人物筛选作者开场').selectOption('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
   await selector.getByLabel('按人物筛选作者开场').selectOption('');
-  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.10-beta\.6/);
+  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.10-beta\.11/);
   await selector.locator('.uos-card-details summary').first().click();
   assert.match(await selector.locator('.uos-card-details pre').first().textContent(),/原主开场/);
   assert.equal(await page.locator('iframe[data-uos-author-frame]').evaluate(node=>getComputedStyle(node).pointerEvents),'auto');
@@ -141,8 +141,11 @@ try{
   await dialog.getByRole('button',{name:'保存新预设',exact:true}).click();
   const assignment=dialog.locator('.uos-worldbook-assignment select').first();
   await assignment.selectOption({label:'旧接口独立预设 副本'});
-  page.once('dialog',dialog=>dialog.accept());
   await dialog.getByRole('button',{name:'删除预设',exact:true}).click();
+  await dialog.locator('[data-uos-preset-delete]').getByRole('button',{name:'取消',exact:true}).click();
+  assert.notEqual(await assignment.inputValue(),'','cancel keeps the preset and assignment');
+  await dialog.getByRole('button',{name:'删除预设',exact:true}).click();
+  await dialog.locator('[data-uos-preset-delete]').getByRole('button',{name:'删除预设',exact:true}).click();
   assert.equal(await assignment.inputValue(),'','deleting a preset clears its opening assignments');
   await assignment.selectOption({label:'旧接口独立预设'});
   await dialog.locator('[data-save]').click();
@@ -150,6 +153,7 @@ try{
 
   const savedTitle=await page.evaluate(()=>window.__state.characters[0].data.extensions.universal_opening_selector.entries[0].title);
   await selector.locator('[data-settings-button]').click();
+  await dialog.locator('[data-tab="openings"]').click();
   await dialog.locator('.uos-entry .uos-fields input').first().fill('这项改动将放弃');
   await dialog.locator('[data-close="[data-settings-dialog]"]').click();
   await dialog.locator('[data-uos-unsaved-prompt]').getByRole('button',{name:'继续编辑'}).click();
@@ -160,12 +164,38 @@ try{
   assert.equal(await page.evaluate(()=>window.__state.characters[0].data.extensions.universal_opening_selector.entries[0].title),savedTitle,'discard leaves character-card settings unchanged');
 
   await selector.locator('[data-settings-button]').click();
+  await dialog.locator('[data-tab="openings"]').click();
   await dialog.locator('.uos-entry .uos-fields input').first().fill('这项改动会保存');
   await dialog.locator('[data-close="[data-settings-dialog]"]').click();
   await dialog.locator('[data-uos-unsaved-prompt]').getByRole('button',{name:'保存并关闭'}).click();
   await page.waitForFunction(()=>window.__state.characters[0].data.extensions.universal_opening_selector.entries[0].title==='这项改动会保存');
   await page.locator('iframe[data-uos-frame]').waitFor({state:'detached'});
   await selector.locator('[data-settings-button]').click();
+  await dialog.locator('[data-close="[data-settings-dialog]"]').click();
+  await page.locator('iframe[data-uos-frame]').waitFor({state:'detached'});
+
+  await page.setViewportSize({width:375,height:812});
+  await selector.locator('[data-settings-button]').click();
+  await dialog.locator('[data-tab="updates"]').click();
+  assert.match(await dialog.locator('[data-tab-art="updates"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("data:image\/webp;base64,/);
+  assert.equal(await dialog.locator('.uos-tabs button').first().evaluate(el=>getComputedStyle(el).flexDirection),'column');
+  const widths=await dialog.locator('.uos-tabs').evaluate(el=>({scroll:el.scrollWidth,client:el.clientWidth}));
+  assert.ok(widths.scroll<=widths.client+1,`mobile tabs overflow: ${JSON.stringify(widths)}`);
+  await dialog.locator('[data-uos-update-control]').click();
+  await dialog.locator('[data-uos-update-result]').getByText('当前已是最新版本',{exact:false}).waitFor();
+  const box=await page.locator('iframe[data-uos-frame]').boundingBox();
+  assert.ok(await page.evaluate(box=>{const toast=document.createElement('div');toast.id='test-toast';toast.style.cssText=`position:fixed;z-index:999999;left:${box.x+8}px;top:${box.y+8}px;width:120px;height:40px;background:white`;document.body.append(toast);const visible=document.elementFromPoint(box.x+15,box.y+15)===toast;toast.remove();return visible},box),'ordinary Tavern toast is visible above settings');
+  await page.screenshot({path:'/tmp/uos-settings-mobile.png'});
+  await page.unroute('**/scripts/runtime-ref-preview.txt');
+  await page.route('**/scripts/runtime-ref-preview.txt',route=>route.fulfill({body:'abcdefabcdefabcdefabcdefabcdefabcdefabcd',headers:{'access-control-allow-origin':'*'}}));
+  await page.route('**/CHANGELOG.md',route=>route.fulfill({body:'## v1.0.10-beta.12\n- 浏览器更新窗口检查。',headers:{'access-control-allow-origin':'*'}}));
+  await dialog.locator('[data-uos-update-control]').click();
+  const updateWindow=page.locator('[data-uos-update-dialog]');
+  await updateWindow.waitFor();
+  assert.equal(await updateWindow.evaluate(el=>el.matches(':modal')),true,'update prompt is in the top layer above the author frame');
+  await updateWindow.getByRole('button',{name:'暂不更新'}).click();
+  await updateWindow.waitFor({state:'detached'});
+  await dialog.locator('[data-uos-update-result]').getByText('已取消更新',{exact:false}).waitFor();
   await dialog.locator('[data-close="[data-settings-dialog]"]').click();
   await page.locator('iframe[data-uos-frame]').waitFor({state:'detached'});
 

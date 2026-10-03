@@ -4,7 +4,7 @@ import {createWorldbookPresetManager} from './worldbook-presets.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.10-beta.10';
+const VERSION='1.0.10-beta.11';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -339,7 +339,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS;(doc.head||doc.documentElement).append(style);
-  let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null;
+  let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null,updateGuard=null;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
     if(!trigger)return;
@@ -399,7 +399,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode){first.before(trigger);applySavedPosition()}
     }finally{updating=false}
   }
-  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
+  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;updateGuard=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
   function openPanel(){
     const snapshot=state();if(!snapshot)return;
     const storageKey=labelKey(snapshot);let customLabels={};
@@ -577,6 +577,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
           const preset=Array.isArray(authorConfig.worldbookPresets)?authorConfig.worldbookPresets.find(value=>value.id===presetId):null;
           if(preset)status.textContent='正在应用此开场的世界书条目预设…';
           await switchOpeningWithPreset(preset,worldbookPresetManager,async()=>{
+            const current=state();if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar)throw Error('角色或聊天已变化，请重新打开选择器');
             await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
             const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');
           });
@@ -618,7 +619,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       return false;
     };
     const requestPanelClose=async()=>{if(await confirmPlayerChanges())closePanel(true)};
-    panelCloseGuard=requestPanelClose;
+    panelCloseGuard=requestPanelClose;updateGuard=confirmPlayerChanges;
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
@@ -637,7 +638,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:VERSION,scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:VERSION,scan,prepareForUpdate:async()=>updateGuard?updateGuard():true,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});

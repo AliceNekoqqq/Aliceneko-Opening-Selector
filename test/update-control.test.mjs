@@ -22,3 +22,6 @@ assert.match(player,/版本与更新/);assert.match(player,/启动时自动检�
 assert.match(author,/dataset\.tab='updates'/);assert.match(author,/启动时自动检查更新/);assert.doesNotMatch(author,/parentElement\.prepend\(updateButton\)/);
 assert.match(log,/^## v1\.0\.10-beta\.10/m);
 console.log('Settings update controls, per-channel auto-check preference, subtle version marker and release notes passed');
+
+hostDoc.__uosPlayer={prepareForUpdate:async()=>false};await b.onclick();assert.equal(checks,1,'remote controls protect drafts even with an older loader');
+hostDoc.__uosPlayer.prepareForUpdate=async()=>true;await b.onclick();assert.equal(checks,2);
