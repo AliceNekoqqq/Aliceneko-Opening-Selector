@@ -81,6 +81,9 @@ try{
   await page.locator('iframe[data-uos-author-frame]').evaluate(frame=>frame.style.height='4000px');
   await page.waitForTimeout(100);
   await selector.locator('.uos-card').first().waitFor();
+  assert.ok((await selector.locator('.uos-masthead [data-title]').textContent()).trim(),'author masthead displays the page title');
+  assert.match(await selector.locator('[data-opening-count]').textContent(),/共 2 个开场/);
+  assert.equal(await selector.locator('.uos-masthead .uos-actions .uos-version-badge').count(),1,'version stays in the compact toolbar');
   assert.equal(await page.locator('.uos-user-trigger').count(),0);
   assert.match(await selector.locator('.uos-card-shell').nth(1).locator('.uos-card-names').textContent(),/张子薇/);
   assert.equal(await selector.locator('.uos-card-details').count(),2);
