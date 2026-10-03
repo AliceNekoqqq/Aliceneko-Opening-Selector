@@ -39,7 +39,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 
 /* Six authored visual systems. All decoration stays behind text and controls. */
 .uos-user-panel{--glow:transparent;--wash:transparent;--ornament:"✦";--frame:var(--line);position:relative;isolation:isolate;max-height:min(84dvh,780px);padding:22px 24px 18px;border:1px solid var(--frame);border-radius:20px;background:radial-gradient(ellipse at 82% -20%,var(--glow),transparent 57%),linear-gradient(145deg,var(--wash),transparent 44%),var(--bg);box-shadow:inset 0 0 0 5px color-mix(in srgb,var(--bg) 85%,var(--accent)),0 28px 80px #0009}
-.uos-user-panel::before{content:"";position:absolute;z-index:-1;inset:8px;border:1px solid var(--line);border-radius:14px;pointer-events:none;opacity:.75}
+.uos-user-panel::before{display:none}
 .uos-user-head{flex:none;margin:1px 0 17px;padding:0 0 16px;border-bottom:1px solid var(--line)}
 .uos-user-head h2{font-size:clamp(23px,4vw,30px);letter-spacing:.055em;font-weight:650}
 .uos-user-kicker{display:block;margin:0 0 5px;color:var(--accent);font:600 10px/1.5 Georgia,serif;letter-spacing:.24em;text-transform:uppercase}
@@ -126,7 +126,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-card .uos-user-names{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0;font-weight:500}
 .uos-cast-label{width:100%;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:2px}
 .uos-name-chip{display:inline-block;max-width:100%;overflow-wrap:anywhere;padding:4px 9px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:6px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--accent);font-family:inherit;font-weight:500;font-size:12px;line-height:1.5}
-.uos-user-card summary{border-top:1px solid var(--line);padding:10px 0;font-size:12px}
+.uos-user-card summary{border-top:0;padding:10px 0;font-size:12px}
 .uos-user-card .uos-user-select{min-height:38px;padding:8px 14px;border-radius:8px}
 @media(hover:hover){.uos-user-card:hover{transform:translateY(-2px);border-color:var(--accent)}}
 .uos-user-card:focus-within{border-color:var(--accent)}
