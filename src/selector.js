@@ -246,6 +246,7 @@ export function mountInDocument(doc = document, helperApi = null) {
     if(!filters){filters=el('div','uos-search');const input=el('input'),person=el('select');input.type='search';input.placeholder='搜索标题、人物或正文';input.setAttribute('aria-label','搜索作者开场');person.setAttribute('aria-label','按人物筛选作者开场');input.oninput=()=>render();person.onchange=()=>render();filters.append(input,person);grid.before(filters)}
     const query=filters.querySelector('input').value.trim().toLocaleLowerCase(),person=filters.querySelector('select'),selected=person.value;
     const items=entries(),greetings=greetingList(),people=new Set();
+    const openingCount=$('[data-opening-count]');if(openingCount)openingCount.textContent=`共 ${items.length} 个开场 · 选择你的故事起点`;
     for(const entry of items)for(const name of String(entry.names||'').split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean))people.add(name);
     person.replaceChildren();const all=el('option','','全部人物');all.value='';person.append(all);for(const name of people){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
     let visible=0;
@@ -275,7 +276,7 @@ export function mountInDocument(doc = document, helperApi = null) {
     let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=query||person.value?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
     if(!visible)grid.append(el('p','uos-search-empty','没有匹配的开场，请换个关键词或人物。'));
     renderMusic(config.music);
-    const kicker=root.querySelector('.uos-kicker');if(kicker&&!kicker.querySelector('.uos-version-badge'))kicker.append(el('small','uos-version-badge',`v${VERSION}`));
+    const actions=root.querySelector('.uos-actions');if(actions&&!actions.querySelector('.uos-version-badge'))actions.append(el('small','uos-version-badge',`v${VERSION}`));
     let watermark=root.querySelector('[data-uos-watermark]');
     if(!watermark){watermark=el('p','uos-watermark',WATERMARK);watermark.dataset.uosWatermark='';watermark.append(el('span','uos-version',`v${VERSION}`));root.append(watermark)}
   }

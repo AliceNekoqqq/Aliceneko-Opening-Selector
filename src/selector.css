@@ -333,3 +333,18 @@
 .uos-settings-savebar{position:sticky;bottom:-20px;z-index:5;background:var(--bg);padding:12px 0 8px;border-top:1px solid var(--line);margin-top:18px}
 .uos-settings-savebar .uos-save{margin:0;width:100%}.uos-settings-savebar [data-save-state]:empty{display:none}
 @media(max-width:600px){[data-settings-dialog] .uos-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}.uos-settings-group,.uos-settings-entry{padding:12px}.uos-settings-entry .uos-fields{grid-template-columns:1fr}}
+
+/* Author story entrance: title first, one compact tool row. */
+.uos-masthead{position:relative;padding:6px 0 22px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+.uos .uos-masthead .uos-kicker{display:block;font-size:10px;letter-spacing:.18em;line-height:1.5;padding-right:64px;opacity:.85}
+.uos .uos-masthead .uos-kicker:before{display:none}
+.uos .uos-masthead h1{font-size:clamp(25px,4.5vw,40px);line-height:1.35;margin:12px 0 10px;padding-right:64px;overflow-wrap:anywhere}
+.uos .uos-masthead .uos-intro{font-size:14px;line-height:1.75;margin:0 0 18px;max-width:680px;overflow-wrap:anywhere}
+.uos .uos-masthead .uos-intro:empty{display:none}
+.uos-masthead .uos-header-ornament{position:absolute;right:0;top:0;width:54px;height:54px;pointer-events:none}
+.uos .uos-masthead .uos-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0;padding:0;border:0}
+.uos-opening-count{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+.uos .uos-masthead .uos-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:auto;max-width:100%}
+.uos-masthead .uos-icon{padding:8px 12px;font-size:12px;min-height:36px}
+.uos-masthead .uos-version-badge{font:10px/1.4 system-ui,sans-serif;letter-spacing:0;margin:0;white-space:nowrap;opacity:.75}
+@media(max-width:600px){.uos-masthead{padding-top:0;margin-bottom:16px;padding-bottom:16px}.uos .uos-masthead h1{font-size:26px;margin-top:9px}.uos .uos-masthead .uos-intro{font-size:13px;margin-bottom:14px}.uos .uos-masthead .uos-actions{margin-left:0;width:100%}.uos-masthead .uos-version-badge{margin-left:auto}.uos-masthead .uos-header-ornament{width:48px;height:48px}}
