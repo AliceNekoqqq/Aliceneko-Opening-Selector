@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import {payload,bootstrapScript,stable} from './release-fixture.mjs';
+assert.ok(Buffer.byteLength(payload.content)<1800,'local script remains a small CDN entry');
+assert.doesNotMatch(payload.content,/confirmUpdate|fetchReleaseNotes|localStorage|fallbackRef|CHANGELOG|mountUniversalSelector/,'update and runtime logic are remote');
+assert.match(bootstrapScript,/confirmUpdate/);assert.match(bootstrapScript,/fetchReleaseNotes/);
+const execute=new (Object.getPrototypeOf(async function(){}).constructor)('loadModule','globalThis','console','return '+payload.content.replace('await import(url)','await loadModule(url)'));
+let started=0;const imports=[],errors=[];
+await execute(async url=>{imports.push(url);if(imports.length===1)throw Error('CDN unavailable');return {BOOTSTRAP_CHANNEL:stable?'stable':'preview',BOOTSTRAP_PROTOCOL:1,start:async()=>started++}}, {},{error:x=>errors.push(x)});
+assert.equal(imports.length,2);assert.equal(started,1);assert.equal(errors.length,0);
+let wrongStarted=0;
+await execute(async()=>({BOOTSTRAP_CHANNEL:stable?'preview':'stable',BOOTSTRAP_PROTOCOL:1,start:async()=>wrongStarted++}),{toastr:{error:x=>errors.push(x)}},console);
+assert.equal(wrongStarted,0,'preview entry never starts a stable bootstrap');assert.equal(errors.length,1);
+for(const badModule of [
+ {BOOTSTRAP_CHANNEL:stable?'stable':'preview',BOOTSTRAP_PROTOCOL:2,start:async()=>{throw Error('must not start unsupported protocol')}},
+ {BOOTSTRAP_CHANNEL:stable?'stable':'preview',BOOTSTRAP_PROTOCOL:1},
+]){
+ let attempts=0;const messages=[];
+ await execute(async()=>{attempts++;return badModule},{toastr:{error:x=>messages.push(x)}},console);
+ assert.equal(attempts,3);assert.equal(messages.length,1);assert.match(messages[0],/入口格式或通道不匹配/);
+}
+let startupAttempts=0,recovered=0;
+await execute(async()=>({BOOTSTRAP_CHANNEL:stable?'stable':'preview',BOOTSTRAP_PROTOCOL:1,start:async()=>{startupAttempts++;if(startupAttempts===1)throw Error('bootstrap evaluation failed');recovered++}}),{},console);
+assert.equal(startupAttempts,2);assert.equal(recovered,1,'startup rejection tries another bootstrap provider');
+const urls=JSON.parse(payload.content.match(/\)\((\{"urls":.*\})\);$/)[1]).urls;
+assert.equal(urls.length,3);assert.ok(urls.every(url=>url.endsWith(stable?'/bootstrap-stable.js':'/bootstrap-preview.js')));
+assert.doesNotMatch(urls.join('\n'),/[a-f0-9]{40}|-beta\.|@v\d/,'bootstrap URL remains stable across remote releases');
+console.log('Local CDN entry: size, remote-only update logic, provider retry, channel validation and visible failure passed');
