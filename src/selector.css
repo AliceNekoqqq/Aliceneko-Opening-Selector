@@ -319,3 +319,17 @@
 .uos-card .uos-card-names{margin:10px 0;font-size:12px}
 .uos-full-description{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
 .uos-card-body>strong{line-height:1.5;overflow-wrap:anywhere}
+
+/* Settings hierarchy: category navigation, grouped fields and persistent save. */
+[data-settings-dialog] .uos-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+[data-settings-dialog] .uos-tabs button{white-space:normal;line-height:1.4;padding:10px 6px}
+.uos-settings-group{padding:16px;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.uos-settings-group h3,.uos-settings-entries h3{font-size:16px;margin:0 0 8px;color:var(--text)}
+.uos-settings-group>summary,.uos-settings-entry>summary{cursor:pointer;color:var(--accent);font-weight:650;line-height:1.6;overflow-wrap:anywhere}
+.uos-settings-group .uos-field{margin:14px 0}.uos-settings-group .uos-help{margin:8px 0}
+.uos-settings-entry{margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.uos-settings-entry[open]>summary{padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.uos-settings-entry .uos-card-preview{max-width:100%;width:300px}
+.uos-settings-savebar{position:sticky;bottom:-20px;z-index:5;background:var(--bg);padding:12px 0 8px;border-top:1px solid var(--line);margin-top:18px}
+.uos-settings-savebar .uos-save{margin:0;width:100%}.uos-settings-savebar [data-save-state]:empty{display:none}
+@media(max-width:600px){[data-settings-dialog] .uos-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}.uos-settings-group,.uos-settings-entry{padding:12px}.uos-settings-entry .uos-fields{grid-template-columns:1fr}}

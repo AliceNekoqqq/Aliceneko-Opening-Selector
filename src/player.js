@@ -212,7 +212,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=japan]{--ornament-position:100.00000% 100.00000%}
 /* Browse first; edit and inspect details on demand. */
 .uos-user-panel .uos-user-settings[hidden]{display:none}
-.uos-user-settings-button{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;min-height:38px}
+.uos-user-settings-intro{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.7}.uos-user-settings-group{margin:16px 0}.uos-user-settings-group>h3{font-size:13px;margin:0 0 8px;color:var(--accent)}.uos-user-settings .uos-user-label-settings{max-height:none;overflow:visible;min-height:0;padding:12px;margin:8px 0}.uos-user-settings .uos-user-label-settings summary{line-height:1.6}.uos-user-settings .uos-user-label-settings>p{font-size:12px;line-height:1.7}.uos-user-settings .uos-user-label-settings>button{margin:10px 6px 0 0}.uos-user-settings-button{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;min-height:38px}
 .uos-user-settings{margin:0 0 16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .uos-user-results{margin:0 0 12px;color:var(--muted);font-size:12px}
 .uos-user-panel .uos-user-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.7;padding-right:0}
@@ -700,7 +700,11 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
     stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});
-    settings.append(exclusion,personSettings,edits,labelSettings,updateSettings);panel.append(head,tools,settings,search,results,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
+    const settingsIntro=el('p','uos-user-settings-intro','按需要展开一项。修改后使用该项的保存按钮。');
+    const commonGroup=el('section','uos-user-settings-group');commonGroup.append(el('h3','','开场显示'),edits,labelSettings);
+    const advancedGroup=el('section','uos-user-settings-group');advancedGroup.append(el('h3','','识别规则'),exclusion,personSettings);
+    const systemGroup=el('section','uos-user-settings-group');systemGroup.append(el('h3','','插件'),updateSettings);
+    settings.append(settingsIntro,commonGroup,advancedGroup,systemGroup);panel.append(head,tools,settings,search,results,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const active=overlay;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;
