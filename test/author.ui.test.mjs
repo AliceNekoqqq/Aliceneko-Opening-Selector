@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 import {launchTestBrowser} from './browser.mjs';
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.11.json','utf8'));
+import {payload,stable,runtimeVersion,pointerFile} from './release-fixture.mjs';
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
 const loader=payload.content.replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`);
@@ -14,7 +14,7 @@ const browser=await launchTestBrowser();
 try{
   const page=await browser.newPage();
   const runtimeRef=payload.content.match(/\"fallbackRef\":\"([a-f0-9]{40})\"/)[1];
-  await page.route('**/scripts/runtime-ref-preview.txt',route=>route.fulfill({status:200,body:runtimeRef,headers:{'access-control-allow-origin':'*'}}));
+  await page.route(`**/${pointerFile}`,route=>route.fulfill({status:200,body:runtimeRef,headers:{'access-control-allow-origin':'*'}}));
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.setContent('<style>.mes_text iframe{pointer-events:none!important}</style><div id="chat"><div class="mes" mesid="0"><div class="mes_text">原主开场。</div></div></div>');
@@ -85,7 +85,7 @@ try{
   await selector.getByLabel('按人物筛选作者开场').selectOption('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
   await selector.getByLabel('按人物筛选作者开场').selectOption('');
-  assert.match(await selector.locator('.uos-version-badge').textContent(),/v?1\.0\.10-beta\.11/);
+  assert.equal(await selector.locator('.uos-version-badge').evaluate(el=>el.firstChild.textContent),'v'+runtimeVersion);
   await selector.locator('.uos-card-details summary').first().click();
   assert.match(await selector.locator('.uos-card-details pre').first().textContent(),/原主开场/);
   assert.equal(await page.locator('iframe[data-uos-author-frame]').evaluate(node=>getComputedStyle(node).pointerEvents),'auto');
@@ -186,9 +186,9 @@ try{
   const box=await page.locator('iframe[data-uos-frame]').boundingBox();
   assert.ok(await page.evaluate(box=>{const toast=document.createElement('div');toast.id='test-toast';toast.style.cssText=`position:fixed;z-index:999999;left:${box.x+8}px;top:${box.y+8}px;width:120px;height:40px;background:white`;document.body.append(toast);const visible=document.elementFromPoint(box.x+15,box.y+15)===toast;toast.remove();return visible},box),'ordinary Tavern toast is visible above settings');
   await page.screenshot({path:'/tmp/uos-settings-mobile.png'});
-  await page.unroute('**/scripts/runtime-ref-preview.txt');
-  await page.route('**/scripts/runtime-ref-preview.txt',route=>route.fulfill({body:'abcdefabcdefabcdefabcdefabcdefabcdefabcd',headers:{'access-control-allow-origin':'*'}}));
-  await page.route('**/CHANGELOG.md',route=>route.fulfill({body:'## v1.0.10-beta.12\n- 浏览器更新窗口检查。',headers:{'access-control-allow-origin':'*'}}));
+  await page.unroute(`**/${pointerFile}`);
+  await page.route(`**/${pointerFile}`,route=>route.fulfill({body:'abcdefabcdefabcdefabcdefabcdefabcdefabcd',headers:{'access-control-allow-origin':'*'}}));
+  await page.route('**/CHANGELOG.md',route=>route.fulfill({body:`## v${stable?'1.0.13':'1.0.10-beta.12'}\n- 浏览器更新窗口检查。`,headers:{'access-control-allow-origin':'*'}}));
   await dialog.locator('[data-uos-update-control]').click();
   const updateWindow=page.locator('[data-uos-update-dialog]');
   await updateWindow.waitFor();
