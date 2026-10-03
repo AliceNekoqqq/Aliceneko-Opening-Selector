@@ -1,6 +1,6 @@
 # 红豆粉开场白选择器 · Aliceneko Opening Selector
 
-红豆粉（Aliceneko）制作的独立源码项目。当前正式版 v1.0.13 是一份轻量通用脚本：玩家把它放在酒馆助手全局脚本库，作者把同一份脚本放进角色脚本并随卡导出。普通多开场卡显示玩家预览；主开场以 `<UniversalOpeningSelector/>` 开头的卡显示作者选择页。与《丧尸少年》专用选择器无关。
+红豆粉（Aliceneko）制作的独立源码项目。当前正式版 v1.0.14 是一份轻量通用脚本：玩家把它放在酒馆助手全局脚本库，作者把同一份脚本放进角色脚本并随卡导出。普通多开场卡显示玩家预览；主开场以 `<UniversalOpeningSelector/>` 开头的卡显示作者选择页。与《丧尸少年》专用选择器无关。
 
 插件界面与通用脚本均带有来源水印：`唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费`。
 
@@ -8,7 +8,7 @@
 
 ## 普通用户：原卡直接使用
 
-在酒馆助手的**全局脚本库**导入 `dist/红豆粉开场白选择器_通用脚本_v1.0.13.json` 并启用，不需要修改或重新打包别人的角色卡。这与作者导入的是同一份文件。
+在酒馆助手的**全局脚本库**导入 `dist/红豆粉开场白选择器_通用脚本_v1.0.14.json` 并启用，不需要修改或重新打包别人的角色卡。这与作者导入的是同一份文件。
 
 打开拥有主开场和至少一条备用开场的普通角色卡，新建聊天。首条消息上方出现“预览开场”入口；卡片标题取正文第一句，完整原文仅在展开预览中显示，选择后切换首条消息页。第一条开场仍是原卡正常显示的正文，索引为 0；后续开场依次为 1、2……。已经有后续聊天消息时入口隐藏，群聊暂不支持。脚本不会写入普通角色卡或聊天正文；不要求正则或作者配置；脚本首次导入后会自动读取 GitHub 上的小型版本指针，再加载对应的固定提交运行模块；发布新版本后，脚本先展示目标版本与更新说明，得到用户确认后才切换运行模块，无需反复导入脚本。运行时需要联网。若卡片主开场以选择器标记开头，通用脚本切换到作者模式。
 
@@ -71,7 +71,7 @@
 
 `src/author.js` 是标记识别与作者选择页挂载逻辑；`src/player.js` 提供普通玩家模式；`src/selector.js`、`src/selector.css` 实现作者界面。`scripts/build-author-script.mjs` 生成仓库的 `remote.js` 运行模块和轻量导入脚本。`pack.mjs` 保留为开发与回归测试工具，不属于作者使用流程。
 
-在 `develop` 上运行 `node scripts/build-author-script.mjs --preview` 构建测试运行模块和供新安装使用的导入脚本；正式构建 `node scripts/build-author-script.mjs --stable` 只允许在 `main` 上执行。普通远程更新不改写用户已安装的 JSON，也不要求重新导入。当前 13 项 Node 回归通过：author、player、worldbook、worldbook-presets、person-rules、pack、observer、loader、stable-loader、current-stable-loader、update-control、runtime-version、cdn-loader，对应命令为 `node test/<名称>.test.mjs`；测试通道使用 confirmed-loader 替代 current-stable-loader。两套 Chromium 流程 `node test/author.ui.test.mjs` 和 `node test/ui.test.mjs` 已通过，其中 ui 在隐藏脚本 iframe 中执行未修改的 v1.0.13 正式 JSON，覆盖两级远程加载、保存、音乐与世界书应用。浏览器中的酒馆助手、网络与保存接口使用测试替身，真实酒馆的导出再导入、世界书持久化和触摸交互仍需验收。详细记录见 `docs/cdn-entry-audit.md`。
+在 `develop` 上运行 `node scripts/build-author-script.mjs --preview` 构建测试运行模块和供新安装使用的导入脚本；正式构建 `node scripts/build-author-script.mjs --stable` 只允许在 `main` 上执行。普通远程更新不改写用户已安装的 JSON，也不要求重新导入。当前 13 项 Node 回归通过：author、player、worldbook、worldbook-presets、person-rules、pack、observer、loader、stable-loader、current-stable-loader、update-control、runtime-version、cdn-loader，对应命令为 `node test/<名称>.test.mjs`。两套 Chromium 流程 `node test/author.ui.test.mjs` 和 `node test/ui.test.mjs` 已通过，其中 ui 在隐藏脚本 iframe 中执行未修改的 v1.0.13 正式 JSON，覆盖两级远程加载、保存、音乐与世界书应用。浏览器中的酒馆助手、网络与保存接口使用测试替身，真实酒馆的导出再导入、世界书持久化和触摸交互仍需验收。详细记录见 `docs/cdn-entry-audit.md`。
 
 玩家窗口和作者选择页角落均标明当前脚本版本。作者页可搜索标题、人物和正文，并按登场人物筛选；作者卡片采用简短摘要，自动识别登场人物，并能识别旧版自动生成的标题；点击“预览完整正文”查看原文，开场数量较多时保持网格浏览。
 
@@ -91,7 +91,7 @@ v1.0.13 已修复预设再次编辑、开场文案漏存、旧格式世界书开
 
 正式用户安装上述 v1.0.13 通用 JSON。它导入正式 bootstrap，由远程入口读取 `main/scripts/runtime-ref.txt`，正式指针只在功能完成验收、正式运行模块发布后更新。开发改动提交到 `develop`，不会因为测试分支有新提交而进入正式用户脚本。正式 Loader 也会拒绝带 `-beta.N` 的测试运行模块。
 
-参与测试时导入 `dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.13.json`。测试脚本有独立 ID，默认关闭，只读取 `develop` 预览指针；测试前先停用正式脚本。作者在“设置 → 世界书”集中管理预设，再给各开场分配预设。beta.1 保存的逐开场设置会自动迁移。
+参与测试时导入 `dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.12.json`。测试脚本有独立 ID，默认关闭，只读取 `develop` 预览指针；测试前先停用正式脚本。作者在“设置 → 世界书”集中管理预设，再给各开场分配预设。beta.1 保存的逐开场设置会自动迁移。
 
 维护者发布测试版时，先把包含 `remote.js` 的测试源码提交并推送到 `develop`，再把该提交 SHA 写入测试指针、重新构建测试 JSON 并推送。正式发布时先将验收通过的源码提交到 `main`，生成并验证正式运行模块；在该运行模块提交已发布后，最后更新正式指针。`main` 的正式指针保持不动，直至正式发布的最后一步。
 
@@ -111,4 +111,8 @@ beta.12 测试版及 v1.0.13 正式 JSON 的脚本内容不再包含更新逻辑
 beta.12 纯远程链路审查未发现功能退化，原 JSON 保持不变。联网仍是前提；CDN 与当前页面模块缓存可能延迟远程入口变更，重新启动脚本／刷新后才能获取新入口。正式 v1.0.13 已按用户授权迁移；完整正式产物回归通过后发布，实机验收边界继续保留。
 
 
-beta.13 修正玩家端纸与墨主题的主题／人物下拉框黑底，控件与选项使用当前主题的背景、文字和原生控件配色；浏览器覆盖宿主强制黑底样式。若右下角仍有独立检查更新按钮，应检查旧全局／角色脚本并替换正式 v1.0.13，刷新旧启动器仍会创建旧入口。
+正式 v1.0.14 修正纸与墨的主题／人物下拉框黑底。已安装纯远程 v1.0.13 入口可在设置检查更新，无需替换 JSON。旧入口的一次迁移要求仍适用。
+下一轮测试以最新正式版本号追加 -beta.1，从 v1.0.14-beta.1 开始，先同步正式源码，不再延续旧 v1.0.10 测试编号。
+
+
+v1.0.14-beta.1：九主题统一优化开场卡片的层次、标题摘要、编号、姓名标签与手机布局，玩家和作者同步更新。保留完整正文、搜索、人物筛选及所有保存流程。正式 v1.0.14 不受影响。

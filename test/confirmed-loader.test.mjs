@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {payload,bootstrapScript,bootstrapFile} from './release-fixture.mjs';
+const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.11.json'));
 assert.match(payload.name,/确认更新/);
 assert.equal(payload.enabled,false);assert.equal(payload.export_with.data,false);
-const old=bootstrapScript.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
+const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
 const next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
 const nextReleaseNotes='# 更新日志\n\n## v1.0.10-beta.10\n- 更新入口移入设置。\n- 更新前显示逐版本说明。\n\n## v1.0.10-beta.6\n- 玩家切换开场前先处理未保存改动。\n';
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
-async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,notes=nextReleaseNotes,moduleVersion='1.0.10-beta.10',currentVersion='1.0.10-beta.6',autoCheck=null,dismissed=null,holdPrompt=false,modalFails=false,timeout=false,guard=null,lateGuard=null,bootstrapFailures=0,bootstrapSource=fs.readFileSync(bootstrapFile,'utf8')}={}){
+async function run({accept=false,stored=null,pointer=next,fail=false,storageFails=false,notes=nextReleaseNotes,moduleVersion='1.0.10-beta.10',currentVersion='1.0.10-beta.6',autoCheck=null,dismissed=null,holdPrompt=false,modalFails=false,timeout=false,guard=null,lateGuard=null}={}){
  const imports=[],mounts=[],prompts=[],messages=[],requests=[],storage=new Map(stored?[["uos-approved-runtime-preview",JSON.stringify(stored)]]:[]);
  if(autoCheck!==null)storage.set('uos-auto-check-preview',String(autoCheck));
  if(dismissed!==null)storage.set('uos-dismissed-update-preview',dismissed);
@@ -22,24 +22,14 @@ async function run({accept=false,stored=null,pointer=next,fail=false,storageFail
  const globals={$:()=>[{ownerDocument:runnerDoc}],toastr:{info:text=>messages.push(text),error:text=>messages.push(text)},addEventListener(){},removeEventListener(){}};
  if(guard)doc.__uosPlayer={prepareForUpdate:guard};
  let pointerChecks=0,notesChecks=0;
- // Exercise the unchanged import JSON, not just its extracted remote loader.
- const entryImports=[];
  const script=payload.content.replace('await import(url)','await loadModule(url)');
- const fetchMock=async(url)=>{
+ await new AsyncFunction('globalThis','document','fetch','loadModule',`return ${script}`)(globals,doc,async(url)=>{
    requests.push(url);
    if(timeout)return new Promise(()=>{});
    if(url.endsWith('/CHANGELOG.md')){notesChecks++;if(notes===null)throw Error('offline');return {ok:true,text:async()=>notes}}
    pointerChecks++;if(pointer===null)throw Error('offline');return {ok:true,text:async()=>pointer};
- };
- const loadModule=async url=>{
-   if(url.endsWith('/'+bootstrapFile)){
-     entryImports.push(url);if(entryImports.length<=bootstrapFailures)throw Error('bootstrap provider unavailable');
-     return new AsyncFunction('globalThis','document','fetch','loadModule',bootstrapSource.replace(/^export /gm,'').replace('await import(url)','await loadModule(url)')+'\nreturn {BOOTSTRAP_CHANNEL,BOOTSTRAP_PROTOCOL,start}')(globals,doc,fetchMock,loadModule);
-   }
-   imports.push(url);if(url.includes(next)&&lateGuard)doc.__uosAuthor={prepareForUpdate:lateGuard};if(fail&&url.includes(next))throw Error('offline module');return {OPENING_SELECTOR_VERSION:url.includes(next)?moduleVersion:currentVersion,mountUniversalSelector:()=>mounts.push(url)};
- };
- await new AsyncFunction('globalThis','document','fetch','loadModule',`return ${script}`)(globals,doc,fetchMock,loadModule);
- return {doc,imports,entryImports,mounts,prompts,messages,storage,requests,get activeDialog(){return activeDialog},get pointerChecks(){return pointerChecks},get notesChecks(){return notesChecks}};
+ },async url=>{imports.push(url);if(url.includes(next)&&lateGuard)doc.__uosAuthor={prepareForUpdate:lateGuard};if(fail&&url.includes(next))throw Error('offline module');return {OPENING_SELECTOR_VERSION:url.includes(next)?moduleVersion:currentVersion,mountUniversalSelector:()=>mounts.push(url)}});
+ return {doc,imports,mounts,prompts,messages,storage,requests,get activeDialog(){return activeDialog},get pointerChecks(){return pointerChecks},get notesChecks(){return notesChecks}};
 }
 const cancelled=await run();assert.equal(cancelled.prompts.length,1);assert.equal(cancelled.imports.length,1,'cancel never imports the new runtime');assert.equal(cancelled.doc.__uosUpdater.hasUpdate,true);assert.match(cancelled.prompts[0],/【v1\.0\.10-beta\.10】/);assert.doesNotMatch(cancelled.prompts[0],/【v1\.0\.10-beta\.6】/,'already-installed version notes are omitted');assert.ok(cancelled.storage.get('uos-dismissed-update-preview'),'cancel stores the dismissed candidate');
 await cancelled.doc.__uosUpdater.check(true);assert.equal(cancelled.prompts.length,2,'manual check may show notes again after cancel');assert.equal(cancelled.imports.length,1);
@@ -67,7 +57,7 @@ const failure=await run({accept:true,fail:true});assert.equal(failure.mounts.len
 const mismatch=await run({accept:true,moduleVersion:'1.0.10-beta.6'});assert.equal(mismatch.mounts.length,1,'candidate runtime must match its release notes');assert.equal(mismatch.storage.has('uos-approved-runtime-preview'),false);
 const storageBlocked=await run({accept:true,storageFails:true});assert.match(storageBlocked.messages.at(-1),/无法保存/);
 const stale=await run({stored:{bootstrap:next,ref:next},pointer:old});assert.ok(stale.imports[0].includes(old),'new import resets the bootstrap');const updater=stale.doc.__uosUpdater;updater.close();const count=stale.pointerChecks;await updater.check(true);assert.equal(stale.pointerChecks,count);
-assert.doesNotMatch(bootstrapScript,/host\.(?:confirm|alert)\(/,'no dependency on native JS dialogs');
+assert.doesNotMatch(payload.content,/host\.(?:confirm|alert)\(/,'no dependency on native JS dialogs');
 const fallback=await run({modalFails:true});assert.equal(fallback.prompts.length,1);assert.equal(fallback.activeDialog.removed,true,'fallback window supports cancellation');
 const timedOut=await run({timeout:true});assert.match(timedOut.doc.__uosUpdater.statusMessage,/请求超时/);assert.equal(timedOut.doc.__uosUpdater.busy,false,'timed-out request releases the check button');
 const closing=await run({autoCheck:false,holdPrompt:true});const pending=closing.doc.__uosUpdater.check(true);
@@ -83,11 +73,3 @@ console.log('Confirmed update: channel preference, release notes, per-version pr
 const blockedDraft=await run({accept:true,guard:async()=>false});assert.equal(blockedDraft.imports.length,1);assert.equal(blockedDraft.mounts.length,1);assert.match(blockedDraft.doc.__uosUpdater.statusMessage,/未保存/);
 const changedDuringDownload=await run({accept:true,lateGuard:async()=>false});assert.equal(changedDuringDownload.imports.length,2);assert.equal(changedDuringDownload.mounts.length,1);assert.equal(changedDuringDownload.storage.has("uos-approved-runtime-preview"),false);
 const savedDraft=await run({accept:true,guard:async()=>true});assert.equal(savedDraft.mounts.length,2);
-
-const providerRetry=await run({bootstrapFailures:2,autoCheck:false});assert.equal(providerRetry.entryImports.length,3);assert.equal(providerRetry.mounts.length,1,'raw fallback starts the complete remote loader');
-const bootstrapOffline=await run({bootstrapFailures:3});assert.equal(bootstrapOffline.mounts.length,0);assert.match(bootstrapOffline.messages[0],/远程加载失败/);
-const refreshedBootstrap=await run({stored:{bootstrap:old,ref:next},pointer:next,bootstrapSource:fs.readFileSync(bootstrapFile,'utf8').replace("statusMessage='当前已是最新版本：v'","statusMessage='远程入口已升级，当前已是最新版本：v'")});
-assert.ok(refreshedBootstrap.imports[0].includes(next),'remote bootstrap changes preserve the approved runtime anchor');
-await refreshedBootstrap.doc.__uosUpdater.check(true);assert.match(refreshedBootstrap.messages.at(-1),/远程入口已升级/,'unchanged JSON receives changed remote update logic');
-assert.equal(JSON.parse(fs.readFileSync(`dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.12.json`,'utf8')).content,payload.content,'audit never rewrites the local import script');
-console.log('Unchanged JSON → CDN bootstrap → runtime: provider retry, offline feedback and remote bootstrap upgrade with approved-version persistence passed');

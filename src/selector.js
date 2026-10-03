@@ -21,7 +21,7 @@ export async function optimizeCoverData(source,file,doc=document){
 }
 export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.10-beta.12';
+  const VERSION = '1.0.13';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -262,7 +262,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
       const body=el('div','uos-card-body');body.append(el('span','uos-label',entry.label||`OPENING ${String(i+1).padStart(2,'0')}`),el('strong','',entry.title));
       if(entry.description)body.append(el('div','uos-description',entry.description));
-      body.append(el('p','uos-card-names',`登场人物 · ${names?names.replace(/[,，]/g,' / '):'未识别'}`));
+      const cast=el('p','uos-card-names');cast.append(el('span','uos-cast-label','登场人物'));for(const name of names?names.split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean):['未识别'])cast.append(el('span','uos-name-chip',name));body.append(cast);
       if(entry.nameSuggestions?.length)body.append(el('p','uos-help',`待确认人物 · ${entry.nameSuggestions.join(' / ')}`));
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
       const source=greetings[i];

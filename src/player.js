@@ -118,6 +118,20 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=paper] .uos-user-background{opacity:.82;mix-blend-mode:multiply}
 .uos-user-panel[data-theme=neon] .uos-user-background,.uos-user-panel[data-theme=meadow] .uos-user-background,.uos-user-panel[data-theme=rose] .uos-user-background{opacity:.34}
 
+
+/* Shared story-card finish, inherited from all nine theme palettes. */
+.uos-user-panel .uos-user-card{background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 6%,var(--surface)),var(--surface) 65%);box-shadow:inset 0 1px color-mix(in srgb,var(--text) 12%,transparent),0 8px 20px #0002;transition:border-color .18s,box-shadow .18s,transform .18s}
+.uos-user-card h3{font-size:19px;line-height:1.5;padding-right:28px;overflow-wrap:anywhere;text-wrap:pretty}
+.uos-user-panel .uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent),inset 0 1px color-mix(in srgb,var(--text) 15%,transparent),0 8px 20px #0002}
+.uos-user-card .uos-user-names{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0;font-weight:500}
+.uos-cast-label{width:100%;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:2px}
+.uos-name-chip{display:inline-block;max-width:100%;overflow-wrap:anywhere;padding:4px 9px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:6px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--accent);font-family:inherit;font-weight:500;font-size:12px;line-height:1.5}
+.uos-user-card summary{border-top:1px solid var(--line);padding:10px 0;font-size:12px}
+.uos-user-card .uos-user-select{min-height:38px;padding:8px 14px;border-radius:8px}
+@media(hover:hover){.uos-user-card:hover{transform:translateY(-2px);border-color:var(--accent)}}
+.uos-user-card:focus-within{border-color:var(--accent)}
+@media(prefers-reduced-motion:reduce){.uos-user-panel .uos-user-card{transition:none}.uos-user-card:hover{transform:none}}
+
 `;
 
 function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
@@ -563,7 +577,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       const labelText=el('p','',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
       labelTexts[entry.index]=labelText;card.append(el('h3','',display.title),el('small','uos-user-source',`标题：${display.titleSource}`),labelText);
-      card.append(el('p','uos-user-names',display.names.length?`登场人物 · ${display.names.join(' / ')}`:`登场人物 · 未识别`));
+      const cast=el('p','uos-user-names');cast.append(el('span','uos-cast-label','登场人物'));for(const name of display.names.length?display.names:['未识别'])cast.append(el('span','uos-name-chip',name));card.append(cast);
       if(entry.nameSuggestions?.length)card.append(el('p','uos-user-candidates',`待确认 · ${entry.nameSuggestions.join(' / ')}（可在“修正标题和登场人物”中采纳）`));
       const details=el('details','');details.append(el('summary','','预览完整正文'),el('pre','',entry.body));card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;

@@ -1,7 +1,7 @@
 import {mountInDocument} from './selector.js';
 import {AUTHOR_HTML} from './author-template.js';
 
-const AUTHOR_VERSION='1.0.10-beta.12';
+const AUTHOR_VERSION='1.0.13';
 export const AUTHOR_MARKER='<UniversalOpeningSelector/>';
 const EMPTY_OPENING_ART=AUTHOR_HTML.match(/--uos-empty-opening-art:url\("([^"]+)"\)/)?.[1]||'';
 const DIAGNOSTICS_ART=AUTHOR_HTML.match(/--uos-diagnostics-art:url\("([^"]+)"\)/)?.[1]||EMPTY_OPENING_ART;
