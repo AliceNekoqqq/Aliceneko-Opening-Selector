@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import {payload,stable,runtimeVersion} from './release-fixture.mjs';
+import {payload,stable,runtimeVersion,bootstrapScript} from './release-fixture.mjs';
 if(stable){
  assert.equal(payload.enabled,true);assert.equal(payload.export_with.data,true);
- assert.match(payload.content,/"channel":"stable"/);assert.match(payload.content,/main\/scripts\/runtime-ref.txt/);assert.doesNotMatch(payload.content,/develop\/scripts/);
- const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1],next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
- const execute=new (Object.getPrototypeOf(async function(){}).constructor)('globalThis','document','fetch','loadModule','return '+payload.content.replace('await import(url)','await loadModule(url)'));
+ assert.match(payload.content,/"channel":"stable"/);assert.match(bootstrapScript,/main\/scripts\/runtime-ref.txt/);assert.doesNotMatch(payload.content,/develop\/scripts/);
+ const old=bootstrapScript.match(/"fallbackRef":"([a-f0-9]{40})"/)[1],next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
+ const execute=new (Object.getPrototypeOf(async function(){}).constructor)('globalThis','document','fetch','loadModule','return '+bootstrapScript.replace('await import(url)','await loadModule(url)'));
  async function run(accept,candidateVersion='1.0.13',autoCheck=false){
   const storage=new Map([['uos-auto-check-stable',String(autoCheck)],['uos-auto-check-preview','true']]),imports=[],mounts=[],prompts=[];
   const host={setTimeout,clearTimeout,localStorage:{getItem:key=>storage.get(key),setItem:(key,v)=>storage.set(key,v),removeItem:key=>storage.delete(key)}};

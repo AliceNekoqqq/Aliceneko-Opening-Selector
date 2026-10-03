@@ -4,16 +4,18 @@ import {createRequire} from 'node:module';
 
 const require=createRequire(import.meta.url);
 import {launchTestBrowser} from './browser.mjs';
-import {payload,stable,runtimeVersion,pointerFile} from './release-fixture.mjs';
+import {payload,stable,runtimeVersion,pointerFile,bootstrapScript,bootstrapFile} from './release-fixture.mjs';
 const remote=fs.readFileSync('remote.js','utf8');
 const localUrl='data:text/javascript;base64,'+Buffer.from(remote).toString('base64');
-const loader=payload.content.replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`);
+const embeddedLoader=bootstrapScript.replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`);
+const bootstrapUrl='data:text/javascript;base64,'+Buffer.from(fs.readFileSync(bootstrapFile,'utf8').replace('`https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${target}/remote.js`',`'${localUrl}'`)).toString('base64');
+const loader=payload.content.includes('BOOTSTRAP_PROTOCOL')?payload.content.replace(/"https:\/\/cdn\.jsdelivr\.net[^"]+"/,JSON.stringify(bootstrapUrl)):embeddedLoader;
 const first='<UniversalOpeningSelector/>\n\n【请选择开场】';
 const card={avatar:'test.png',data:{first_mes:'原主开场。',alternate_greetings:['<SceneInfo>在场角色：\n- 张子薇制服</SceneInfo>\n<content>雨夜车站的重逢。</content>'],extensions:{}}};
 const browser=await launchTestBrowser();
 try{
   const page=await browser.newPage();
-  const runtimeRef=payload.content.match(/\"fallbackRef\":\"([a-f0-9]{40})\"/)[1];
+  const runtimeRef=bootstrapScript.match(/\"fallbackRef\":\"([a-f0-9]{40})\"/)[1];
   await page.route(`**/${pointerFile}`,route=>route.fulfill({status:200,body:runtimeRef,headers:{'access-control-allow-origin':'*'}}));
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -188,7 +190,7 @@ try{
   await page.screenshot({path:'/tmp/uos-settings-mobile.png'});
   await page.unroute(`**/${pointerFile}`);
   await page.route(`**/${pointerFile}`,route=>route.fulfill({body:'abcdefabcdefabcdefabcdefabcdefabcdefabcd',headers:{'access-control-allow-origin':'*'}}));
-  await page.route('**/CHANGELOG.md',route=>route.fulfill({body:`## v${stable?'1.0.13':'1.0.10-beta.12'}\n- 浏览器更新窗口检查。`,headers:{'access-control-allow-origin':'*'}}));
+  await page.route('**/CHANGELOG.md',route=>route.fulfill({body:`## v${stable?'1.0.13':'1.0.10-beta.13'}\n- 浏览器更新窗口检查。`,headers:{'access-control-allow-origin':'*'}}));
   await dialog.locator('[data-uos-update-control]').click();
   const updateWindow=page.locator('[data-uos-update-dialog]');
   await updateWindow.waitFor();

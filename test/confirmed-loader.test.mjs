@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.11.json'));
+import {payload,bootstrapScript} from './release-fixture.mjs';
 assert.match(payload.name,/确认更新/);
 assert.equal(payload.enabled,false);assert.equal(payload.export_with.data,false);
-const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
+const old=bootstrapScript.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];
 const next='abcdefabcdefabcdefabcdefabcdefabcdefabcd';
 const nextReleaseNotes='# 更新日志\n\n## v1.0.10-beta.10\n- 更新入口移入设置。\n- 更新前显示逐版本说明。\n\n## v1.0.10-beta.6\n- 玩家切换开场前先处理未保存改动。\n';
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
@@ -22,7 +22,7 @@ async function run({accept=false,stored=null,pointer=next,fail=false,storageFail
  const globals={$:()=>[{ownerDocument:runnerDoc}],toastr:{info:text=>messages.push(text),error:text=>messages.push(text)},addEventListener(){},removeEventListener(){}};
  if(guard)doc.__uosPlayer={prepareForUpdate:guard};
  let pointerChecks=0,notesChecks=0;
- const script=payload.content.replace('await import(url)','await loadModule(url)');
+ const script=bootstrapScript.replace('await import(url)','await loadModule(url)');
  await new AsyncFunction('globalThis','document','fetch','loadModule',`return ${script}`)(globals,doc,async(url)=>{
    requests.push(url);
    if(timeout)return new Promise(()=>{});
@@ -57,7 +57,7 @@ const failure=await run({accept:true,fail:true});assert.equal(failure.mounts.len
 const mismatch=await run({accept:true,moduleVersion:'1.0.10-beta.6'});assert.equal(mismatch.mounts.length,1,'candidate runtime must match its release notes');assert.equal(mismatch.storage.has('uos-approved-runtime-preview'),false);
 const storageBlocked=await run({accept:true,storageFails:true});assert.match(storageBlocked.messages.at(-1),/无法保存/);
 const stale=await run({stored:{bootstrap:next,ref:next},pointer:old});assert.ok(stale.imports[0].includes(old),'new import resets the bootstrap');const updater=stale.doc.__uosUpdater;updater.close();const count=stale.pointerChecks;await updater.check(true);assert.equal(stale.pointerChecks,count);
-assert.doesNotMatch(payload.content,/host\.(?:confirm|alert)\(/,'no dependency on native JS dialogs');
+assert.doesNotMatch(bootstrapScript,/host\.(?:confirm|alert)\(/,'no dependency on native JS dialogs');
 const fallback=await run({modalFails:true});assert.equal(fallback.prompts.length,1);assert.equal(fallback.activeDialog.removed,true,'fallback window supports cancellation');
 const timedOut=await run({timeout:true});assert.match(timedOut.doc.__uosUpdater.statusMessage,/请求超时/);assert.equal(timedOut.doc.__uosUpdater.busy,false,'timed-out request releases the check button');
 const closing=await run({autoCheck:false,holdPrompt:true});const pending=closing.doc.__uosUpdater.check(true);
