@@ -140,4 +140,4 @@ export async function start(){return (async function confirmedLoader({fallbackRe
     finally{busy=false}
   }
   if(autoCheckEnabled)await check(false);
-})({"fallbackRef":"da02c913a01011755f276fc13c44529836cd9757","pointerUrls":["https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/develop/scripts/runtime-ref-preview.txt"],"versionPattern":"\\d+\\.\\d+\\.\\d+-beta\\.\\d+","channel":"preview"})}
+})({"fallbackRef":"0d32f83dd811cee8c87495e6094d73b67b19846e","pointerUrls":["https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/develop/scripts/runtime-ref-preview.txt"],"versionPattern":"\\d+\\.\\d+\\.\\d+-beta\\.\\d+","channel":"preview"})}
