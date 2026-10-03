@@ -724,7 +724,7 @@ async function optimizeCoverData(source,file,doc=document){
 }
 function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = "1.0.14-beta.10";
+  const VERSION = "1.0.14-beta.11";
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场'],['lasttrain','末班列车'],['aurora','极光灯塔'],['glasshouse','琉璃花房'],['japan','月下神社']];
   const root = doc.querySelector('[data-uos]');
@@ -1305,7 +1305,7 @@ function mountInDocument(doc = document, helperApi = null) {
 }
 
 
-const AUTHOR_VERSION="1.0.14-beta.10";
+const AUTHOR_VERSION="1.0.14-beta.11";
 const AUTHOR_MARKER='<UniversalOpeningSelector/>';
 const EMPTY_OPENING_ART=AUTHOR_HTML.match(/--uos-empty-opening-art:url\("([^"]+)"\)/)?.[1]||'';
 const DIAGNOSTICS_ART=AUTHOR_HTML.match(/--uos-diagnostics-art:url\("([^"]+)"\)/)?.[1]||EMPTY_OPENING_ART;
@@ -1392,7 +1392,15 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
       frameDoc.open();frameDoc.write(authorHtml(state.entries.length));frameDoc.close();
       const root=frameDoc.querySelector('[data-uos]');root.__uosHostDocument=doc;
       if(!mountInDocument(frameDoc,helper))throw Error('选择页未挂载');
-      if(host.ResizeObserver){const resize=new host.ResizeObserver(()=>{if(frame.isConnected)frame.style.height=`${Math.max(420,frameDoc.documentElement.scrollHeight+4)}px`});resize.observe(frameDoc.body);active.resize=resize;}else frame.style.height=`${Math.max(460,frameDoc.documentElement.scrollHeight+4)}px`;
+      // Measure content, not document.scrollHeight: the latter is at least the
+      // current iframe viewport and cannot shrink after filtering/collapsing.
+      const fitFrame=()=>{
+        if(!frame.isConnected)return;
+        const height=Math.ceil(root.getBoundingClientRect().height+4);
+        frame.style.height=`${Math.max(420,height)}px`;
+      };
+      fitFrame();
+      if(host.ResizeObserver){const resize=new host.ResizeObserver(fitFrame);resize.observe(root);active.resize=resize;}
     }catch(error){closeFrame();console.warn('[Aliceneko Opening Selector] 作者选择页加载失败',error)}
     finally{updating=false}
   }
@@ -1407,7 +1415,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION="1.0.14-beta.10";
+const VERSION="1.0.14-beta.11";
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场'],['lasttrain','末班列车'],['aurora','极光灯塔'],['glasshouse','琉璃花房'],['japan','月下神社']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报',deepsea:'DEEP SEA ECHO · 深海回响',amber:'AMBER MIRAGE · 琥珀沙海',theatre:'MOONLIT THEATRE · 月光剧场',lasttrain:'LAST TRAIN HOME · 末班列车',aurora:'LIGHTHOUSE UNDER AURORA · 极光灯塔',glasshouse:'GLASSHOUSE IN BLOOM · 琉璃花房',japan:'MOONLIT SHRINE · 月下神社'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -2155,5 +2163,5 @@ function mountPlayerSelector(startDocument=document,helperApi){
   return api;
 }
 
-export const OPENING_SELECTOR_VERSION='1.0.14-beta.10';
+export const OPENING_SELECTOR_VERSION='1.0.14-beta.11';
 export function mountUniversalSelector(startDocument=document,helperApi=null){const doc=startDocument?.nodeType===9?startDocument:document;const helper=helperApi||globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null);mountPlayerSelector(doc,helper);mountAuthorSelector(doc,helper,{showSetupHints:true});return {player:doc.__uosPlayer,author:doc.__uosAuthor}};

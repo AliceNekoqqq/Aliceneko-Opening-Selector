@@ -78,12 +78,16 @@ try{
     document.__uosAuthor.scan();
   },first);
   const selector=page.frameLocator('iframe[data-uos-author-frame]');
+  await page.locator('iframe[data-uos-author-frame]').evaluate(frame=>frame.style.height='4000px');
+  await page.waitForTimeout(100);
   await selector.locator('.uos-card').first().waitFor();
   assert.equal(await page.locator('.uos-user-trigger').count(),0);
   assert.match(await selector.locator('.uos-card-shell').nth(1).locator('.uos-card-names').textContent(),/张子薇/);
   assert.equal(await selector.locator('.uos-card-details').count(),2);
   await selector.getByLabel('搜索作者开场').fill('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
+  const fit=await page.locator('iframe[data-uos-author-frame]').evaluate(frame=>({frame:frame.getBoundingClientRect().height,content:frame.contentDocument.querySelector('[data-uos]').getBoundingClientRect().height}));
+  assert.ok(fit.frame<=Math.max(420,fit.content+4)+2,'iframe shrinks to content after filtering');
   await selector.getByLabel('搜索作者开场').fill('');
   await selector.getByLabel('按人物筛选作者开场').selectOption('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
