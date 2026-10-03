@@ -97,15 +97,15 @@ for(const theme of ['starmap','rose','wasteland']){
 }
 assert.ok(remote.includes(String.raw`class=\"uos-background-art\"`));
 assert.match(remote,/\.uos-background-art\{[^}]*background-size:cover/);
-for(const theme of ['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland']){
+for(const theme of ['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre']){
   assert.ok(remote.includes(String.raw`--uos-theme-bg-${theme}:url(\"data:image/webp;base64,`),theme);
 }
 assert.ok(remote.includes('THEME_BACKGROUND_IMAGES'));
 assert.ok(remote.includes('uos-user-background'));
 assert.doesNotMatch(remote,/__THEME_BG_[A-Z]+__/);
-const backgroundFiles=['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland'].map(theme=>`assets/theme-background-${theme}.webp`);
+const backgroundFiles=['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre'].map(theme=>`assets/theme-background-${theme}.webp`);
 assert.ok(backgroundFiles.every(file=>fs.statSync(file).size>1000));
-assert.ok(backgroundFiles.reduce((sum,file)=>sum+fs.statSync(file).size,0)<350_000);
+assert.ok(backgroundFiles.reduce((sum,file)=>sum+fs.statSync(file).size,0)<800_000);
 assert.match(remote,/搜索作者开场/);
 const original='data:image/png;base64,'+'x'.repeat(2000);
 class MockImage{naturalWidth=1920;naturalHeight=1080;set src(_value){queueMicrotask(()=>this.onload())}}

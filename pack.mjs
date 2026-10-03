@@ -36,7 +36,7 @@ const config = {
 };
 
 const iconSprite = fs.readFileSync(new URL('./assets/theme-icons.webp',import.meta.url)).toString('base64');
-const themeBackgrounds = Object.fromEntries(['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland'].map(name=>[
+const themeBackgrounds = Object.fromEntries(['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre'].map(name=>[
   name,`data:image/webp;base64,${fs.readFileSync(new URL(`./assets/theme-background-${name}.webp`,import.meta.url)).toString('base64')}`
 ]));
 const tabArt = Object.fromEntries(['openings','worldbooks','bgm','diagnostics','updates'].map(name=>[
@@ -54,6 +54,9 @@ const css = fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8'
   .replaceAll('__THEME_BG_STARMAP__',themeBackgrounds.starmap)
   .replaceAll('__THEME_BG_ROSE__',themeBackgrounds.rose)
   .replaceAll('__THEME_BG_WASTELAND__',themeBackgrounds.wasteland)
+  .replaceAll('__THEME_BG_DEEPSEA__',themeBackgrounds.deepsea)
+  .replaceAll('__THEME_BG_AMBER__',themeBackgrounds.amber)
+  .replaceAll('__THEME_BG_THEATRE__',themeBackgrounds.theatre)
   .replaceAll('__TAB_OPENINGS__',cssDataUrl.openings)
   .replaceAll('__TAB_WORLDBOOKS__',cssDataUrl.worldbooks)
   .replaceAll('__TAB_BGM__',cssDataUrl.bgm)

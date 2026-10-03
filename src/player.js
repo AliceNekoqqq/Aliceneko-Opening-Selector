@@ -5,8 +5,8 @@ import {createWorldbookPresetManager} from './worldbook-presets.js';
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
 const VERSION='1.0.10-beta.12';
-const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
-const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
+const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场']];
+const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报',deepsea:'DEEP SEA ECHO · 深海回响',amber:'AMBER MIRAGE · 琥珀沙海',theatre:'MOONLIT THEATRE · 月光剧场'};
 const THEME_BACKGROUND_IMAGES=(()=>{
   const html=typeof AUTHOR_HTML==='string'?AUTHOR_HTML:'';
   return Object.fromEntries(THEMES.map(([id])=>[id,html.match(new RegExp(`--uos-theme-bg-${id}:url\\("([^"]+)"\\)`))?.[1]||'']));
@@ -20,7 +20,8 @@ dialog.uos-user-overlay{position:fixed;inset:0;z-index:2147483646;box-sizing:bor
 dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel{--bg:#111a21;--surface:#202d35;--text:#f1e7d4;--muted:#bbb7aa;--accent:#deb47c;--line:#b9966970;box-sizing:border-box;display:flex;flex-direction:column;width:100%;max-height:min(74dvh,690px);overflow:hidden;padding:18px;border:1px solid var(--accent);border-radius:18px;background:radial-gradient(circle at 100% 0%,var(--accent) 0,transparent 1px),var(--bg);color:var(--text);font:14px/1.5 system-ui,"Noto Sans SC",sans-serif}
 .uos-user-panel[data-theme=neon]{--bg:#080e22;--surface:#171c38;--text:#f5f1ff;--muted:#b8b2d1;--accent:#fa74bf;--line:#9d7de399}
-.uos-user-panel[data-theme=ancient]{--bg:#201a20;--surface:#38292d;--text:#f5ead5;--muted:#d4c1ae;--accent:#dbb77c;--line:#b98d6c99;--glow:#a56b5940;--wash:#79545144;--frame:#b98d6c;border-radius:4px;background:radial-gradient(circle at 100% 0%,#a56b5940,transparent 45%),#201a20}.uos-user-panel[data-theme=ancient]::before{border-radius:1px}.uos-user-panel[data-theme=ancient] .uos-user-card{border-radius:3px;border-left:3px solid var(--accent);background:repeating-linear-gradient(135deg,transparent 0 22px,#dbb77c14 23px 24px),var(--surface)}.uos-user-panel[data-theme=ancient] .uos-user-head h2{font-family:"Noto Serif SC","Songti SC",serif}.uos-user-trigger[data-theme=ancient]{background:#302329;border-color:#dbb77c;color:#f5ead5}
+.uos-user-panel[data-theme=ancient]{--bg:#201a20;--surface:#38292d;--text:#f5ead5;--muted:#d4c1ae;--accent:#dbb77c;--line:#b98d6c99;--glow:#a56b5940;--wash:#79545144;--frame:#b98d6c;border-radius:4px;background:radial-gradient(circle at 100% 0%,#a56b5940,transparent 45%),#201a20}.uos-user-panel[data-theme=ancient]::before{border-radius:1px}.uos-user-panel[data-theme=ancient] .uos-user-card{border-radius:3px;border-left:3px solid var(--accent);background:repeating-linear-gradient(135deg,transparent 0 22px,#dbb77c14 23px 24px),var(--surface)}.uos-user-panel[data-theme=ancient] .uos-user-head h2{font-family:"Noto Serif SC","Songti SC",serif}.uos-user-trigger[data-theme=deepsea]{background:#0d3444;border-color:#81d5d7;color:#e5ffff}.uos-user-trigger[data-theme=amber]{background:#362218;border-color:#e7b870;color:#fff0d1}.uos-user-trigger[data-theme=theatre]{background:#302034;border-color:#dfb47e;color:#fff0e7}
+.uos-user-trigger[data-theme=ancient]{background:#302329;border-color:#dbb77c;color:#f5ead5}
 .uos-user-panel[data-theme=paper]{--bg:#f4eee2;--surface:#fffaf0;--text:#362d29;--muted:#675950;--accent:#a64d3c;--line:#a77e6b8c}
 .uos-user-panel[data-theme=noir]{--bg:#121314;--surface:#27292b;--text:#f2f1ec;--muted:#babbb9;--accent:#e4e1d5;--line:#a3a3a36b}
 .uos-user-panel[data-theme=meadow]{--bg:#122a24;--surface:#254037;--text:#f3f4e1;--muted:#c2d1bf;--accent:#d2e5a0;--line:#afc28980}
@@ -131,6 +132,20 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 @media(hover:hover){.uos-user-card:hover{transform:translateY(-2px);border-color:var(--accent)}}
 .uos-user-card:focus-within{border-color:var(--accent)}
 @media(prefers-reduced-motion:reduce){.uos-user-panel .uos-user-card{transition:none}.uos-user-card:hover{transform:none}}
+
+
+.uos-user-panel[data-theme=deepsea]{--bg:#071a24;--surface:#10303d;--text:#e8f7f5;--muted:#a9c8cc;--accent:#84dadd;--line:#72b8c57a;--glow:#3eb5c344;--wash:#17576a44;--frame:#72c5ce;color-scheme:dark}
+.uos-user-panel[data-theme=deepsea]{background:radial-gradient(ellipse at 75% 0%,#21728a55,transparent 45%),linear-gradient(160deg,#0b2a39,#071a24 75%)}
+.uos-user-panel[data-theme=deepsea] .uos-user-card{background:linear-gradient(145deg,#164154,#0c2735 72%);border-radius:16px 5px 16px 5px}
+.uos-user-panel[data-theme=deepsea] .uos-user-card::after{border-radius:11px 3px 11px 3px;border-color:#83d9d677}
+.uos-user-panel[data-theme=amber]{--bg:#24170f;--surface:#3a281b;--text:#fbebcf;--muted:#d2bc98;--accent:#e9bd75;--line:#d3a46677;--glow:#f0ae4c40;--wash:#8d512944;--frame:#d9ae70;color-scheme:dark}
+.uos-user-panel[data-theme=amber]{background:radial-gradient(ellipse at 55% 0%,#9b572d44,transparent 50%),linear-gradient(160deg,#362114,#21150f 78%)}
+.uos-user-panel[data-theme=amber] .uos-user-card{background:linear-gradient(145deg,#50351f,#302116 75%);border-radius:20px 7px 20px 7px}
+.uos-user-panel[data-theme=amber] .uos-user-card::after{border-radius:14px 4px 14px 4px;border-color:#eac48166}
+.uos-user-panel[data-theme=theatre]{--bg:#1b111e;--surface:#332438;--text:#f8edf1;--muted:#cab4c5;--accent:#e1b783;--line:#c18ba577;--glow:#a4517940;--wash:#5c315455;--frame:#d1a478;color-scheme:dark}
+.uos-user-panel[data-theme=theatre]{background:radial-gradient(ellipse at 83% 0%,#77405b55,transparent 46%),linear-gradient(155deg,#2c1b31,#190f1b 76%);border-radius:16px 4px}
+.uos-user-panel[data-theme=theatre] .uos-user-card{background:linear-gradient(145deg,#432c45,#281b2e 72%);border-radius:4px 14px}
+.uos-user-panel[data-theme=theatre] .uos-user-card::after{border-radius:2px 10px;border-color:#e0bb8770}
 
 `;
 

@@ -76,6 +76,10 @@ try{
  }
  await player.getByLabel('选择主题').selectOption('neon');
  assert.equal(await player.getByLabel('按人物筛选').evaluate(el=>getComputedStyle(el).colorScheme),'dark');
+ for(const theme of ['deepsea','amber','theatre']){
+  await player.getByLabel('选择主题').selectOption(theme);
+  assert.notEqual(await player.evaluate(()=>getComputedStyle(document.querySelector('.uos-user-panel')).getPropertyValue('--uos-user-background').trim()),'none',`${theme} player theme has a background image`);
+ }
  await player.getByLabel('选择主题').selectOption('paper');
  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.uos-user-panel select')).backgroundColor==='rgb(249, 242, 228)');
  await page.setViewportSize({width:375,height:812});

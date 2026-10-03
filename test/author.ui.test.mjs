@@ -111,6 +111,11 @@ try{
   await selector.locator('[data-theme-button]').click();
   await dialog.getByText('霓虹夜',{exact:true}).click();
   assert.equal(await selector.locator('[data-uos]').getAttribute('data-theme'),'neon');
+  for(const [name,id] of [['深海回响','deepsea'],['琥珀沙海','amber'],['月光剧场','theatre']]){
+    await selector.locator('[data-theme-button]').click();await dialog.getByText(name,{exact:true}).click();
+    assert.equal(await selector.locator('[data-uos]').getAttribute('data-theme'),id);
+    assert.match(await selector.locator('.uos-theme-art').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\(/);
+  }
 
   await selector.locator('[data-settings-button]').click();
   const settingsRect=await page.locator('iframe[data-uos-frame]').boundingBox();
