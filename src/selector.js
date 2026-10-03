@@ -264,7 +264,7 @@ export function mountInDocument(doc = document, helperApi = null) {
       if(entry.description)body.append(el('div','uos-description',entry.description));
       const cast=el('p','uos-card-names');cast.append(el('span','uos-cast-label','登场人物'));for(const name of names?names.split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean):['未识别'])cast.append(el('span','uos-name-chip',name));body.append(cast);
       if(entry.nameSuggestions?.length)body.append(el('p','uos-help',`待确认人物 · ${entry.nameSuggestions.join(' / ')}`));
-      card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
+      card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);const corner=el('span','uos-card-ornament');corner.setAttribute('aria-hidden','true');shell.append(corner);
       const source=greetings[i];
       if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'),el('pre','',source));shell.append(details)}
       grid.append(shell);
