@@ -39,7 +39,7 @@ assert.match(regex.replaceString,/从原文生成文案建议/);
 assert.match(regex.replaceString,/uos-theme-swatch/);
 assert.match(regex.replaceString,/data-top-status/);
 assert.match(regex.replaceString,/uos-background-art/);
-for(const theme of ['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre'])assert.match(regex.replaceString,new RegExp(`--uos-theme-bg-${theme}:url\\\("data:image/webp;base64,`));
+for(const theme of ['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse'])assert.match(regex.replaceString,new RegExp(`--uos-theme-bg-${theme}:url\\\("data:image/webp;base64,`));
 assert.doesNotMatch(regex.replaceString,/__THEME_BG_[A-Z]+__/);
 execFileSync(process.execPath,['--check',path.resolve('src/selector.js')]);
 const moduleScript=regex.replaceString.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];

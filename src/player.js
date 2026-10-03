@@ -5,8 +5,8 @@ import {createWorldbookPresetManager} from './worldbook-presets.js';
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
 const VERSION='1.0.10-beta.12';
-const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场']];
-const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报',deepsea:'DEEP SEA ECHO · 深海回响',amber:'AMBER MIRAGE · 琥珀沙海',theatre:'MOONLIT THEATRE · 月光剧场'};
+const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场'],['lasttrain','末班列车'],['aurora','极光灯塔'],['glasshouse','琉璃花房']];
+const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报',deepsea:'DEEP SEA ECHO · 深海回响',amber:'AMBER MIRAGE · 琥珀沙海',theatre:'MOONLIT THEATRE · 月光剧场',lasttrain:'LAST TRAIN HOME · 末班列车',aurora:'LIGHTHOUSE UNDER AURORA · 极光灯塔',glasshouse:'GLASSHOUSE IN BLOOM · 琉璃花房'};
 const THEME_BACKGROUND_IMAGES=(()=>{
   const html=typeof AUTHOR_HTML==='string'?AUTHOR_HTML:'';
   return Object.fromEntries(THEMES.map(([id])=>[id,html.match(new RegExp(`--uos-theme-bg-${id}:url\\("([^"]+)"\\)`))?.[1]||'']));
@@ -20,7 +20,7 @@ dialog.uos-user-overlay{position:fixed;inset:0;z-index:2147483646;box-sizing:bor
 dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel{--bg:#111a21;--surface:#202d35;--text:#f1e7d4;--muted:#bbb7aa;--accent:#deb47c;--line:#b9966970;box-sizing:border-box;display:flex;flex-direction:column;width:100%;max-height:min(74dvh,690px);overflow:hidden;padding:18px;border:1px solid var(--accent);border-radius:18px;background:radial-gradient(circle at 100% 0%,var(--accent) 0,transparent 1px),var(--bg);color:var(--text);font:14px/1.5 system-ui,"Noto Sans SC",sans-serif}
 .uos-user-panel[data-theme=neon]{--bg:#080e22;--surface:#171c38;--text:#f5f1ff;--muted:#b8b2d1;--accent:#fa74bf;--line:#9d7de399}
-.uos-user-panel[data-theme=ancient]{--bg:#201a20;--surface:#38292d;--text:#f5ead5;--muted:#d4c1ae;--accent:#dbb77c;--line:#b98d6c99;--glow:#a56b5940;--wash:#79545144;--frame:#b98d6c;border-radius:4px;background:radial-gradient(circle at 100% 0%,#a56b5940,transparent 45%),#201a20}.uos-user-panel[data-theme=ancient]::before{border-radius:1px}.uos-user-panel[data-theme=ancient] .uos-user-card{border-radius:3px;border-left:3px solid var(--accent);background:repeating-linear-gradient(135deg,transparent 0 22px,#dbb77c14 23px 24px),var(--surface)}.uos-user-panel[data-theme=ancient] .uos-user-head h2{font-family:"Noto Serif SC","Songti SC",serif}.uos-user-trigger[data-theme=deepsea]{background:#0d3444;border-color:#81d5d7;color:#e5ffff}.uos-user-trigger[data-theme=amber]{background:#362218;border-color:#e7b870;color:#fff0d1}.uos-user-trigger[data-theme=theatre]{background:#302034;border-color:#dfb47e;color:#fff0e7}
+.uos-user-panel[data-theme=ancient]{--bg:#201a20;--surface:#38292d;--text:#f5ead5;--muted:#d4c1ae;--accent:#dbb77c;--line:#b98d6c99;--glow:#a56b5940;--wash:#79545144;--frame:#b98d6c;border-radius:4px;background:radial-gradient(circle at 100% 0%,#a56b5940,transparent 45%),#201a20}.uos-user-panel[data-theme=ancient]::before{border-radius:1px}.uos-user-panel[data-theme=ancient] .uos-user-card{border-radius:3px;border-left:3px solid var(--accent);background:repeating-linear-gradient(135deg,transparent 0 22px,#dbb77c14 23px 24px),var(--surface)}.uos-user-panel[data-theme=ancient] .uos-user-head h2{font-family:"Noto Serif SC","Songti SC",serif}.uos-user-trigger[data-theme=deepsea]{background:#0d3444;border-color:#81d5d7;color:#e5ffff}.uos-user-trigger[data-theme=amber]{background:#362218;border-color:#e7b870;color:#fff0d1}.uos-user-trigger[data-theme=theatre]{background:#302034;border-color:#dfb47e;color:#fff0e7}.uos-user-trigger[data-theme=lasttrain]{background:#202a33;border-color:#d9a86e;color:#f6e9d6}.uos-user-trigger[data-theme=aurora]{background:#10283a;border-color:#8fe0d3;color:#e9f8ff}.uos-user-trigger[data-theme=glasshouse]{background:#203429;border-color:#d6b88a;color:#f1f4e9}
 .uos-user-trigger[data-theme=ancient]{background:#302329;border-color:#dbb77c;color:#f5ead5}
 .uos-user-panel[data-theme=paper]{--bg:#f4eee2;--surface:#fffaf0;--text:#362d29;--muted:#675950;--accent:#a64d3c;--line:#a77e6b8c}
 .uos-user-panel[data-theme=noir]{--bg:#121314;--surface:#27292b;--text:#f2f1ec;--muted:#babbb9;--accent:#e4e1d5;--line:#a3a3a36b}
@@ -146,6 +146,18 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=theatre]{background:radial-gradient(ellipse at 83% 0%,#77405b55,transparent 46%),linear-gradient(155deg,#2c1b31,#190f1b 76%);border-radius:16px 4px}
 .uos-user-panel[data-theme=theatre] .uos-user-card{background:linear-gradient(145deg,#432c45,#281b2e 72%);border-radius:4px 14px}
 .uos-user-panel[data-theme=theatre] .uos-user-card::after{border-radius:2px 10px;border-color:#e0bb8770}
+.uos-user-panel[data-theme=lasttrain]{--bg:#101922;--surface:#1b2934;--text:#eef1ef;--muted:#b6c0c5;--accent:#d9a86e;--line:#b38b616e;--glow:#dfa85d30;--wash:#49627638;--frame:#b38b61;color-scheme:dark}
+.uos-user-panel[data-theme=lasttrain]{background:radial-gradient(ellipse at 18% 0%,#b7793d38,transparent 43%),linear-gradient(160deg,#1b2a36,#101922 78%)}
+.uos-user-panel[data-theme=lasttrain] .uos-user-card{background:linear-gradient(145deg,#253440,#18232d 74%);border-radius:5px 5px 16px 5px}
+.uos-user-panel[data-theme=lasttrain] .uos-user-card::after{border-radius:3px 3px 12px 3px;border-color:#d5ae7b66}
+.uos-user-panel[data-theme=aurora]{--bg:#081827;--surface:#102c42;--text:#e9f7ff;--muted:#afccdc;--accent:#90e5d7;--line:#77bfc58a;--glow:#48c9cf36;--wash:#1e667544;--frame:#79c9d0;color-scheme:dark}
+.uos-user-panel[data-theme=aurora]{background:radial-gradient(ellipse at 72% 0%,#2ec9b755,transparent 44%),linear-gradient(160deg,#102b45,#081827 78%)}
+.uos-user-panel[data-theme=aurora] .uos-user-card{background:linear-gradient(145deg,#16374d,#0d2337 74%);border-radius:16px 5px}
+.uos-user-panel[data-theme=aurora] .uos-user-card::after{border-radius:12px 3px;border-color:#81ded377}
+.uos-user-panel[data-theme=glasshouse]{--bg:#15251e;--surface:#293a30;--text:#f1f4e9;--muted:#bdcbbd;--accent:#dab487;--line:#9db79d87;--glow:#dcb48632;--wash:#52715244;--frame:#cba57b;color-scheme:dark}
+.uos-user-panel[data-theme=glasshouse]{background:radial-gradient(ellipse at 78% 0%,#92ad6b44,transparent 48%),linear-gradient(160deg,#26392e,#15251e 78%)}
+.uos-user-panel[data-theme=glasshouse] .uos-user-card{background:linear-gradient(145deg,#344739,#203329 74%);border-radius:18px 5px 18px 5px}
+.uos-user-panel[data-theme=glasshouse] .uos-user-card::after{border-radius:13px 3px 13px 3px;border-color:#dab48777}
 
 `;
 

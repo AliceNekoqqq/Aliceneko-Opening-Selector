@@ -111,7 +111,7 @@ try{
   await selector.locator('[data-theme-button]').click();
   await dialog.getByText('霓虹夜',{exact:true}).click();
   assert.equal(await selector.locator('[data-uos]').getAttribute('data-theme'),'neon');
-  for(const [name,id] of [['深海回响','deepsea'],['琥珀沙海','amber'],['月光剧场','theatre']]){
+  for(const [name,id] of [['深海回响','deepsea'],['琥珀沙海','amber'],['月光剧场','theatre'],['末班列车','lasttrain'],['极光灯塔','aurora'],['琉璃花房','glasshouse']]){
     await selector.locator('[data-theme-button]').click();await dialog.getByText(name,{exact:true}).click();
     assert.equal(await selector.locator('[data-uos]').getAttribute('data-theme'),id);
     assert.match(await selector.locator('.uos-theme-art').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\(/);

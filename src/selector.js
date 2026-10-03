@@ -23,7 +23,7 @@ export function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
   const VERSION = '1.0.13';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-  const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场']];
+  const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报'],['deepsea','深海回响'],['amber','琥珀沙海'],['theatre','月光剧场'],['lasttrain','末班列车'],['aurora','极光灯塔'],['glasshouse','琉璃花房']];
   const root = doc.querySelector('[data-uos]');
   if (!root || root.dataset.uosVersion === VERSION) return false;
   if (root.dataset.uosMounted === '1') {
