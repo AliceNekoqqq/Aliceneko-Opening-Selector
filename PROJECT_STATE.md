@@ -54,7 +54,7 @@ beta.8 在 develop 上执行 `node scripts/build-author-script.mjs --preview`。
 - 待确认标题词表不能充当完整白名单，不能自动把普通设定标题加入人物筛选；明确标注或人工采纳可以确认候选。
 
 ## 最近重要修改
-2026-10-03：beta.10 为作者设置“更新”页签增加透明底金色环形箭头与星光插画（assets/tab-updates.webp，128×128），沿用其余设置图标的立体金属风格。pack.mjs 将资源内嵌至模板 CSS，运行模块直接包含图像，不依赖额外图片请求；更新页签沿用 34px 的 uos-tab-art，替换原文字箭头。Loader 未变化，beta.8／beta.9 可从设置检查更新升级；正式通道保持不变。
+2026-10-03：beta.10 运行源码已发布至 develop（e40feaa），测试指针与导入包同步该提交。为作者设置“更新”页签增加透明底金色环形箭头与星光插画（assets/tab-updates.webp，128×128），沿用其余设置图标的立体金属风格。pack.mjs 将资源内嵌至模板 CSS，运行模块直接包含图像，不依赖额外图片请求；更新页签沿用 34px 的 uos-tab-art，替换原文字箭头。Loader 未变化，beta.8／beta.9 可从设置检查更新升级；正式通道保持不变。
 
 2026-10-03：beta.9 运行源码已发布至 develop（35223aa），测试指针与导入包同步该提交。按用户在普通 SillyTavern 的反馈，将主题／设置 iframe 从最大层级降至 99990，低于标准 toastr 的 999999，让酒馆通知正常显示在浮窗上方。iframe 加 16px 圆角与 clip-path 裁切，内页 html／body 强制透明并用 normal color-scheme；主题控件的 color-scheme 则随 sheet 独立同步，避免深色画布露出四角且不丢失纸墨等主题的输入配色。检查结果／失败原因在按钮下独立的 aria-live 区域显示，不再覆盖自动检查偏好说明。Loader 未修改，已有 beta.8 启动器可通过设置更新，无需再次替换 JSON。author、confirmed-loader、update-control 和 pack 定向回归通过；作者 UI 测试增加层级、圆角和透明检查，环境仍缺少 Chromium，尚未实机验收。README 与 CHANGELOG 同步，正式 main／正式指针不变。
 
