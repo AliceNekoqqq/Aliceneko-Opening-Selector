@@ -635,7 +635,7 @@ function createWorldbookPresetManager(getSources, getCard) {
 // Update controls are shown inside settings; a small star marks available updates.
 function bindUpdateControl(button,hostDocument,{versionElements=[],autoCheckInput=null,autoCheckHint=null}={}){
   const doc=button.ownerDocument,host=hostDocument.defaultView||hostDocument;
-  const label=doc.createElement('span');label.textContent='检查更新';
+  const label=doc.createElement('span');label.textContent='检查更新';button.textContent='';
   button.setAttribute('data-uos-update-control','');button.type='button';button.style.whiteSpace='nowrap';button.append(label);
   const stars=versionElements.map(version=>{
     let star=version.querySelector?.('[data-uos-update-star]');
@@ -646,8 +646,7 @@ function bindUpdateControl(button,hostDocument,{versionElements=[],autoCheckInpu
     const api=hostDocument.__uosUpdater,pending=!!api?.hasUpdate,busy=!!api?.busy;
     stars.forEach(star=>{star.hidden=!pending});
     if(autoCheckInput)autoCheckInput.checked=api?.autoCheckEnabled!==false;
-    if(autoCheckHint&&api?.autoCheckEnabled===false)autoCheckHint.textContent='启动时不自动检查；仍可手动检查更新。';
-    else if(autoCheckHint)autoCheckHint.textContent='启动时检查新版本；也可以随时手动检查。';
+    if(autoCheckHint)autoCheckHint.textContent=api?.statusMessage||(api?.autoCheckEnabled===false?'启动时不自动检查；仍可手动检查更新。':'启动时检查新版本；也可以随时手动检查。');
     label.textContent=busy?'检查中…':'检查更新';
     button.disabled=busy;
     button.setAttribute('aria-label',busy?'正在检查更新':pending?'查看新版更新说明':'检查更新');
@@ -655,13 +654,13 @@ function bindUpdateControl(button,hostDocument,{versionElements=[],autoCheckInpu
   }
   if(autoCheckInput)autoCheckInput.onchange=()=>{
     const saved=hostDocument.__uosUpdater?.setAutoCheckEnabled?.(autoCheckInput.checked);
-    if(autoCheckHint&&saved===false)autoCheckHint.textContent='设置未能保存在本机，请检查浏览器存储权限。';
     sync();
+    if(autoCheckHint)autoCheckHint.textContent=saved===false?'设置未能保存在本机，请检查浏览器存储权限。':autoCheckInput.checked?'启动时检查新版本；也可以随时手动检查。':'启动时不自动检查；仍可手动检查更新。';
   };
   button.onclick=async()=>{
     const api=hostDocument.__uosUpdater;
-    if(!api?.check){host.alert?.('当前启动脚本不支持检查更新，请替换为最新导入脚本。');return}
-    await api.check(true);sync();
+    if(!api?.check){if(autoCheckHint)autoCheckHint.textContent='当前启动脚本不支持检查更新，请替换为最新导入脚本。';return}
+    const checking=api.check(true);sync();await checking;sync();
   };
   sync();const timer=host.setInterval(()=>{if(button.isConnected===false)stop();else sync()},1000);
   function stop(){host.clearInterval(timer);doc.defaultView?.removeEventListener?.('pagehide',stop)}
@@ -688,7 +687,7 @@ async function optimizeCoverData(source,file,doc=document){
 }
 function mountInDocument(doc = document, helperApi = null) {
   const KEY = 'universal_opening_selector';
-  const VERSION = '1.0.10-beta.7';
+  const VERSION = '1.0.10-beta.8';
   const WATERMARK = '唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
   const THEMES = [['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
   const root = doc.querySelector('[data-uos]');
@@ -1345,7 +1344,7 @@ function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=fa
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.10-beta.7';
+const VERSION='1.0.10-beta.8';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -1985,5 +1984,5 @@ function mountPlayerSelector(startDocument=document,helperApi){
   return api;
 }
 
-export const OPENING_SELECTOR_VERSION='1.0.10-beta.7';
+export const OPENING_SELECTOR_VERSION='1.0.10-beta.8';
 export function mountUniversalSelector(startDocument=document,helperApi=null){const doc=startDocument?.nodeType===9?startDocument:document;const helper=helperApi||globalThis.TavernHelper||(typeof globalThis.getChatMessages==='function'?globalThis:null);mountPlayerSelector(doc,helper);mountAuthorSelector(doc,helper,{showSetupHints:true});return {player:doc.__uosPlayer,author:doc.__uosAuthor}};

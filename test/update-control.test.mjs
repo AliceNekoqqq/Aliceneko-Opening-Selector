@@ -15,9 +15,10 @@ const star=version.children[0];assert.equal(star.className,'uos-update-star');as
 await b.onclick();assert.equal(checks,1);assert.equal(star.hidden,true,'resolved update clears the version star');
 autoCheck.checked=false;autoCheck.onchange();assert.equal(savedAuto,false);assert.match(hint.textContent,/仍可手动检查/);
 api.hasUpdate=true;tick();assert.equal(star.hidden,false,'dismissed update can remain subtly marked');
+api.statusMessage='检查失败：请求超时';tick();assert.equal(hint.textContent,api.statusMessage,'results stay visible without native alert');
 stop();assert.equal(cleared,true);
 const player=fs.readFileSync('src/player.js','utf8'),author=fs.readFileSync('src/selector.js','utf8'),log=fs.readFileSync('CHANGELOG.md','utf8');
 assert.match(player,/版本与更新/);assert.match(player,/启动时自动检查更新/);assert.match(player,/versionElements:\[versionBadge,footerVersion\]/);assert.doesNotMatch(player,/tools\.append\(updateButton\)/);
 assert.match(author,/dataset\.tab='updates'/);assert.match(author,/启动时自动检查更新/);assert.doesNotMatch(author,/parentElement\.prepend\(updateButton\)/);
-assert.match(log,/^## v1\.0\.10-beta\.7/m);
+assert.match(log,/^## v1\.0\.10-beta\.8/m);
 console.log('Settings update controls, per-channel auto-check preference, subtle version marker and release notes passed');
