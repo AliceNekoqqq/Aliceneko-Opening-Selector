@@ -54,7 +54,7 @@ beta.8 在 develop 上执行 `node scripts/build-author-script.mjs --preview`。
 - 待确认标题词表不能充当完整白名单，不能自动把普通设定标题加入人物筛选；明确标注或人工采纳可以确认候选。
 
 ## 最近重要修改
-2026-10-03：beta.9 按用户在普通 SillyTavern 的反馈，将主题／设置 iframe 从最大层级降至 99990，低于标准 toastr 的 999999，让酒馆通知正常显示在浮窗上方。iframe 加 16px 圆角与 clip-path 裁切，内页 html／body 强制透明并用 normal color-scheme；主题控件的 color-scheme 则随 sheet 独立同步，避免深色画布露出四角且不丢失纸墨等主题的输入配色。检查结果／失败原因在按钮下独立的 aria-live 区域显示，不再覆盖自动检查偏好说明。Loader 未修改，已有 beta.8 启动器可通过设置更新，无需再次替换 JSON。author、confirmed-loader、update-control 和 pack 定向回归通过；作者 UI 测试增加层级、圆角和透明检查，环境仍缺少 Chromium，尚未实机验收。README 与 CHANGELOG 同步，正式 main／正式指针不变。
+2026-10-03：beta.9 运行源码已发布至 develop（35223aa），测试指针与导入包同步该提交。按用户在普通 SillyTavern 的反馈，将主题／设置 iframe 从最大层级降至 99990，低于标准 toastr 的 999999，让酒馆通知正常显示在浮窗上方。iframe 加 16px 圆角与 clip-path 裁切，内页 html／body 强制透明并用 normal color-scheme；主题控件的 color-scheme 则随 sheet 独立同步，避免深色画布露出四角且不丢失纸墨等主题的输入配色。检查结果／失败原因在按钮下独立的 aria-live 区域显示，不再覆盖自动检查偏好说明。Loader 未修改，已有 beta.8 启动器可通过设置更新，无需再次替换 JSON。author、confirmed-loader、update-control 和 pack 定向回归通过；作者 UI 测试增加层级、圆角和透明检查，环境仍缺少 Chromium，尚未实机验收。README 与 CHANGELOG 同步，正式 main／正式指针不变。
 
 2026-10-03：beta.8 运行源码已发布至 develop（ab60fcd），测试指针与导入包同步该提交。beta.8 将 Loader 的系统 confirm 改为宿主页面内的 dialog，更新说明可滚动并提供“暂不更新”／“更新到版本”按钮；不支持 showModal 时回退到页面窗口，玩家原有模态窗打开时将回退窗口放入其顶层。取消记忆与星标保留，卸载会清理待确认窗口且不记为用户取消。设置更新区域显示实时状态和失败原因；版本指针／说明读取每次 12 秒超时。检查按钮去掉重复文案。该修改涉及 Loader，必须替换一次 beta.8 导入 JSON，旧脚本仅更新 remote.js 不足以修复。README 与 CHANGELOG 同步；11 项 Node 回归通过，实机验收待完成。
 
