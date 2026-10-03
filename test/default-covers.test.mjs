@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source=fs.readFileSync(new URL('../src/default-covers.js',import.meta.url),'utf8');
+const {defaultCoverSlot,defaultCoverStyles}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const values=new Map();const host={localStorage:{getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)}};
+const slots=Array.from({length:100},(_,i)=>defaultCoverSlot('same card',i,host));
+assert(slots.every(slot=>slot>=1&&slot<=5));
+assert.equal(new Set(slots).size,5);
+assert.deepEqual(slots,Array.from({length:100},(_,i)=>defaultCoverSlot('same card',i,host)));
+assert.equal(defaultCoverSlot('fallback',2,{}),defaultCoverSlot('fallback',2,{}));
+const denied={get localStorage(){throw Error('storage denied')}};
+assert.equal(defaultCoverSlot('denied',2,denied),defaultCoverSlot('denied',2,denied));
+const quota={localStorage:{getItem:()=>null,setItem:()=>{throw Error('quota exceeded')}}};
+assert.equal(defaultCoverSlot('quota',3,quota),defaultCoverSlot('quota',3,quota));
+const css=defaultCoverStyles('.uos');
+assert.equal((css.match(/data-theme=/g)||[]).length,16);
+assert.equal((css.match(/\.webp/g)||[]).length,80);
+console.log('Five repeatable default choices, stable allocation, denied storage and sixteen themes passed');

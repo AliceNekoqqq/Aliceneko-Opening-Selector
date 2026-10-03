@@ -78,12 +78,19 @@ try{
     document.__uosAuthor.scan();
   },first);
   const selector=page.frameLocator('iframe[data-uos-author-frame]');
+  await page.locator('iframe[data-uos-author-frame]').evaluate(frame=>frame.style.height='4000px');
+  await page.waitForTimeout(100);
   await selector.locator('.uos-card').first().waitFor();
+  assert.ok((await selector.locator('.uos-masthead [data-title]').textContent()).trim(),'author masthead displays the page title');
+  assert.match(await selector.locator('[data-opening-count]').textContent(),/共 2 个开场/);
+  assert.equal(await selector.locator('.uos-masthead .uos-actions .uos-version-badge').count(),1,'version stays in the compact toolbar');
   assert.equal(await page.locator('.uos-user-trigger').count(),0);
-  assert.match(await selector.locator('.uos-card-names').nth(1).textContent(),/张子薇/);
+  assert.match(await selector.locator('.uos-card-shell').nth(1).locator('.uos-card-names').textContent(),/张子薇/);
   assert.equal(await selector.locator('.uos-card-details').count(),2);
   await selector.getByLabel('搜索作者开场').fill('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
+  const fit=await page.locator('iframe[data-uos-author-frame]').evaluate(frame=>({frame:frame.getBoundingClientRect().height,content:frame.contentDocument.querySelector('[data-uos]').getBoundingClientRect().height}));
+  assert.ok(fit.frame<=Math.max(420,fit.content+4)+2,'iframe shrinks to content after filtering');
   await selector.getByLabel('搜索作者开场').fill('');
   await selector.getByLabel('按人物筛选作者开场').selectOption('张子薇');
   assert.equal(await selector.locator('.uos-card').count(),1);
@@ -111,6 +118,11 @@ try{
   await selector.locator('[data-theme-button]').click();
   await dialog.getByText('霓虹夜',{exact:true}).click();
   assert.equal(await selector.locator('[data-uos]').getAttribute('data-theme'),'neon');
+  for(const [name,id] of [['深海回响','deepsea'],['琥珀沙海','amber'],['月光剧场','theatre'],['末班列车','lasttrain'],['极光灯塔','aurora'],['琉璃花房','glasshouse'],['月下神社','japan']]){
+    await selector.locator('[data-theme-button]').click();await dialog.getByText(name,{exact:true}).click();
+    assert.equal(await selector.locator('[data-uos]').getAttribute('data-theme'),id);
+    assert.match(await selector.locator('.uos-theme-art').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\(/);
+  }
 
   await selector.locator('[data-settings-button]').click();
   const settingsRect=await page.locator('iframe[data-uos-frame]').boundingBox();
@@ -119,7 +131,20 @@ try{
   assert.equal(await page.locator('iframe[data-uos-frame]').evaluate(el=>getComputedStyle(el).borderRadius),'16px');
   assert.equal(await dialog.locator('html').evaluate(el=>getComputedStyle(el).colorScheme),'normal');
   assert.equal(await dialog.locator('html').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
-  await dialog.getByText('第 1 条开场').waitFor();
+  await dialog.locator('.uos-settings-entry > summary').first().waitFor();
+  assert.equal(await dialog.locator('.uos-settings-entry').count(),2,'all openings remain editable');
+  assert.equal(await dialog.locator('.uos-settings-entry[open]').count(),1,'one editor opens initially');
+  const firstTitle=dialog.locator('.uos-settings-entry').first().locator('.uos-fields input').first();
+  const originalTitle=await firstTitle.inputValue();
+  await firstTitle.fill('折叠保留草稿');
+  await dialog.locator('.uos-settings-entry > summary').nth(1).click();
+  await page.waitForTimeout(50);
+  assert.equal(await dialog.locator('.uos-settings-entry[open]').count(),1);
+  await dialog.locator('.uos-settings-entry > summary').first().click();
+  assert.equal(await firstTitle.inputValue(),'折叠保留草稿','switching editors preserves unsaved input');
+  await firstTitle.fill(originalTitle);
+  assert.equal(await dialog.locator('.uos-settings-savebar [data-save]').count(),1,'save remains available');
+  assert.equal(await dialog.locator('[data-tab]').count(),5,'all settings categories remain available');
   await dialog.locator('[data-tab="worldbooks"]').click();
   assert.match(await dialog.locator('[data-tab-art="worldbooks"]').evaluate(el=>getComputedStyle(el).backgroundImage),/^url\("data:image\/webp;base64,/,'worldbook tab has its bundled artwork');
   const newPresetName=dialog.locator('input[placeholder="新预设名称（可留空）"]');

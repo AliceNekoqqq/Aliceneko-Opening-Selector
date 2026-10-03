@@ -88,7 +88,15 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
       frameDoc.open();frameDoc.write(authorHtml(state.entries.length));frameDoc.close();
       const root=frameDoc.querySelector('[data-uos]');root.__uosHostDocument=doc;
       if(!mountInDocument(frameDoc,helper))throw Error('选择页未挂载');
-      if(host.ResizeObserver){const resize=new host.ResizeObserver(()=>{if(frame.isConnected)frame.style.height=`${Math.max(420,frameDoc.documentElement.scrollHeight+4)}px`});resize.observe(frameDoc.body);active.resize=resize;}else frame.style.height=`${Math.max(460,frameDoc.documentElement.scrollHeight+4)}px`;
+      // Measure content, not document.scrollHeight: the latter is at least the
+      // current iframe viewport and cannot shrink after filtering/collapsing.
+      const fitFrame=()=>{
+        if(!frame.isConnected)return;
+        const height=Math.ceil(root.getBoundingClientRect().height+4);
+        frame.style.height=`${Math.max(420,height)}px`;
+      };
+      fitFrame();
+      if(host.ResizeObserver){const resize=new host.ResizeObserver(fitFrame);resize.observe(root);active.resize=resize;}
     }catch(error){closeFrame();console.warn('[Aliceneko Opening Selector] 作者选择页加载失败',error)}
     finally{updating=false}
   }

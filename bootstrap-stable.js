@@ -113,7 +113,7 @@ export async function start(){return (async function confirmedLoader({fallbackRe
     if(busy||closed)return;busy=true;statusMessage='正在检查新版本…';
     try{
       let candidate;const errors=[];
-      for(const url of pointerUrls){try{candidate=(await fetchText(url)).trim();if(!valid(candidate))throw Error('提交 SHA 格式错误');break}catch(error){candidate=null;errors.push(String(error?.message||error))}}
+      for(const url of pointerUrls){try{candidate=(await fetchText(url+(url.includes('?')?'&':'?')+'uos_check='+Date.now()+'-'+Math.random().toString(36).slice(2))).trim();if(!valid(candidate))throw Error('提交 SHA 格式错误');break}catch(error){candidate=null;errors.push(String(error?.message||error))}}
       if(closed)return;
       if(!candidate)throw Error(errors.join(' | '));
       hasUpdate=candidate!==ref;

@@ -76,10 +76,17 @@ try{
  }
  await player.getByLabel('选择主题').selectOption('neon');
  assert.equal(await player.getByLabel('按人物筛选').evaluate(el=>getComputedStyle(el).colorScheme),'dark');
+ for(const theme of ['deepsea','amber','theatre','lasttrain','aurora','glasshouse','japan']){
+  await player.getByLabel('选择主题').selectOption(theme);
+  assert.notEqual(await player.evaluate(()=>getComputedStyle(document.querySelector('.uos-user-panel')).getPropertyValue('--uos-user-background').trim()),'none',`${theme} player theme has a background image`);
+ }
  await player.getByLabel('选择主题').selectOption('paper');
  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.uos-user-panel select')).backgroundColor==='rgb(249, 242, 228)');
  await page.setViewportSize({width:375,height:812});
  await page.screenshot({path:'/tmp/uos-player-paper-controls.png'});
+ assert.equal(await player.locator('.uos-user-settings').isVisible(),false);
+ await player.getByRole('button',{name:'设置',exact:true}).click();
+ assert.equal(await player.locator('.uos-user-settings').isVisible(),true);
  await player.locator('summary').filter({hasText:'修正标题和登场人物'}).click();
  const title=player.locator('.uos-user-label-settings').nth(2).locator('input').first();
  await title.fill('玩家未保存标题');
@@ -94,6 +101,9 @@ try{
  await player.waitFor({state:'detached'});
  assert.ok(await page.evaluate(()=>Object.keys(localStorage).some(key=>key.includes('_edits_')&&localStorage.getItem(key).includes('玩家未保存标题'))));
  await page.locator('.uos-user-trigger').click();
+ assert.equal(await player.locator('.uos-user-settings').isVisible(),false);
+ await player.getByRole('button',{name:'设置',exact:true}).click();
+ assert.equal(await player.locator('.uos-user-settings').isVisible(),true);
  await player.locator('summary').filter({hasText:'修正标题和登场人物'}).click();
  await title.fill('玩家卡片标题');
  await player.locator('.uos-user-close').click();
