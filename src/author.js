@@ -1,6 +1,7 @@
 import {mountInDocument} from './selector.js';
 import {AUTHOR_HTML} from './author-template.js';
 
+const AUTHOR_VERSION='1.0.12';
 export const AUTHOR_MARKER='<UniversalOpeningSelector/>';
 const EMPTY_OPENING_ART=AUTHOR_HTML.match(/--uos-empty-opening-art:url\("([^"]+)"\)/)?.[1]||'';
 const DIAGNOSTICS_ART=AUTHOR_HTML.match(/--uos-diagnostics-art:url\("([^"]+)"\)/)?.[1]||EMPTY_OPENING_ART;
@@ -93,7 +94,7 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
   }
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;
-  const api={version:'1.0.11',scan,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
+  const api={version:AUTHOR_VERSION,scan,prepareForUpdate:async()=>active?.frame.contentDocument?.querySelector('[data-uos]')?.__uosPrepareForUpdate?.()??true,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
   const onPageHide=()=>{if(doc.__uosAuthor===api)api.close()};doc.__uosAuthor=api;
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   scan();return api;

@@ -13,7 +13,7 @@ function normalizeEntry(entry) {
 
 function withEnabledState(entry, enabled) {
   if (Object.prototype.hasOwnProperty.call(entry, 'enabled') || !Object.prototype.hasOwnProperty.call(entry, 'disable')) {
-    return { ...entry, enabled };
+    return { ...entry, enabled, ...(Object.prototype.hasOwnProperty.call(entry, 'disable') ? { disable: !enabled } : {}) };
   }
   return { ...entry, disable: !enabled };
 }
@@ -158,16 +158,18 @@ export function createWorldbookPresetManager(getSources, getCard) {
     if (bindings.length && !books.length) throw Error(`角色绑定的世界书无法读取${warnings.length ? `：${warnings.join('；')}` : ''}`);
     return { books, bindings, warnings, entryCount: books.reduce((sum, book) => sum + book.entries.length, 0) };
   }
-  function updateMethod() {
+  function updateMethod(assertCurrent=()=>{}) {
     const updateWith = find('updateWorldbookWith');
     if (updateWith) return async (name, states, sourceEntries) => {
+      assertCurrent();
       await updateWith(name, entries => {
+        assertCurrent();
         const found = new Set();
         const updated = entries.map(entry => {
           const key = uidKey(entry.uid ?? entry.id);
           if (!states.has(key)) return entry;
           found.add(key);
-          return { ...entry, enabled: states.get(key) };
+          return withEnabledState(entry, states.get(key));
         });
         if ([...states.keys()].some(key => !found.has(key))) throw Error(`世界书“${name}”的条目已变化`);
         return updated;
@@ -183,6 +185,7 @@ export function createWorldbookPresetManager(getSources, getCard) {
         return withEnabledState(entry, states.get(key));
       });
       if ([...states.keys()].some(key => !found.has(key))) throw Error(`世界书“${name}”的条目已变化`);
+      assertCurrent();
       await replaceWorldbook(name, updated, { render: 'immediate' });
     };
     const setEntries = find('setLorebookEntries');
@@ -191,10 +194,11 @@ export function createWorldbookPresetManager(getSources, getCard) {
       const updates = [...states].map(([uid, enabled]) => {
         const current = byUid.get(uid);
         if (!current) throw Error(`世界书“${name}”的条目已变化`);
-        return Object.prototype.hasOwnProperty.call(current, 'disable') && !Object.prototype.hasOwnProperty.call(current, 'enabled')
-          ? { uid: current.uid ?? current.id, disable: !enabled }
+        return Object.prototype.hasOwnProperty.call(current, 'disable')
+          ? { uid: current.uid ?? current.id, disable: !enabled, ...(Object.prototype.hasOwnProperty.call(current, 'enabled') ? { enabled } : {}) }
           : { uid: current.uid ?? current.id, enabled };
       });
+      assertCurrent();
       await setEntries(name, updates);
     };
     const replaceLorebookEntries = find('replaceLorebookEntries');
@@ -207,6 +211,7 @@ export function createWorldbookPresetManager(getSources, getCard) {
         return withEnabledState(entry, states.get(key));
       });
       if ([...states.keys()].some(key => !found.has(key))) throw Error(`世界书“${name}”的条目已变化`);
+      assertCurrent();
       await replaceLorebookEntries(name, updated, { render: 'immediate' });
     };
     return null;
@@ -214,7 +219,10 @@ export function createWorldbookPresetManager(getSources, getCard) {
   async function apply(rawPreset) {
     const preset = normalizeWorldbookPreset(rawPreset);
     if (!preset) throw Error('这个开场还没有有效的世界书预设');
+    const originalCard=getCard?.(),identity=originalCard?.avatar||originalCard;
+    const assertCurrent=()=>{const card=getCard?.();if((card?.avatar||card)!==identity)throw Error('当前角色已切换，已停止应用世界书预设')};
     const current = await read();
+    assertCurrent();
     if (current.warnings.length) throw Error(`角色绑定的世界书未能全部读取，已停止切换：${current.warnings.join('；')}`);
     const byName = new Map(current.books.map(book => [book.name, book]));
     const plans = preset.books.map(saved => {
@@ -239,7 +247,7 @@ export function createWorldbookPresetManager(getSources, getCard) {
     const configuredBooks = new Set(preset.books.map(book => book.name));
     const unconfiguredBindings = current.bindings.filter(name => !configuredBooks.has(name));
     if (unconfiguredBindings.length) throw Error(`角色新增了尚未记录到此开场的绑定世界书：${unconfiguredBindings.join('、')}；请重新记录预设`);
-    const write = updateMethod();
+    const write = updateMethod(assertCurrent),restore = updateMethod();
     if (!write) throw Error('当前酒馆助手没有可用的世界书条目写入接口');
     const changed = plans.filter(plan => [...plan.desired].some(([uid, enabled]) => plan.before.get(uid) !== enabled));
     const attempted = [];
@@ -247,11 +255,12 @@ export function createWorldbookPresetManager(getSources, getCard) {
       for (const plan of changed) {
         attempted.push(plan);
         await write(plan.name, plan.desired, plan.entries);
+        assertCurrent();
       }
     } catch (cause) {
       const rollbackErrors = [];
       for (const plan of attempted.reverse()) {
-        try { await write(plan.name, plan.before, plan.entries); }
+        try { await restore(plan.name, plan.before, plan.entries); }
         catch (error) { rollbackErrors.push(`${plan.name}：${String(error?.message || error)}`); }
       }
       const detail = rollbackErrors.length ? `；自动恢复也失败（${rollbackErrors.join('；')}）` : '；已恢复切换前状态';
@@ -265,7 +274,7 @@ export function createWorldbookPresetManager(getSources, getCard) {
         if (rolledBack) return;
         const errors = [];
         for (const plan of [...changed].reverse()) {
-          try { await write(plan.name, plan.before, plan.entries); }
+          try { await restore(plan.name, plan.before, plan.entries); }
           catch (error) { errors.push(`${plan.name}：${String(error?.message || error)}`); }
         }
         rolledBack = true;

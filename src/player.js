@@ -4,7 +4,7 @@ import {createWorldbookPresetManager} from './worldbook-presets.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
 const WATERMARK='唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费';
-const VERSION='1.0.11';
+const VERSION='1.0.12';
 const THEMES=[['archive','旧档案'],['neon','霓虹夜'],['paper','纸与墨'],['noir','黑白电影'],['meadow','林间信'],['ancient','锦书古风'],['starmap','星海航图'],['rose','绯色契约'],['wasteland','末日警报']];
 const THEME_CAPTIONS={archive:'ARCHIVE Nº 01 · 故事档案',neon:'AFTER DARK · 霓虹叙事',paper:'THE FIRST PAGE · 纸上初章',noir:'FRAME 001 · 光影序幕',meadow:'LETTERS FROM THE WOODS · 林间来信',ancient:'BROCADE LETTER · 锦书古风',starmap:'CELESTIAL ATLAS · 星海航图',rose:'VELVET VOW · 绯色契约',wasteland:'INCIDENT 001 · 末日警报'};
 const THEME_BACKGROUND_IMAGES=(()=>{
@@ -25,6 +25,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=noir]{--bg:#121314;--surface:#27292b;--text:#f2f1ec;--muted:#babbb9;--accent:#e4e1d5;--line:#a3a3a36b}
 .uos-user-panel[data-theme=meadow]{--bg:#122a24;--surface:#254037;--text:#f3f4e1;--muted:#c2d1bf;--accent:#d2e5a0;--line:#afc28980}
 .uos-user-update{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--surface);color:var(--accent);font:inherit;white-space:nowrap;cursor:pointer}.uos-user-close{white-space:nowrap;flex-shrink:0}.uos-user-theme-control{display:flex;align-items:center;gap:10px;min-width:0}.uos-user-theme-label{color:var(--accent);font:600 12px/1.5 system-ui,sans-serif;letter-spacing:.12em;white-space:nowrap;padding:3px 0;border-bottom:1px solid var(--line)}.uos-user-theme-control select{min-width:0;min-height:38px;max-width:150px}.uos-user-tools{flex-wrap:wrap;gap:10px}
+.uos-user-update-settings .uos-user-update-auto{display:flex;grid-template-columns:none;align-items:center;gap:9px;margin:10px 0;color:var(--text);font-size:12px}.uos-user-update-settings .uos-user-update-auto input{flex:none;width:17px;height:17px;margin:0;padding:0;accent-color:var(--accent)}.uos-user-update-settings .uos-user-status{margin:4px 0 10px}.uos-update-star{margin-left:2px;color:var(--accent);font:700 8px/1 system-ui,sans-serif;vertical-align:super}
 .uos-user-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.uos-user-head h2{margin:0;color:var(--text);font:600 22px/1.3 Georgia,"Noto Serif SC",serif}.uos-user-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
 .uos-user-panel button,.uos-user-panel select{font:inherit}.uos-user-close,.uos-user-select{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}.uos-user-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--muted);font-size:12px}.uos-user-tools select{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
 .uos-user-label-settings{flex:none;min-height:48px;max-height:min(35dvh,240px);overflow:auto;margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.uos-user-label-settings summary{color:var(--accent);cursor:pointer}.uos-user-label-settings label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:12px}.uos-user-label-settings input{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}.uos-user-label-settings button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--accent);color:var(--bg);font-weight:700}
@@ -338,7 +339,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS;(doc.head||doc.documentElement).append(style);
-  let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null;
+  let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null,updateGuard=null;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
     if(!trigger)return;
@@ -398,7 +399,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode){first.before(trigger);applySavedPosition()}
     }finally{updating=false}
   }
-  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
+  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;updateGuard=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
   function openPanel(){
     const snapshot=state();if(!snapshot)return;
     const storageKey=labelKey(snapshot);let customLabels={};
@@ -409,8 +410,8 @@ export function mountPlayerSelector(startDocument=document,helperApi){
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
     const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`已读取 ${snapshot.entries.length} 条开场，选择后切换首条消息。`));
-    const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>closePanel();head.append(heading,el('small','uos-user-version-badge',`v${VERSION}`),close);
-    const tools=el('div','uos-user-tools');const updateButton=el('button','uos-user-update');tools.append(updateButton);stopUpdateControl=bindUpdateControl(updateButton,doc);
+    const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>closePanel();const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
+    const tools=el('div','uos-user-tools');
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[select.value]?`url("${THEME_BACKGROUND_IMAGES[select.value]}")`:'none');kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
     const character=host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
@@ -507,6 +508,11 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       const input=el('input');input.type='text';input.maxLength=60;input.value=typeof customLabels[entry.index]==='string'?customLabels[entry.index]:entry.label;
       input.setAttribute('aria-label',`第 ${entry.index+1} 条开场标签`);field.append(input);labelInputs.push(input);labelSettings.append(field)}
     const saveLabels=el('button','','保存标签');saveLabels.type='button';saveLabels.onclick=()=>persistPlayerGroup('labels');labelSettings.append(saveLabels);
+    const updateSettings=el('details','uos-user-label-settings uos-user-update-settings');updateSettings.append(el('summary','','版本与更新'));
+    const updateVersion=el('p','uos-user-status',`当前版本 v${VERSION}`);
+    const autoCheckRow=el('label','uos-user-update-auto'),autoCheckInput=el('input');autoCheckInput.type='checkbox';autoCheckRow.append(autoCheckInput,el('span','','启动时自动检查更新'));
+    const updateHint=el('p','uos-user-status','启动时检查新版本；也可以随时手动检查。');
+    const updateButton=el('button','uos-user-update','检查更新');updateButton.type='button';updateSettings.append(updateVersion,autoCheckRow,updateHint,updateButton);
     const readPlayerDraft=()=>({exclusion:exclusionInput.value,people:aliasInput.value,edits:editFields.map(({titleInput,namesInput})=>[titleInput.value,namesInput.value]),labels:labelInputs.map(input=>input.value)});
     playerBaseline=readPlayerDraft();
     markPlayerSaved=group=>{if(playerBaseline)playerBaseline[group]=readPlayerDraft()[group]};
@@ -571,6 +577,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
           const preset=Array.isArray(authorConfig.worldbookPresets)?authorConfig.worldbookPresets.find(value=>value.id===presetId):null;
           if(preset)status.textContent='正在应用此开场的世界书条目预设…';
           await switchOpeningWithPreset(preset,worldbookPresetManager,async()=>{
+            const current=state();if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar)throw Error('角色或聊天已变化，请重新打开选择器');
             await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
             const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');
           });
@@ -579,11 +586,13 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       };
       card.append(choose);list.append(card);
     }if(!visible)list.append(el('p','uos-user-empty','没有匹配的开场，请换个关键词。'))}
-    for(const sheet of [exclusion,personSettings,edits,labelSettings])sheet.addEventListener('toggle',()=>{if(sheet.open)for(const other of [exclusion,personSettings,edits,labelSettings])if(other!==sheet)other.open=false});
+    const settingsSheets=[exclusion,personSettings,edits,labelSettings,updateSettings];
+    for(const sheet of settingsSheets)sheet.addEventListener('toggle',()=>{if(sheet.open)for(const other of settingsSheets)if(other!==sheet)other.open=false});
     updatePeople();
     renderCards();
-    const mark=el('p','uos-user-watermark',WATERMARK);mark.append(el('span','uos-user-version',`v${VERSION}`));
-    panel.append(head,tools,search,exclusion,personSettings,edits,labelSettings,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
+    const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
+    stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});
+    panel.append(head,tools,search,exclusion,personSettings,edits,labelSettings,updateSettings,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const active=overlay;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;
@@ -610,7 +619,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
       return false;
     };
     const requestPanelClose=async()=>{if(await confirmPlayerChanges())closePanel(true)};
-    panelCloseGuard=requestPanelClose;
+    panelCloseGuard=requestPanelClose;updateGuard=confirmPlayerChanges;
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
@@ -629,7 +638,7 @@ export function mountPlayerSelector(startDocument=document,helperApi){
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:VERSION,scan,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:VERSION,scan,prepareForUpdate:async()=>updateGuard?updateGuard():true,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});

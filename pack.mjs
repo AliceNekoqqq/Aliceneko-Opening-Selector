@@ -39,7 +39,7 @@ const iconSprite = fs.readFileSync(new URL('./assets/theme-icons.webp',import.me
 const themeBackgrounds = Object.fromEntries(['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland'].map(name=>[
   name,`data:image/webp;base64,${fs.readFileSync(new URL(`./assets/theme-background-${name}.webp`,import.meta.url)).toString('base64')}`
 ]));
-const tabArt = Object.fromEntries(['openings','worldbooks','bgm','diagnostics'].map(name=>[
+const tabArt = Object.fromEntries(['openings','worldbooks','bgm','diagnostics','updates'].map(name=>[
   name,`data:image/webp;base64,${fs.readFileSync(new URL(`./assets/tab-${name}.webp`,import.meta.url)).toString('base64')}`
 ]));
 const cssDataUrl = Object.fromEntries(Object.entries(tabArt).map(([name,url])=>[name,url]));
@@ -58,6 +58,7 @@ const css = fs.readFileSync(new URL('./src/selector.css',import.meta.url),'utf8'
   .replaceAll('__TAB_WORLDBOOKS__',cssDataUrl.worldbooks)
   .replaceAll('__TAB_BGM__',cssDataUrl.bgm)
   .replaceAll('__TAB_DIAGNOSTICS__',cssDataUrl.diagnostics)
+  .replaceAll('__TAB_UPDATES__',cssDataUrl.updates)
   .replace(/<\/style/gi,'<\\/style');
 const playerParser = fs.readFileSync(new URL('./src/player.js',import.meta.url),'utf8');
 const sharedAnalysis = playerParser.slice(playerParser.indexOf('function clean('),playerParser.indexOf('function labelKey(')).replace(/^export /gm,'');

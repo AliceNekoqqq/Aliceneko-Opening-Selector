@@ -71,7 +71,7 @@
 @media(max-width:600px){.uos-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.uos-card-shell .uos-cover{height:82px;padding:9px}.uos-card-shell .uos-number{font-size:48px}.uos-card-shell .uos-card-body{min-height:158px;padding:10px}.uos-card-shell .uos-card strong{font-size:15px}.uos-card-shell .uos-description{font-size:11px}.uos-card-details{padding:0 9px 9px}}
 @media(max-width:390px){.uos-grid{grid-template-columns:1fr}.uos-card-shell .uos-card-body{min-height:0}}
 
-.uos-version-badge{display:block;margin-top:3px;color:var(--muted);font:10px/1.3 Georgia,serif;letter-spacing:.04em}
+.uos-version-badge{display:block;margin-top:3px;color:var(--muted);font:10px/1.3 Georgia,serif;letter-spacing:.04em}.uos-update-star{margin-left:2px;color:var(--accent);font:700 8px/1 system-ui,sans-serif;vertical-align:super}.uos-update-section{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}.uos-update-section .uos-toggle{max-width:420px}
 
 /* New author themes: orbital chart, candlelit romance, emergency dispatch. */
 .uos-theme-swatch[data-theme=starmap]{--sw-bg:#0b1930;--sw-art:#23476c;--sw-accent:#9fdbea}
@@ -188,6 +188,7 @@
 .uos-tab-art[data-tab-art=worldbooks]{background-image:url("__TAB_WORLDBOOKS__")}
 .uos-tab-art[data-tab-art=bgm]{background-image:url("__TAB_BGM__")}
 .uos-tab-art[data-tab-art=diagnostics]{background-image:url("__TAB_DIAGNOSTICS__")}
+.uos-tab-art[data-tab-art=updates]{background-image:url("__TAB_UPDATES__")}
 .uos-empty-music{width:min(100%,180px);height:126px;margin:18px auto 10px;background:url("__TAB_BGM__") center/contain no-repeat;opacity:.92;filter:drop-shadow(0 8px 14px #0006)}
 .uos[data-theme=archive],.uos-theme-swatch[data-theme=archive]{--theme-icon-position:0% 0%}
 .uos[data-theme=neon],.uos-theme-swatch[data-theme=neon]{--theme-icon-position:50% 0%}
@@ -222,3 +223,6 @@
 .uos-worldbook-assignment-name{overflow-wrap:anywhere}
 .uos-worldbook-assignment>.uos-worldbook-select{min-width:0;width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
 @media(max-width:600px){.uos-tabs{gap:3px}.uos-tabs button{padding:7px 3px;font-size:11px}.uos-worldbook-opening{padding:9px}.uos-worldbook-actions{gap:5px}.uos-worldbook-actions .uos-icon{padding:7px;font-size:12px}.uos-worldbook-assignment{grid-template-columns:1fr;gap:6px}}
+
+/* Five illustrated settings tabs need a readable label row on narrow screens. */
+@media(max-width:600px){.uos-tabs button{flex-direction:column;gap:3px}}
