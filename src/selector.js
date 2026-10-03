@@ -240,13 +240,13 @@ export function mountInDocument(doc = document, helperApi = null) {
   function render(){
     setTheme(displayTheme,false);
     $('[data-title]').textContent=config.title;
-    $('[data-subtitle]').textContent=config.subtitle;
+    $('[data-subtitle]').textContent=config.subtitle==='选择一个开场，故事将从那里继续。'?'':config.subtitle;
     const grid=$('[data-grid]');grid.replaceChildren();
     let filters=root.querySelector('.uos-search');
     if(!filters){filters=el('div','uos-search');const input=el('input'),person=el('select');input.type='search';input.placeholder='搜索标题、人物或正文';input.setAttribute('aria-label','搜索作者开场');person.setAttribute('aria-label','按人物筛选作者开场');input.oninput=()=>render();person.onchange=()=>render();filters.append(input,person);grid.before(filters)}
     const query=filters.querySelector('input').value.trim().toLocaleLowerCase(),person=filters.querySelector('select'),selected=person.value;
     const items=entries(),greetings=greetingList(),people=new Set();
-    const openingCount=$('[data-opening-count]');if(openingCount)openingCount.textContent=`共 ${items.length} 个开场 · 选择你的故事起点`;
+    const openingCount=$('[data-opening-count]');if(openingCount)openingCount.textContent=`共 ${items.length} 个开场`;
     for(const entry of items)for(const name of String(entry.names||'').split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean))people.add(name);
     person.replaceChildren();const all=el('option','','全部人物');all.value='';person.append(all);for(const name of people){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
     let visible=0;
