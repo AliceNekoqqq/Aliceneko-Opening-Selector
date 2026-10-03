@@ -190,6 +190,9 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-card-ornament{position:absolute;right:5px;top:5px;width:108px;height:108px;opacity:.96;z-index:1}
 .uos-user-card h3{padding-right:98px}.uos-user-card>.uos-user-source{max-width:calc(100% - 98px)}.uos-user-card>p:not(.uos-user-names):not(.uos-user-candidates){padding-right:98px}.uos-user-card{box-shadow:inset 0 1px 0 #ffffff0d,0 9px 22px #0002}
 @media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}.uos-user-card-ornament{width:82px;height:82px}.uos-user-card h3{padding-right:72px}.uos-user-card>.uos-user-source{max-width:calc(100% - 72px)}.uos-user-card>p:not(.uos-user-names):not(.uos-user-candidates){padding-right:72px}}
+/* Opening number lives beside the title, away from the right-hand ornament. */
+.uos-user-panel[data-theme] .uos-user-card::before{content:attr(data-number);position:relative;float:left;inset:auto;z-index:auto;font:600 22px/1.5 Georgia,serif;letter-spacing:0;opacity:.8;margin:2px 10px 0 0;pointer-events:none}
+.uos-user-card>.uos-user-source{clear:left}
 .uos-user-panel[data-theme=archive]{--ornament-position:0.00000% 0.00000%}
 .uos-user-panel[data-theme=neon]{--ornament-position:33.33333% 0.00000%}
 .uos-user-panel[data-theme=paper]{--ornament-position:66.66667% 0.00000%}
