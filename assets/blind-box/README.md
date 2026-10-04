@@ -1,0 +1,13 @@
+# Fate deck artwork
+
+Generated with the built-in imagegen tool, then resized and compressed to WebP for the plugin. `entrance.webp` retains genuine alpha (384 × 384); `card-back.webp` is a 384 × 512 opaque texture. Runtime URLs are pinned in `src/asset-source.js`. Do not embed these files as base64 in cards or the runtime module.
+
+## Final generation prompts
+
+### Entrance (transparent background)
+
+Use case: stylized-concept. Asset type: transparent raster cutout illustration for the '命运盲盒' random story draw entrance in a sophisticated roleplay interface. Primary request: a magical fanned deck of three ornate fate cards, premium cinematic fantasy object render. Composition: square canvas, isolated centrally, entire silhouette visible with generous transparent padding, cards fan upward, middle card almost frontal, small tilt, soft luminous orbital arc around lower deck. Deep midnight plum enamel cards with finely engraved antique champagne-gold borders, a luminous eight-point compass star with a tiny moon in the center, delicate constellation etchings and layered filigree. Cool pearl highlights, warm gold detail, restrained lilac iridescence, no green. Beautiful detailed materials, crisp polished dimensional edges, elegant and mysterious. Silhouette must remain legible at 80px. Transparent background, genuine alpha; glow confined close to the object; no background scene, no lettering or numbers, no logos, no text, no watermark, no interface mockup. This image will be integrated as a clickable UI illustration, not a promotional poster.
+
+### Card back (opaque background)
+
+Use case: stylized-concept. Asset type: portrait 3:4 game card-back texture for animated CSS 3D fate cards. Primary request: one perfectly frontal flat rectangular card back, edge-to-edge texture, symmetrical engraved midnight plum and antique champagne gold design with pearlescent lavender inlay. A radiant eight-point compass star around a small moon at center, a circular celestial astrolabe with tiny constellations, delicate filigree corners and layered ornate golden border inside all four edges. Same premium mysterious fantasy mood as a gilded constellation fate deck. Straight-on orthographic view; no tilt, no perspective, no floating object, no extra margin, no drop shadow outside card, no background scene. Full canvas entirely filled by the single card-back surface, portrait 3:4 ratio. Detailed crisp materials, tasteful luminous highlights, no green, no text, letters, numbers, logos or watermark. Designed for a 190x250px animated card. Keep outermost border slightly inset so CSS rounded-corner clipping will not cut the ornament.

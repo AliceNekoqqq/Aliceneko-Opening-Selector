@@ -9,7 +9,7 @@ function fixture({reduced=false,onChoose}={}){
   function el(tag,cls='',text){
     const listeners=new Map();
     const node={tag,ownerDocument:doc,className:cls,textContent:text,children:[],dataset:{},attrs:{},isConnected:true,open:false,style:{setProperty(key,value){this[key]=value}},classList:{add(){}},
-      setAttribute(key,value){this.attrs[key]=value},append(...nodes){for(const child of nodes){child.parent=this;this.children.push(child)}},replaceChildren(...nodes){this.children=[];this.append(...nodes)},
+      setAttribute(key,value){this.attrs[key]=value},append(...nodes){for(const child of nodes){child.parent=child.parentElement=this;this.children.push(child)}},replaceChildren(...nodes){this.children=[];this.append(...nodes)},
       addEventListener(key,fn){if(!listeners.has(key))listeners.set(key,new Set());listeners.get(key).add(fn)},removeEventListener(key,fn){listeners.get(key)?.delete(fn)},dispatch(key,event={}){for(const fn of [...listeners.get(key)||[]])fn(event)},
       showModal(){this.open=true},close(){this.open=false;this.dispatch('close')},remove(){this.isConnected=false;if(this.parent)this.parent.children=this.parent.children.filter(child=>child!==this)},focus(){doc.activeElement=this}};
     return node;
@@ -54,7 +54,7 @@ test('character change aborts a pending reveal and an already revealed entry',()
 });
 test('single candidate and reduced motion have honest counts, disabled reroll and no unnecessary timers',()=>{
   const f=fixture({reduced:true});f.setItems([items()[1]]);assert.equal(f.box.open(),true);assert.equal(f.dialog.dataset.phase,'revealed');assert.equal(f.timers.size,0);assert.equal(f.button('再抽一次').disabled,true);assert.equal(f.find('uos-blind-scope').textContent,'当前筛选 · 1 个候选开场');f.box.dispose();
-  const empty=fixture();empty.setItems([items()[2]]);assert.equal(empty.box.open(),false);assert.equal(empty.doc.body.children.length,0);const trigger=openingBlindBoxButton(empty.el);updateBlindBoxButton(trigger,items(),{readonly:true});assert.equal(trigger.disabled,true);assert.equal(trigger.textContent,'✦ 命运盲盒 · 2');updateBlindBoxButton(trigger,[]);assert.equal(trigger.disabled,true);empty.box.dispose();
+  const empty=fixture();empty.setItems([items()[2]]);assert.equal(empty.box.open(),false);assert.equal(empty.doc.body.children.length,0);const trigger=openingBlindBoxButton(empty.el);updateBlindBoxButton(trigger,items(),{readonly:true});assert.equal(trigger.disabled,true);assert.equal(trigger.__uosBlindCount.textContent,'2 个开场');updateBlindBoxButton(trigger,[]);assert.equal(trigger.disabled,true);assert.equal(trigger.__uosBlindCount.textContent,'暂无候选');empty.box.dispose();
 });
 test('Escape, native close and busy / revealed keyboard traps clean up and remain reachable',()=>{
   const f=fixture();f.box.open(f.trigger);const exit=f.button('关闭盲盒');let prevented=0;f.dialog.dispatch('keydown',{key:'Tab',preventDefault(){prevented++}});assert.equal(f.doc.activeElement,exit);assert.equal(prevented,1);
@@ -64,4 +64,24 @@ test('Escape, native close and busy / revealed keyboard traps clean up and remai
 test('pending entry blocks a second draw, and a failed transaction releases that guard',async()=>{
   let reject;const pending=new Promise((_,no)=>reject=no),f=fixture({reduced:true,onChoose:()=>pending});f.box.open();const choose=f.button('进入此开场');choose.onclick();choose.onclick();assert.equal(f.effects.filter(effect=>effect.action==='choose').length,1);assert.equal(f.box.open(),false);
   reject(Error('save failed'));await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(f.effects.at(-1),{action:'error',message:'save failed'});assert.equal(f.box.open(),true);f.box.dispose();
+});
+
+test('decorative entrance survives count updates and warms the card art without activating a draw',()=>{
+ const f=fixture();let opened=0;const trigger=openingBlindBoxButton(f.el,button=>{assert.equal(button,trigger);opened++});
+ const [art,copy,action,warm]=trigger.children,illustration=art.children[1],texture=warm.children[0];
+ assert.equal(trigger.attrs['aria-label'],'命运盲盒');assert.equal(copy.children[0].textContent,'命运盲盒');
+ assert.ok(illustration.src.endsWith('/assets/blind-box/entrance.webp'));assert.ok(texture.src.endsWith('/assets/blind-box/card-back.webp'));
+ assert.equal(illustration.loading,'eager');assert.equal(texture.loading,'eager');assert.equal(illustration.alt,'');
+ const originalChildren=[...trigger.children];updateBlindBoxButton(trigger,items());updateBlindBoxButton(trigger,[items()[1]]);
+ assert.deepEqual(trigger.children,originalChildren);assert.equal(action.children[0].textContent,'1 个开场');assert.equal(opened,0);assert.equal(f.timers.size,0);
+ trigger.onclick();assert.equal(opened,1);f.box.dispose();
+});
+
+test('art fallback advances through immutable sources, keeps the draw operational and ignores detached images',()=>{
+ const f=fixture();f.box.open(f.trigger);const card=f.find('uos-blind-card'),image=card.children[0];
+ assert.match(image.src,/cdn\.jsdelivr\.net\/gh\/.+@[a-f0-9]{40}\//);image.onerror();assert.match(image.src,/testingcf\.jsdelivr/);
+ image.onerror();assert.match(image.src,/raw\.githubusercontent/);image.onerror();assert.equal(image.dataset.failed,'true');assert.equal(card.dataset.artReady,undefined);
+ f.run(2200);assert.equal(f.dialog.dataset.phase,'revealed');assert.equal(f.button('进入此开场').disabled,false);assert.deepEqual(f.effects,[]);
+ const trigger=openingBlindBoxButton(f.el),art=trigger.children[0],entrance=art.children[1];entrance.onload();assert.equal(entrance.dataset.ready,'true');assert.equal(art.dataset.artReady,'true');
+ const pending=trigger.children[3].children[0],first=pending.src;pending.isConnected=false;pending.onerror();pending.onload();assert.equal(pending.src,first);assert.equal(pending.dataset.ready,undefined);f.box.dispose();
 });

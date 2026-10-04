@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.10" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.11" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
@@ -8,6 +8,16 @@ var THEME_CAPTIONS = Object.freeze({ archive: "ARCHIVE Nº 01 · 故事档案", 
 
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
+var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
+function blindBoxAssetCandidates(kind) {
+  if (!["entrance", "card-back"].includes(kind)) throw Error("Invalid blind-box artwork");
+  const resource = `AliceNekoqqq/Aliceneko-Opening-Selector@${BLIND_BOX_ASSET_REF}/assets/blind-box/${kind}.webp`;
+  return [
+    `https://cdn.jsdelivr.net/gh/${resource}`,
+    `https://testingcf.jsdelivr.net/gh/${resource}`,
+    `https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/${BLIND_BOX_ASSET_REF}/assets/blind-box/${kind}.webp`
+  ];
+}
 function themeAssetCandidates(path) {
   if (!/^assets\/[a-z0-9/-]+\.webp$/.test(path)) throw Error("Invalid theme asset path");
   const resource = `AliceNekoqqq/Aliceneko-Opening-Selector@${THEME_ASSET_REF}/${path}`;
@@ -143,9 +153,30 @@ function drawOpening(pool, lastId, random = Math.random) {
 
 // src/opening-blind-box-styles.js
 var BLIND_BOX_CONTROL_CSS = `
-:is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;flex:none;display:flex!important;align-items:center;justify-content:center;gap:8px;min-height:44px;margin:0!important;padding:8px 14px!important;border:1px solid var(--accent)!important;border-radius:9px!important;background:linear-gradient(125deg,var(--surface),var(--bg))!important;color:var(--accent)!important;font:700 12px/1.5 system-ui,sans-serif!important;cursor:pointer;box-shadow:inset 0 0 16px color-mix(in srgb,var(--accent) 8%,transparent)!important;white-space:nowrap}
+:is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;position:relative;isolation:isolate;overflow:hidden;box-sizing:border-box;flex:1 0 100%;width:100%!important;min-width:0!important;display:flex!important;align-items:center;justify-content:flex-start;gap:12px;min-height:94px;margin:2px 0 0!important;padding:10px 18px 10px 8px!important;border:1px solid color-mix(in srgb,var(--accent) 60%,var(--line))!important;border-radius:17px!important;background:radial-gradient(ellipse at 6% 60%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 60%),linear-gradient(115deg,var(--surface),var(--bg))!important;color:var(--text)!important;font:500 13px/1.5 system-ui,sans-serif!important;text-align:left!important;cursor:pointer;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--accent) 22%,transparent),0 5px 18px color-mix(in srgb,var(--accent) 7%,transparent)!important;white-space:normal!important;transition:border-color .25s,box-shadow .25s,transform .25s!important}
+:is(.uos,.uos-user-panel) .uos-blind-trigger::before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);border-radius:11px;pointer-events:none;z-index:-1}
+:is(.uos,.uos-user-panel) .uos-blind-trigger::after{content:"";position:absolute;inset:-60% -20%;background:linear-gradient(110deg,transparent 42%,color-mix(in srgb,var(--accent) 13%,transparent) 49%,transparent 56%);transform:translateX(-85%);animation:uos-blind-entrance-sheen 8s ease-in-out infinite;pointer-events:none;z-index:-1}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-art{position:relative;flex:none;width:88px;height:74px;display:grid;place-items:center;animation:uos-blind-entrance-float 5s ease-in-out infinite;filter:drop-shadow(0 3px 9px color-mix(in srgb,var(--accent) 20%,transparent));pointer-events:none}
+:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{position:absolute;width:92px;height:92px;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;object-fit:contain;opacity:0;transition:opacity .3s}
+:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art[data-ready=true]{opacity:1}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-symbol{font-size:34px;line-height:1;color:var(--accent)}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-art[data-art-ready=true] .uos-blind-trigger-symbol{opacity:0}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px;position:relative}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font:750 18px/1.35 system-ui,sans-serif!important;color:var(--accent)!important;letter-spacing:.12em!important}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font:400 12px/1.5 system-ui,sans-serif!important;color:var(--muted)!important;white-space:normal}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-action{display:flex;align-items:center;gap:8px;flex:none;padding:8px 11px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:24px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:19px;transition:transform .25s}
+:is(.uos,.uos-user-panel) .uos-blind-art-warm{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+@media(hover:hover){:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover{transform:translateY(-2px)!important;border-color:var(--accent)!important;box-shadow:inset 0 0 24px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 22px color-mix(in srgb,var(--accent) 12%,transparent)!important}:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover .uos-blind-trigger-arrow{transform:translate(2px,-2px)}}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):active{transform:scale(.99)!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:disabled::after,:is(.uos,.uos-user-panel) .uos-blind-trigger:disabled .uos-blind-trigger-art{animation:none}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+@keyframes uos-blind-entrance-float{0%,100%{transform:translateY(2px) rotate(-3deg)}50%{transform:translateY(-3px) rotate(1deg)}}
+@keyframes uos-blind-entrance-sheen{0%,62%{transform:translateX(-85%)}90%,100%{transform:translateX(85%)}}
+@media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:74px;height:74px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
+@media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:62px;height:62px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
+@media(prefers-reduced-motion:reduce){:is(.uos,.uos-user-panel) .uos-blind-trigger,:is(.uos,.uos-user-panel) .uos-blind-trigger *,:is(.uos,.uos-user-panel) .uos-blind-trigger::after{animation:none!important;transition:none!important}}
 `;
 var BLIND_BOX_DIALOG_CSS = `
 .uos-blind-box{--bg:#19131e;--surface:#2c2231;--text:#f1e7ee;--muted:#baa8b6;--accent:#d8b782;--line:#6c5264;color-scheme:dark;box-sizing:border-box;width:min(540px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;padding:0!important;margin:auto;border:1px solid var(--line)!important;border-radius:22px!important;background:var(--bg)!important;color:var(--text)!important;box-shadow:0 28px 100px #0008;overflow:auto;font:14px/1.6 system-ui,sans-serif}
@@ -168,6 +199,9 @@ var BLIND_BOX_DIALOG_CSS = `
 .uos-blind-spark:nth-child(3n){width:5px;height:5px}
 .uos-blind-deck{position:relative;width:190px;height:250px;transform-style:preserve-3d;z-index:1}
 .uos-blind-card{position:absolute;inset:0;display:grid;place-items:center;border:1px solid var(--accent);border-radius:15px;background:linear-gradient(145deg,var(--surface),var(--bg));box-shadow:0 8px 25px #0004,inset 0 0 35px color-mix(in srgb,var(--accent) 9%,transparent);backface-visibility:hidden;transform:translateX(calc(var(--card) * 16px)) rotate(calc(var(--card) * 8deg));color:var(--accent);font-size:48px}
+.uos-blind-card .uos-blind-art{position:absolute;inset:0;width:100%;height:100%;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;border-radius:inherit;object-fit:cover;opacity:0;transition:opacity .2s}
+.uos-blind-card .uos-blind-art[data-ready=true]{opacity:1}
+.uos-blind-card[data-art-ready=true]::before,.uos-blind-card[data-art-ready=true]::after,.uos-blind-card[data-art-ready=true] .uos-blind-symbol{opacity:0}
 .uos-blind-card::before{content:"";position:absolute;inset:10px;border:1px solid var(--line);border-radius:10px}
 .uos-blind-card::after{content:"";position:absolute;width:85px;height:85px;border:1px solid var(--accent);border-radius:50%;box-shadow:0 0 0 12px color-mix(in srgb,var(--accent) 6%,transparent),0 0 0 28px color-mix(in srgb,var(--accent) 4%,transparent)}
 .uos-blind-symbol{z-index:1;text-shadow:0 0 18px color-mix(in srgb,var(--accent) 40%,transparent)}
@@ -244,18 +278,57 @@ function applyOpeningCover(cover, entry, identity, index, host, { shade = false 
   cover.style.backgroundPosition = `${coverFocus.x}% ${coverFocus.y}%`;
 }
 
+// src/blind-box-art.js
+function createBlindBoxArt(el, kind) {
+  const image = el("img", "uos-blind-art"), sources = blindBoxAssetCandidates(kind);
+  let source = 0;
+  image.alt = "";
+  image.draggable = false;
+  image.decoding = "async";
+  image.loading = "eager";
+  image.setAttribute("aria-hidden", "true");
+  image.onload = () => {
+    if (image.isConnected === false) return;
+    image.dataset.ready = "true";
+    if (image.parentElement) image.parentElement.dataset.artReady = "true";
+  };
+  image.onerror = () => {
+    if (image.isConnected === false) return;
+    if (++source < sources.length) image.src = sources[source];
+    else {
+      image.dataset.failed = "true";
+      image.onload = image.onerror = null;
+    }
+  };
+  image.src = sources[0];
+  return image;
+}
+
 // src/opening-blind-box.js
 function openingBlindBoxButton(el, onOpen) {
-  const button = el("button", "uos-blind-trigger", "✦ 命运盲盒");
+  const button = el("button", "uos-blind-trigger");
   button.type = "button";
   button.setAttribute("aria-label", "命运盲盒");
+  const art = el("span", "uos-blind-trigger-art"), symbol = el("span", "uos-blind-trigger-symbol", "✦");
+  art.setAttribute("aria-hidden", "true");
+  art.append(symbol, createBlindBoxArt(el, "entrance"));
+  const copy = el("span", "uos-blind-trigger-copy");
+  copy.append(el("strong", "uos-blind-trigger-title", "命运盲盒"), el("small", "uos-blind-trigger-hint", "让命运，为你挑一个故事"));
+  const action = el("span", "uos-blind-trigger-action"), count = el("span", "uos-blind-trigger-count", "开始抽取"), arrow = el("span", "uos-blind-trigger-arrow", "↗");
+  arrow.setAttribute("aria-hidden", "true");
+  action.append(count, arrow);
+  const warm = el("span", "uos-blind-art-warm");
+  warm.setAttribute("aria-hidden", "true");
+  warm.append(createBlindBoxArt(el, "card-back"));
+  button.append(art, copy, action, warm);
+  button.__uosBlindCount = count;
   if (onOpen) button.onclick = () => onOpen(button);
   else button.disabled = true;
   return button;
 }
 function updateBlindBoxButton(button, items, { readonly = false } = {}) {
   const count = blindBoxPool(items).length;
-  button.textContent = `✦ 命运盲盒 · ${count}`;
+  button.__uosBlindCount.textContent = count ? `${count} 个开场` : "暂无候选";
   button.disabled = readonly || count === 0;
   button.setAttribute("title", count ? `从当前筛选结果的 ${count} 个开场中随机抽取，确认进入后才切换` : "当前筛选下没有可抽取的新开场");
 }
@@ -315,7 +388,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalet
     for (let i = -2; i <= 2; i++) {
       const card = el("div", "uos-blind-card");
       card.style.setProperty("--card", i);
-      card.append(el("span", "uos-blind-symbol", "✦"));
+      card.append(createBlindBoxArt(el, "card-back"), el("span", "uos-blind-symbol", "✦"));
       deck.append(card);
     }
     stage.append(aura, sparks, deck, result);
@@ -4701,9 +4774,30 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(max-width:600px){.uos:not([data-layout=catalog]) .uos-card-actions .uos-card-preview-button{gap:0;padding:8px!important;font-size:12px!important}.uos:not([data-layout=catalog]) .uos-card-actions :is(.uos-reading-icon,.uos-reading-arrow){display:none}}
 
 
-:is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;flex:none;display:flex!important;align-items:center;justify-content:center;gap:8px;min-height:44px;margin:0!important;padding:8px 14px!important;border:1px solid var(--accent)!important;border-radius:9px!important;background:linear-gradient(125deg,var(--surface),var(--bg))!important;color:var(--accent)!important;font:700 12px/1.5 system-ui,sans-serif!important;cursor:pointer;box-shadow:inset 0 0 16px color-mix(in srgb,var(--accent) 8%,transparent)!important;white-space:nowrap}
+:is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;position:relative;isolation:isolate;overflow:hidden;box-sizing:border-box;flex:1 0 100%;width:100%!important;min-width:0!important;display:flex!important;align-items:center;justify-content:flex-start;gap:12px;min-height:94px;margin:2px 0 0!important;padding:10px 18px 10px 8px!important;border:1px solid color-mix(in srgb,var(--accent) 60%,var(--line))!important;border-radius:17px!important;background:radial-gradient(ellipse at 6% 60%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 60%),linear-gradient(115deg,var(--surface),var(--bg))!important;color:var(--text)!important;font:500 13px/1.5 system-ui,sans-serif!important;text-align:left!important;cursor:pointer;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--accent) 22%,transparent),0 5px 18px color-mix(in srgb,var(--accent) 7%,transparent)!important;white-space:normal!important;transition:border-color .25s,box-shadow .25s,transform .25s!important}
+:is(.uos,.uos-user-panel) .uos-blind-trigger::before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);border-radius:11px;pointer-events:none;z-index:-1}
+:is(.uos,.uos-user-panel) .uos-blind-trigger::after{content:"";position:absolute;inset:-60% -20%;background:linear-gradient(110deg,transparent 42%,color-mix(in srgb,var(--accent) 13%,transparent) 49%,transparent 56%);transform:translateX(-85%);animation:uos-blind-entrance-sheen 8s ease-in-out infinite;pointer-events:none;z-index:-1}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-art{position:relative;flex:none;width:88px;height:74px;display:grid;place-items:center;animation:uos-blind-entrance-float 5s ease-in-out infinite;filter:drop-shadow(0 3px 9px color-mix(in srgb,var(--accent) 20%,transparent));pointer-events:none}
+:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{position:absolute;width:92px;height:92px;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;object-fit:contain;opacity:0;transition:opacity .3s}
+:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art[data-ready=true]{opacity:1}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-symbol{font-size:34px;line-height:1;color:var(--accent)}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-art[data-art-ready=true] .uos-blind-trigger-symbol{opacity:0}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px;position:relative}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font:750 18px/1.35 system-ui,sans-serif!important;color:var(--accent)!important;letter-spacing:.12em!important}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font:400 12px/1.5 system-ui,sans-serif!important;color:var(--muted)!important;white-space:normal}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-action{display:flex;align-items:center;gap:8px;flex:none;padding:8px 11px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:24px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
+:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:19px;transition:transform .25s}
+:is(.uos,.uos-user-panel) .uos-blind-art-warm{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+@media(hover:hover){:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover{transform:translateY(-2px)!important;border-color:var(--accent)!important;box-shadow:inset 0 0 24px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 22px color-mix(in srgb,var(--accent) 12%,transparent)!important}:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover .uos-blind-trigger-arrow{transform:translate(2px,-2px)}}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):active{transform:scale(.99)!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:disabled::after,:is(.uos,.uos-user-panel) .uos-blind-trigger:disabled .uos-blind-trigger-art{animation:none}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+@keyframes uos-blind-entrance-float{0%,100%{transform:translateY(2px) rotate(-3deg)}50%{transform:translateY(-3px) rotate(1deg)}}
+@keyframes uos-blind-entrance-sheen{0%,62%{transform:translateX(-85%)}90%,100%{transform:translateX(85%)}}
+@media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:74px;height:74px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
+@media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:62px;height:62px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
+@media(prefers-reduced-motion:reduce){:is(.uos,.uos-user-panel) .uos-blind-trigger,:is(.uos,.uos-user-panel) .uos-blind-trigger *,:is(.uos,.uos-user-panel) .uos-blind-trigger::after{animation:none!important;transition:none!important}}
 `;
 
 // src/author-template.js

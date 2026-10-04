@@ -2,14 +2,22 @@ import {blindBoxPool,drawOpening} from './opening-blind-draw.js';
 import {BLIND_BOX_DIALOG_CSS} from './opening-blind-box-styles.js';
 import {defaultCoverStyles} from './default-covers.js';
 import {applyOpeningCover} from './opening-presentation.js';
+import {createBlindBoxArt} from './blind-box-art.js';
 
 export function openingBlindBoxButton(el,onOpen){
-  const button=el('button','uos-blind-trigger','✦ 命运盲盒');button.type='button';button.setAttribute('aria-label','命运盲盒');
+  const button=el('button','uos-blind-trigger');button.type='button';button.setAttribute('aria-label','命运盲盒');
+  const art=el('span','uos-blind-trigger-art'),symbol=el('span','uos-blind-trigger-symbol','✦');art.setAttribute('aria-hidden','true');
+  art.append(symbol,createBlindBoxArt(el,'entrance'));
+  const copy=el('span','uos-blind-trigger-copy');copy.append(el('strong','uos-blind-trigger-title','命运盲盒'),el('small','uos-blind-trigger-hint','让命运，为你挑一个故事'));
+  const action=el('span','uos-blind-trigger-action'),count=el('span','uos-blind-trigger-count','开始抽取'),arrow=el('span','uos-blind-trigger-arrow','↗');arrow.setAttribute('aria-hidden','true');action.append(count,arrow);
+  // Warm the card texture alongside the entrance, before the animation is opened.
+  const warm=el('span','uos-blind-art-warm');warm.setAttribute('aria-hidden','true');warm.append(createBlindBoxArt(el,'card-back'));
+  button.append(art,copy,action,warm);button.__uosBlindCount=count;
   if(onOpen)button.onclick=()=>onOpen(button);else button.disabled=true;
   return button;
 }
 export function updateBlindBoxButton(button,items,{readonly=false}={}){
-  const count=blindBoxPool(items).length;button.textContent=`✦ 命运盲盒 · ${count}`;button.disabled=readonly||count===0;
+  const count=blindBoxPool(items).length;button.__uosBlindCount.textContent=count?`${count} 个开场`:'暂无候选';button.disabled=readonly||count===0;
   button.setAttribute('title',count?`从当前筛选结果的 ${count} 个开场中随机抽取，确认进入后才切换`:'当前筛选下没有可抽取的新开场');
 }
 
@@ -35,7 +43,7 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getPale
     const stage=el('div','uos-blind-stage'),aura=el('div','uos-blind-aura'),sparks=el('div','uos-blind-sparks'),deck=el('div','uos-blind-deck'),result=el('div','uos-blind-result');
     for(const node of [aura,sparks,deck])node.setAttribute('aria-hidden','true');
     for(let i=0;i<12;i++){const spark=el('span','uos-blind-spark');spark.style.setProperty('--spark',i);sparks.append(spark)}
-    for(let i=-2;i<=2;i++){const card=el('div','uos-blind-card');card.style.setProperty('--card',i);card.append(el('span','uos-blind-symbol','✦'));deck.append(card)}
+    for(let i=-2;i<=2;i++){const card=el('div','uos-blind-card');card.style.setProperty('--card',i);card.append(createBlindBoxArt(el,'card-back'),el('span','uos-blind-symbol','✦'));deck.append(card)}
     stage.append(aura,sparks,deck,result);
     const status=el('p','uos-blind-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
     const footer=el('div','uos-blind-footer'),scope=el('p','uos-blind-scope',`当前筛选 · ${pool.length} 个候选开场${pool.length>1?' · 重抽不连续重复':''}`),actions=el('div','uos-blind-actions');

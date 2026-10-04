@@ -57,7 +57,7 @@ test('opening a preview reads the latest draft, retains grouped IDs and renders 
  preview.refresh();f.flush();assert.equal(reads,0);assert.equal(preview.element.querySelector('iframe'),undefined);
  preview.element.open=true;preview.element.dispatch('toggle');f.flush();const frame=preview.element.querySelector('iframe'),root=frame.contentDocument.querySelector('[data-uos]');
  assert.equal(reads,1);assert.equal(frame.attrs.sandbox,'allow-same-origin');assert.equal(root.inert,true);assert.equal(root.dataset.theme,'theatre');assert.equal(root.dataset.layout,'gallery');
- assert.deepEqual(root.querySelectorAll('.uos-number').map(n=>n.textContent),['01','03','02']);assert.equal(root.querySelector('strong').textContent,model.items[0].title);
+ assert.deepEqual(root.querySelectorAll('.uos-number').map(n=>n.textContent),['01','03','02']);assert.equal(root.querySelector('[data-grid]').querySelector('strong').textContent,model.items[0].title);
  assert.ok(root.querySelectorAll('button,input,select').every(n=>n.disabled));assert.equal(frame.contentDocument.querySelector('audio'),undefined);assert.equal(frame.contentDocument.querySelector('.uos-dialog'),undefined);assert.equal(root.querySelector('[data-music-title]').textContent,'夜曲');assert.equal(JSON.stringify(model),baseline);
  preview.dispose();
 });
