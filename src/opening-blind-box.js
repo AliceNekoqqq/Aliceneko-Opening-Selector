@@ -1,4 +1,4 @@
-import {blindBoxPool,drawOpening} from './opening-blind-draw.js';
+import {blindBoxPool,drawOpeningHand} from './opening-blind-draw.js';
 import {BLIND_BOX_DIALOG_CSS} from './opening-blind-box-styles.js';
 import {defaultCoverStyles} from './default-covers.js';
 import {applyOpeningCover} from './opening-presentation.js';
@@ -56,29 +56,43 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
     const header=el('div','uos-blind-header'),heading=el('div'),exit=el('button','','关闭盲盒');exit.type='button';exit.onclick=()=>{if(active?.dialog===dialog)close()};
     heading.append(el('p','uos-blind-kicker','随机故事 · 命运盲盒'),el('h2','uos-blind-heading',draw.title));header.append(heading,exit);
     const stage=el('div','uos-blind-stage'),aura=el('div','uos-blind-aura'),sparks=el('div','uos-blind-sparks'),deck=el('div','uos-blind-deck'),result=el('div','uos-blind-result');
-    for(const node of [aura,sparks,deck])node.setAttribute('aria-hidden','true');
+    for(const node of [aura,sparks])node.setAttribute('aria-hidden','true');
     for(let i=0;i<12;i++){const spark=el('span','uos-blind-spark');spark.style.setProperty('--spark',i);sparks.append(spark)}
-    for(let i=-2;i<=2;i++){const card=el('div','uos-blind-card');card.style.setProperty('--card',i);card.append(createBlindBoxArt(el,'card-back',dialog.dataset.theme),el('span','uos-blind-symbol','✦'));deck.append(card)}
-    stage.append(aura,sparks,deck,result);
+    stage.append(aura,sparks,deck);
     const status=el('p','uos-blind-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
     const footer=el('div','uos-blind-footer'),scope=el('p','uos-blind-scope',`${store.read().mode==='manual'?'手动范围':'当前筛选'} · ${pool.length} 个候选开场${pool.length>1?' · 重抽不连续重复':''}`),actions=el('div','uos-blind-actions');
-    const reroll=el('button','','再抽一次'),preview=el('button','','预览正文'),choose=el('button','uos-blind-enter','进入此开场');for(const button of [reroll,preview,choose])button.type='button';actions.append(reroll,preview,choose);footer.append(scope,actions);dialog.append(header,stage,status,footer);
-    const session={dialog,trigger,timers:new Set(),onKey:null};let selected=null,busy=false;
+    const reroll=el('button','','再抽一次'),preview=el('button','','预览正文'),choose=el('button','uos-blind-enter','进入此开场');for(const button of [reroll,preview,choose])button.type='button';actions.append(reroll,preview,choose);footer.append(scope,actions);dialog.append(header,stage,result,status,footer);
+    const session={dialog,trigger,timers:new Set(),onKey:null};let selected=null,busy=false,round=0,cards=[];
     function valid(){if(disposed||active!==session)return false;if(!isActive()){close();onUnavailable();return false}return true}
-    function later(fn,delay){const timer=clock.setTimeout(()=>{session.timers.delete(timer);if(valid())fn()},delay);session.timers.add(timer)}
+    function later(fn,delay){const token=round,timer=clock.setTimeout(()=>{session.timers.delete(timer);if(valid()&&token===round)fn()},delay);session.timers.add(timer)}
+    function reducedMotion(){try{return Boolean(clock.matchMedia?.('(prefers-reduced-motion: reduce)').matches)}catch{return false}}
     function reveal(item){
-      selected=item;lastId=item.id;busy=false;deck.hidden=true;result.replaceChildren();
-      const cover=el('div','uos-blind-cover');cover.setAttribute('aria-hidden','true');applyOpeningCover(cover,item,item.body,item.coverIndex??item.id,host);
-      result.append(cover,el('h3','uos-blind-title',item.title),el('p','uos-blind-number',`开场 ${String(item.number??item.id+1).padStart(2,'0')}${item.label?' · '+item.label:''}`),el('p','uos-blind-description',item.description||'这段故事，等待你亲自揭晓。'));
+      selected=item;lastId=item.id;busy=false;result.replaceChildren();
+      result.append(el('h3','uos-blind-title',item.title),el('p','uos-blind-number',`开场 ${String(item.number??item.id+1).padStart(2,'0')}${item.label?' · '+item.label:''}`),el('p','uos-blind-description',item.description||'这段故事，等待你亲自揭晓。'));
       result.hidden=false;dialog.dataset.phase='revealed';status.textContent='命运已揭晓，故事由你决定。';reroll.disabled=pool.length<2;preview.disabled=false;choose.disabled=false;
-      if(doc.activeElement===reroll||doc.activeElement===dialog)preview.focus();
+      if(doc.activeElement===reroll||doc.activeElement===dialog||cards.includes(doc.activeElement))preview.focus();
+    }
+    function pick(card,item,token){
+      if(!valid()||token!==round||dialog.dataset.phase!=='ready'||card.disabled)return;
+      busy=true;dialog.dataset.phase='flipping';deck.setAttribute('aria-hidden','true');cards.forEach(node=>node.disabled=true);reroll.disabled=true;status.textContent='你选中的卡，正在揭晓…';
+      card.dataset.picked='true';card.setAttribute('aria-pressed','true');
+      const face=card.children[0].children[1],cover=el('div','uos-blind-cover');applyOpeningCover(cover,item,item.body,item.coverIndex??item.id,host);
+      face.append(cover,el('span','uos-blind-face-title',item.title));
+      const flip=()=>card.dataset.opened='true';
+      if(reducedMotion()){flip();reveal(item);return}
+      later(flip,260);later(()=>reveal(item),1180);
     }
     function roll(){
-      if(!valid()||busy)return;busy=true;selected=null;result.hidden=true;result.replaceChildren();deck.hidden=false;dialog.dataset.phase='shuffle';status.textContent=pool.length===1?'只有一个候选，即将揭晓…':'正在洗牌，寻找你的故事…';reroll.disabled=preview.disabled=choose.disabled=true;
-      const item=drawOpening(pool,lastId,random);let reduced=false;try{reduced=Boolean(clock.matchMedia?.('(prefers-reduced-motion: reduce)').matches)}catch{}
-      if(reduced){reveal(item);return}
-      later(()=>{for(const card of deck.children)card.style.setProperty('--lock-from',doc.defaultView.getComputedStyle(card).transform||'translate3d(0,0,0)');dialog.dataset.phase='locking';status.textContent='命运正在落定…'},pool.length===1?100:1500);
-      later(()=>reveal(item),pool.length===1?750:2200);
+      if(!valid()||busy)return;round++;const token=round;busy=true;selected=null;result.hidden=true;result.replaceChildren();deck.replaceChildren();deck.setAttribute('aria-hidden','true');dialog.dataset.phase='shuffle';reroll.disabled=preview.disabled=choose.disabled=true;
+      const hand=drawOpeningHand(pool,lastId,random);
+      cards=hand.map((item,i)=>{
+        const card=el('button','uos-blind-card'),turn=el('span','uos-blind-turn'),back=el('span','uos-blind-back'),face=el('span','uos-blind-face');
+        card.type='button';card.disabled=true;card.style.setProperty('--card',i-(hand.length-1)/2);card.style.setProperty('--shuffle-side',i%2?1:-1);card.style.setProperty('--shuffle-delay',`${i*35}ms`);card.setAttribute('aria-label',`抽取第 ${i+1} 张卡`);card.setAttribute('aria-pressed','false');
+        turn.setAttribute('aria-hidden','true');back.append(createBlindBoxArt(el,'card-back',dialog.dataset.theme),el('span','uos-blind-symbol','✦'));turn.append(back,face);card.append(turn);card.onclick=()=>pick(card,item,token);deck.append(card);return card;
+      });
+      status.textContent=`正在洗 ${hand.length} 张卡，请稍候…`;
+      const ready=()=>{busy=false;dialog.dataset.phase='ready';deck.setAttribute('aria-hidden','false');cards.forEach(card=>card.disabled=false);reroll.disabled=pool.length<2;status.textContent=hand.length===1?'只有一张候选卡，点击翻开。':`选择一张卡，翻开你的故事。${hand.length<3&&lastId!==null?' 上次结果已避开。':''}`;if(doc.activeElement===reroll)cards[0].focus()};
+      if(reducedMotion()){ready();return}later(ready,hand.length===1?500:1800);
     }
     reroll.onclick=()=>{if(!reroll.disabled)roll()};
     preview.onclick=()=>{if(!valid()||busy||!selected||preview.disabled)return;const item=selected;close();onPreview(item,trigger,pool)};
@@ -86,7 +100,7 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
     session.onKey=event=>{
       if(disposed||active!==session)return;
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();return}
-      if(event.key==='Tab'){const controls=[exit,reroll,preview,choose].filter(button=>!button.disabled),first=controls[0],last=controls.at(-1);
+      if(event.key==='Tab'){const controls=[exit,...cards,reroll,preview,choose].filter(button=>!button.disabled),first=controls[0],last=controls.at(-1);
         if(event.shiftKey&&doc.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&doc.activeElement===last){event.preventDefault();first.focus()}}
     };
     active=session;dialog.addEventListener('keydown',session.onKey);dialog.addEventListener('cancel',event=>{event.preventDefault();if(active===session)close()});dialog.addEventListener('close',()=>{if(active===session)close()});dialog.addEventListener('click',event=>{if(active===session&&event.target===dialog)close()});
