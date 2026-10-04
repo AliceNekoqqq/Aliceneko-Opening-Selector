@@ -4,6 +4,8 @@ const artUrl=path=>themeAssetCandidates(`assets/${path}.webp`)[0];
 // Shared explicit image interfaces, independent of author markup or CSS parsing.
 export const THEME_ART=Object.freeze({
   icons:artUrl('theme-icons'),
+  schoolIcon:artUrl('theme-icon-school'),
+  schoolOrnament:artUrl('theme-ornament-school'),
   ornaments:artUrl('theme-ornaments'),
   openings:artUrl('tab-openings'),
   worldbooks:artUrl('tab-worldbooks'),
@@ -11,4 +13,3 @@ export const THEME_ART=Object.freeze({
   diagnostics:artUrl('tab-diagnostics'),
   updates:artUrl('tab-updates'),
 });
-

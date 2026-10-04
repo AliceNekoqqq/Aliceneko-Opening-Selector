@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {THEME_IDS} from '../src/themes.js';
 import {defaultCoverSlot,defaultCoverStyles} from '../src/default-covers.js';
 const values=new Map();const host={localStorage:{getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)}};
 const slots=Array.from({length:100},(_,i)=>defaultCoverSlot('same card',i,host));
@@ -12,6 +13,6 @@ assert.equal(defaultCoverSlot('denied',2,denied),defaultCoverSlot('denied',2,den
 const quota={localStorage:{getItem:()=>null,setItem:()=>{throw Error('quota exceeded')}}};
 assert.equal(defaultCoverSlot('quota',3,quota),defaultCoverSlot('quota',3,quota));
 const css=defaultCoverStyles('.uos');
-assert.equal((css.match(/data-theme=/g)||[]).length,16);
-assert.equal((css.match(/\.webp/g)||[]).length,80);
-console.log('Five repeatable default choices, stable allocation, denied storage and sixteen themes passed');
+assert.equal((css.match(/data-theme=/g)||[]).length,THEME_IDS.length);
+assert.equal((css.match(/\.webp/g)||[]).length,THEME_IDS.length*5);
+console.log('Five repeatable default choices, stable allocation, denied storage and all registered themes passed');

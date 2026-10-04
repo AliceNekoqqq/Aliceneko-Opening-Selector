@@ -29,6 +29,14 @@ try{
  for(const width of [320,768]){
   await page.setViewportSize({width,height:900});const entrance=player.locator('.uos-blind-trigger');assert.equal(await entrance.evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);assert.equal(await entrance.locator('.uos-blind-trigger-art').evaluate(node=>getComputedStyle(node).animationName),'none');await entrance.click();assert.equal(await page.locator('.uos-blind-box').getAttribute('data-phase'),'ready');await page.locator('.uos-blind-card').first().click();assert.equal(await page.locator('.uos-blind-box').getAttribute('data-phase'),'revealed');assert.equal(await page.locator('.uos-blind-box').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);assert.equal(await page.locator('.uos-blind-actions').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);assert.equal(await page.locator('.uos-blind-result').evaluate(node=>getComputedStyle(node).animationName),'none');await page.getByRole('button',{name:'关闭盲盒',exact:true}).click();
  }
+ // The new school theme keeps the header ornament when switching and reaches the full draw/preview flow.
+ await page.emulateMedia({reducedMotion:'no-preference'});await player.getByLabel('选择主题',{exact:true}).selectOption('school');
+ assert.equal(await player.getAttribute('data-theme'),'school');assert.equal(await player.locator('.uos-user-header-ornament').count(),1);
+ assert.equal(await player.locator('.uos-user-header-ornament').evaluate(node=>getComputedStyle(node).backgroundImage.includes('theme-ornament-school.webp')),true);
+ assert.equal(await player.getByLabel('选择主题',{exact:true}).evaluate(node=>getComputedStyle(node).colorScheme),'light');
+ await player.locator('.uos-blind-trigger').click();assert.equal(await page.locator('.uos-blind-performance').getAttribute('data-theme'),'school');assert.equal(await page.locator('.uos-blind-performance-caption').textContent(),'风起放课后');
+ await page.locator('.uos-blind-box[data-phase=ready]').waitFor();await page.locator('.uos-blind-card').first().click();await page.locator('.uos-blind-box[data-phase=revealed]').waitFor();await page.getByRole('button',{name:'预览正文',exact:true}).click();assert.equal(await page.locator('.uos-preview-body').evaluate(node=>node.closest('dialog').dataset.theme),'school');await page.getByRole('button',{name:'关闭预览',exact:true}).click();
+ await player.getByLabel('选择主题',{exact:true}).selectOption('theatre');assert.equal(await player.locator('.uos-user-header-ornament').count(),1);await page.emulateMedia({reducedMotion:'reduce'});
  // Manual range intentionally overrides the homepage filter, with an original-ID preview.
  await player.locator('.uos-user-search input[type=search]').fill('雨夜');
  await player.getByRole('button',{name:'设置抽取范围',exact:true}).click();

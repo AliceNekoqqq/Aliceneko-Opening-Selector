@@ -5,7 +5,7 @@ import {createReadingPreferences,READING_FONT_SIZES,READING_LINE_SPACING} from '
 
 const CSS=`
 dialog.uos-opening-preview{position:fixed;inset:0;width:min(760px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:min(850px,calc(100vh - 24px));height:min(850px,calc(100dvh - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);margin:auto;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text);box-shadow:0 22px 70px #0007;font:14px/1.7 system-ui,sans-serif;z-index:2147483646;overflow:hidden;color-scheme:dark}
-dialog.uos-opening-preview[data-theme=paper]{color-scheme:light}
+dialog.uos-opening-preview:is([data-theme=paper],[data-theme=school]){color-scheme:light}
 .uos-opening-preview::backdrop{background:#0009}
 .uos-opening-preview,.uos-opening-preview *{box-sizing:border-box}
 .uos-opening-preview [hidden]{display:none!important}

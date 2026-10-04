@@ -81,6 +81,15 @@ export const BLIND_PERFORMANCE_CSS=`
 .uos-blind-performance[data-theme=japan]::before{left:calc(50% - 45px);top:5%;width:90px;height:90px;border-radius:50%;border:1px solid currentColor;box-shadow:inset -18px 0 0 color-mix(in srgb,currentColor 15%,transparent)}
 .uos-blind-performance[data-theme=japan] .uos-blind-performance-piece{left:calc(6% + var(--piece) * 12%);top:15%;width:14px;height:58px;border:1px solid currentColor;background:repeating-linear-gradient(0deg,transparent 0 12px,color-mix(in srgb,currentColor 20%,transparent) 13px 14px);transform-origin:top center;animation:uos-show-fortune 4s ease-in-out infinite;animation-delay:calc(var(--piece) * -430ms)}
 .uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=japan]::before{transform:scale(1.3) translateY(-12px)}
+/* After school: classroom window light, a paper plane and drifting sakura petals. */
+.uos-blind-performance[data-theme=school]::before{inset:12% 13% 16%;border:2px solid currentColor;border-radius:9px;background:linear-gradient(90deg,transparent 49.5%,currentColor 50%,transparent 50.5%),linear-gradient(0deg,transparent 49.5%,currentColor 50%,transparent 50.5%),linear-gradient(135deg,#fff9 15%,transparent 55%);opacity:.2;transform:skewY(-4deg)}
+.uos-blind-performance[data-theme=school]::after{left:7%;top:26%;width:44px;height:32px;background:currentColor;clip-path:polygon(0 38%,100% 0,35% 100%,31% 62%,0 38%,100% 0,31% 62%,39% 54%);animation:uos-show-school-plane 6s ease-in-out infinite;opacity:.4}
+.uos-blind-performance[data-theme=school] .uos-blind-performance-piece{left:calc(7% + var(--piece) * 12%);top:-8%;width:12px;height:17px;border-radius:80% 10% 80% 20%;background:#ca7694;animation:uos-show-school-petal 5s ease-in-out infinite;animation-delay:calc(var(--piece) * -620ms)}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=school]::before{transform:skewY(0) scale(1.06);opacity:.12}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=school]::after{animation:uos-show-school-depart 1.3s ease-out both}
+@keyframes uos-show-school-plane{0%,100%{transform:translate(0,50px) rotate(8deg)}50%{transform:translate(240px,-25px) rotate(-8deg)}}
+@keyframes uos-show-school-petal{0%{transform:translate(0,0) rotate(0);opacity:0}20%,70%{opacity:.45}100%{transform:translate(38px,340px) rotate(160deg);opacity:0}}
+@keyframes uos-show-school-depart{from{transform:translate(80px,20px) rotate(-12deg);opacity:.5}to{transform:translate(420px,-110px) rotate(-25deg);opacity:0}}
 @keyframes uos-show-scan{0%,100%{transform:translateY(0);opacity:0}25%,75%{opacity:.45}50%{transform:translateY(280px)}}
 @keyframes uos-show-signal{0%,100%{transform:scaleY(.65);opacity:.2}50%{transform:scaleY(1.15);opacity:.45}}
 @keyframes uos-show-film{to{background-position:0 36px}}

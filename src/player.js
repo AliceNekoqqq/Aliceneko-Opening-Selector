@@ -56,7 +56,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-search{display:flex;gap:8px;flex:none;margin:0 0 10px}.uos-user-search input,.uos-user-search select{min-width:0;flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}.uos-user-empty{padding:16px;color:var(--muted)}
 /* These selects live in the Tavern document and must override host control themes. */
 .uos-user-panel select,.uos-user-panel select option{background:var(--surface)!important;color:var(--text)!important;color-scheme:dark!important}
-.uos-user-panel[data-theme=paper] select,.uos-user-panel[data-theme=paper] select option{color-scheme:light!important}
+.uos-user-panel:is([data-theme=paper],[data-theme=school]) select,.uos-user-panel:is([data-theme=paper],[data-theme=school]) select option{color-scheme:light!important}
 
 /* Six authored visual systems. All decoration stays behind text and controls. */
 .uos-user-panel{--glow:transparent;--wash:transparent;--ornament:"✦";--frame:var(--line);position:relative;isolation:isolate;max-height:min(84dvh,780px);padding:22px 24px 18px;border:1px solid var(--frame);border-radius:20px;background:radial-gradient(ellipse at 82% -20%,var(--glow),transparent 57%),linear-gradient(145deg,var(--wash),transparent 44%),var(--bg);box-shadow:inset 0 0 0 5px color-mix(in srgb,var(--bg) 85%,var(--accent)),0 28px 80px #0009}
@@ -188,6 +188,13 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=japan] .uos-user-card::before{content:"⛩";font-style:normal;font-size:70px;opacity:.12}
 .uos-user-panel[data-theme=japan] .uos-user-background{opacity:.62}
 .uos-user-panel[data-theme=japan] .uos-user-kicker::after{content:"";display:inline-block;width:23px;height:23px;margin-left:8px;vertical-align:middle;background-image:url("${THEME_ICON_SPRITE}");background-size:500% 400%;background-position:0% 100%;background-repeat:no-repeat;filter:drop-shadow(0 2px 5px #0008)}
+
+.uos-user-trigger[data-theme=school]{background:#eef4fb;border-color:#86afd0;color:#32659b;box-shadow:0 4px 14px #5881a822}
+.uos-user-panel[data-theme=school]{--bg:#eef4fb;--surface:#fff;--text:#263b57;--muted:#536982;--accent:#32659b;--line:#b8cbdf;--glow:#f3bdd133;--wash:#c1dff333;--frame:#afc8df;background:radial-gradient(ellipse at 80% 0%,#e7c4d744,transparent 50%),var(--bg);color-scheme:light}
+.uos-user-panel[data-theme=school] .uos-user-head h2,.uos-user-panel[data-theme=school] .uos-user-card h3{font-family:system-ui,"Noto Sans SC",sans-serif}
+.uos-user-panel[data-theme=school] .uos-user-card{border-radius:15px;border-color:#b8cbdf;background:linear-gradient(145deg,#fff,#f5f8fe);box-shadow:0 8px 22px #5881a81a}
+.uos-user-panel[data-theme=school] .uos-user-card::after{border-radius:11px;border-color:#d5deee}.uos-user-panel[data-theme=school] .uos-user-background{opacity:.85}
+.uos-user-panel[data-theme=school] .uos-user-header-ornament{background-image:url("${THEME_ART.schoolOrnament}");background-size:contain;background-position:center}
 
 /* Same generated ornament atlas as the author page; pointer events stay disabled. */
 .uos-user-panel{--ornament-position:0% 0%}
@@ -366,7 +373,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
-    const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;setBlindBoxTheme(blindTrigger,select.value);void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
+    const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;setBlindBoxTheme(blindTrigger,select.value);void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];kicker.append(headerArt);if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
     const settingsLayout=createPlayerSettingsLayout(el);
     const {settings,button:settingsButton}=settingsLayout;

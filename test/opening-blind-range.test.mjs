@@ -31,10 +31,10 @@ test('preferences are shared by avatar, isolated between cards, validated and re
  assert.equal(denied.set({mode:'manual',keys:[key]}).persisted,false);assert.deepEqual(denied.read(),{...defaults,mode:'manual',keys:[key]});
  assert.deepEqual(normalizeDrawRange({mode:'bad',keys:['invalid']}),{...defaults,mode:'filtered',keys:[]});
 });
-test('all sixteen catalog themes have distinct draw names and distinct immutable matching card-back URLs',()=>{
- assert.equal(new Set(THEME_IDS.map(id=>themeDraw(id).title)).size,16);
+test('all catalog themes have distinct draw names and distinct immutable matching card-back URLs',()=>{
+ assert.equal(new Set(THEME_IDS.map(id=>themeDraw(id).title)).size,THEME_IDS.length);
  const urls=THEME_IDS.map(id=>blindBoxAssetCandidates('card-back',id));
- assert.equal(new Set(urls.map(value=>value[0])).size,16);
+ assert.equal(new Set(urls.map(value=>value[0])).size,THEME_IDS.length);
  for(let i=0;i<urls.length;i++){assert.equal(urls[i].length,3);assert.match(urls[i][0],new RegExp('@[a-f0-9]{40}/assets/blind-box/card-backs/'+THEME_IDS[i]+'\\.webp$'))}
  assert.deepEqual(themeDraw('bad'),themeDraw('archive'));assert.deepEqual(blindBoxAssetCandidates('card-back','bad'),blindBoxAssetCandidates('card-back','archive'));
 });

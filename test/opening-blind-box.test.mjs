@@ -159,7 +159,7 @@ test('five-card setting creates five different backs, keeps mobile positions and
  f.setItems(pool.slice(0,2));f.box.open();assert.equal(f.all(node=>node.className==='uos-blind-card').length,2);f.box.dispose();
 });
 test('all theme scenes follow the draw lifecycle while reduced motion suppresses decorative performance',()=>{
- assert.equal(new Set(THEME_IDS.map(id=>themeDraw(id).scene)).size,16);
+ assert.equal(new Set(THEME_IDS.map(id=>themeDraw(id).scene)).size,THEME_IDS.length);
  for(const id of THEME_IDS){const f=fixture();f.setTheme(id);f.box.open();assert.equal(f.find('uos-blind-performance').dataset.theme,id);assert.equal(f.find('uos-blind-performance-caption').textContent,themeDraw(id).scene);assert.equal(f.dialog.dataset.show,'on');f.run(1800);f.pick();assert.equal(f.dialog.dataset.phase,'flipping');f.box.dispose();assert.equal(f.timers.size,0)}
  const reduced=fixture({reduced:true});reduced.box.open();assert.equal(reduced.find('uos-blind-performance').hidden,true);assert.equal(reduced.dialog.dataset.phase,'ready');assert.equal(reduced.timers.size,0);reduced.pick();assert.equal(reduced.dialog.dataset.phase,'revealed');reduced.box.dispose();
 });

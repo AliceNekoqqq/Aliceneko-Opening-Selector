@@ -9,7 +9,7 @@ import {OPENING_ACTION_CSS} from '../../src/opening-action-styles.js';
 export function buildAuthorCss(){
 const themeBackgrounds=THEME_BACKGROUND_IMAGES;
 const tabArt=Object.fromEntries(['openings','worldbooks','bgm','diagnostics','updates'].map(id=>[id,THEME_ART[id]]));
-const replacements={__THEME_ORNAMENT_SPRITE__:THEME_ART.ornaments,__THEME_ICON_SPRITE__:THEME_ART.icons};
+const replacements={__THEME_ORNAMENT_SPRITE__:THEME_ART.ornaments,__THEME_ICON_SPRITE__:THEME_ART.icons,__THEME_ICON_SCHOOL__:THEME_ART.schoolIcon,__THEME_ORNAMENT_SCHOOL__:THEME_ART.schoolOrnament};
 for(const [id,url] of Object.entries(themeBackgrounds))replacements[`__THEME_BG_${id.toUpperCase()}__`]=url;
 for(const [id,url] of Object.entries(tabArt))replacements[`__TAB_${id.toUpperCase()}__`]=url;
 const css=fs.readFileSync(new URL('../../src/selector.css',import.meta.url),'utf8')

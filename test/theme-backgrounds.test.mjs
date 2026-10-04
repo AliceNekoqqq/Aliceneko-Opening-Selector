@@ -1,3 +1,4 @@
+import {themeAssetRef} from '../src/asset-source.js';
 import {THEME_ART} from '../src/theme-art.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,7 +9,7 @@ import {buildAuthorHtml} from '../src/author-template.js';
 
 for(const id of THEME_IDS){
   const asset=`assets/theme-background-${id}.webp`;
-  const expected=execFileSync('git',['rev-parse',`${THEME_BACKGROUND_REF}:${asset}`],{encoding:'utf8'}).trim();
+  const expected=execFileSync('git',['rev-parse',`${themeAssetRef(asset)}:${asset}`],{encoding:'utf8'}).trim();
   assert.equal(execFileSync('git',['hash-object',asset],{encoding:'utf8'}).trim(),expected,'pinned file matches current image');
 }
 assert.deepEqual(themeBackgroundCandidates('../bad'),[]);
@@ -58,23 +59,23 @@ class PreloadImage {
 }
 const preloadService=createThemeBackgroundService({Image:PreloadImage,setTimeout,clearTimeout});
 const all=preloadService.preload();
-assert.equal(preloadRequests.length,16);
+assert.equal(preloadRequests.length,THEME_IDS.length);
 const joined=preloadService.load('archive');
-assert.equal(preloadRequests.length,16,'opening the selector does not duplicate startup preload');
+assert.equal(preloadRequests.length,THEME_IDS.length,'opening the selector does not duplicate startup preload');
 const sharedValues=new Map();
 const joinedUi=createThemeBackgroundController({style:{setProperty:(key,value)=>sharedValues.set(key,value)}},'--background',null,{service:preloadService});
 const painted=joinedUi.setTheme('archive');images[0].onload();
 assert.equal(await joined,themeBackgroundCandidates('archive')[0]);
 assert.equal(await painted,themeBackgroundCandidates('archive')[0]);
 joinedUi.close();
-assert.equal(preloadRequests.length,16,'closing UI leaves script preloading intact');
+assert.equal(preloadRequests.length,THEME_IDS.length,'closing UI leaves script preloading intact');
 preloadService.close();await all;
-assert.equal(preloadRequests.length,16,'script close cancels remaining images without starting backups');
-console.log('Script-start preload starts all sixteen backgrounds and shares in-flight images with the selector');
+assert.equal(preloadRequests.length,THEME_IDS.length,'script close cancels remaining images without starting backups');
+console.log('Script-start preload starts all registered backgrounds and shares in-flight images with the selector');
 
 for(const url of Object.values(THEME_ART)){
  const asset=url.slice(url.indexOf('/assets/')+1);
- const expected=execFileSync('git',['rev-parse',`${THEME_BACKGROUND_REF}:${asset}`],{encoding:'utf8'}).trim();
+ const expected=execFileSync('git',['rev-parse',`${themeAssetRef(asset)}:${asset}`],{encoding:'utf8'}).trim();
  assert.equal(execFileSync('git',['hash-object',asset],{encoding:'utf8'}).trim(),expected);
 }
 console.log('All shared theme artwork references existing immutable repository files');

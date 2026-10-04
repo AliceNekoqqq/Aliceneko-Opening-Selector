@@ -298,6 +298,16 @@
 .uos[data-theme=japan]{--uos-theme-bg-active:var(--uos-theme-bg-japan)}
 .uos[data-theme=japan] .uos-background-art{opacity:.62}
 
+/* Airy Japanese urban school-life theme; its two standalone assets keep old atlases unchanged. */
+.uos{--uos-theme-bg-school:url("__THEME_BG_SCHOOL__")}
+.uos[data-theme=school]{--bg:#eef4fb;--panel:#ffffff;--surface:#f7faff;--text:#263b57;--muted:#536982;--accent:#32659b;--line:#b8cbdf;--art:#b9d9ee;--cover:radial-gradient(circle at 75% 22%,#f3bdd180,transparent 35%),linear-gradient(135deg,#c1dff3,#f8e5ed);--display:system-ui,"Noto Sans SC",sans-serif;--uos-theme-bg-active:var(--uos-theme-bg-school);background:radial-gradient(ellipse at 80% 0%,#e7c4d744,transparent 50%),var(--bg);color-scheme:light}
+.uos[data-theme=school] .uos-card{border-radius:15px;border-color:#b8cbdf;background:linear-gradient(145deg,#fff,#f5f8fe);box-shadow:0 10px 28px #5881a81a}
+.uos[data-theme=school] .uos-card-body{border-top:1px solid #d5deee}.uos[data-theme=school] .uos-background-art{opacity:.85}
+.uos[data-theme=school] :is(input,select,textarea){color-scheme:light}
+.uos-theme-swatch[data-theme=school]{--sw-bg:#eef4fb;--sw-art:#c5dfef;--sw-accent:#32659b}
+.uos[data-theme=school] .uos-theme-art,.uos[data-theme=school] .uos-search-empty::before,.uos-theme-swatch[data-theme=school] .uos-theme-swatch-art{background-image:url("__THEME_ICON_SCHOOL__");background-size:contain;background-position:center;background-repeat:no-repeat;filter:drop-shadow(0 2px 4px #5881a833)}
+.uos[data-theme=school] .uos-header-ornament{background-image:url("__THEME_ORNAMENT_SCHOOL__");background-size:contain;background-position:center}
+
 /* Generated transparent material ornaments: 4 x 4 atlas, decorative only. */
 .uos{--uos-ornament-sprite:url("__THEME_ORNAMENT_SPRITE__");--ornament-position:0% 0%}
 .uos-header-ornament{display:block;pointer-events:none;background-image:var(--uos-ornament-sprite);background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}

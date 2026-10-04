@@ -1,10 +1,10 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.14" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.15" : "development";
 
 // src/themes.js
-var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
+var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
 var THEME_IDS = Object.freeze(THEMES.map(([id]) => id));
-var THEME_CAPTIONS = Object.freeze({ archive: "ARCHIVE Nº 01 · 故事档案", neon: "AFTER DARK · 霓虹叙事", paper: "THE FIRST PAGE · 纸上初章", noir: "FRAME 001 · 光影序幕", meadow: "LETTERS FROM THE WOODS · 林间来信", ancient: "BROCADE LETTER · 锦书古风", starmap: "CELESTIAL ATLAS · 星海航图", rose: "VELVET VOW · 绯色契约", wasteland: "INCIDENT 001 · 末日警报", deepsea: "DEEP SEA ECHO · 深海回响", amber: "AMBER MIRAGE · 琥珀沙海", theatre: "MOONLIT THEATRE · 月光剧场", lasttrain: "LAST TRAIN HOME · 末班列车", aurora: "LIGHTHOUSE UNDER AURORA · 极光灯塔", glasshouse: "GLASSHOUSE IN BLOOM · 琉璃花房", japan: "MOONLIT SHRINE · 月下神社" });
+var THEME_CAPTIONS = Object.freeze({ archive: "ARCHIVE Nº 01 · 故事档案", neon: "AFTER DARK · 霓虹叙事", paper: "THE FIRST PAGE · 纸上初章", noir: "FRAME 001 · 光影序幕", meadow: "LETTERS FROM THE WOODS · 林间来信", ancient: "BROCADE LETTER · 锦书古风", starmap: "CELESTIAL ATLAS · 星海航图", rose: "VELVET VOW · 绯色契约", wasteland: "INCIDENT 001 · 末日警报", deepsea: "DEEP SEA ECHO · 深海回响", amber: "AMBER MIRAGE · 琥珀沙海", theatre: "MOONLIT THEATRE · 月光剧场", lasttrain: "LAST TRAIN HOME · 末班列车", aurora: "LIGHTHOUSE UNDER AURORA · 极光灯塔", glasshouse: "GLASSHOUSE IN BLOOM · 琉璃花房", japan: "MOONLIT SHRINE · 月下神社", school: "AFTER SCHOOL · 放学以后" });
 var THEME_DRAWS = Object.freeze({
   archive: ["未封档案", "打开一份未知的故事档案", "封缄开启"],
   neon: ["霓虹解码", "解码一段未知的夜间信号", "信号解码"],
@@ -21,7 +21,8 @@ var THEME_DRAWS = Object.freeze({
   lasttrain: ["随机月台", "下一站，会遇见谁", "车窗掠光"],
   aurora: ["灯塔寻光", "循着微光，寻找故事入口", "极光引航"],
   glasshouse: ["花语来笺", "抽一笺花语，赴一场奇遇", "琉璃绽放"],
-  japan: ["月下御签", "抽一支御签，听月下缘起", "御签祈愿"]
+  japan: ["月下御签", "抽一支御签，听月下缘起", "御签祈愿"],
+  school: ["放课后奇遇", "放学后的下一站，会遇见谁", "风起放课后"]
 });
 function themeDraw(theme) {
   const [title, hint, scene] = THEME_DRAWS[theme] || THEME_DRAWS.archive;
@@ -30,14 +31,21 @@ function themeDraw(theme) {
 
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
+var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
+var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
+function themeAssetRef(path) {
+  if (/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path)) return SCHOOL_THEME_ASSET_REF;
+  if (path.startsWith("assets/default-covers/")) return DEFAULT_COVER_ASSET_REF;
+  if (path.startsWith("assets/blind-box/card-backs/")) return BLIND_BOX_THEME_ASSET_REF;
+  return THEME_ASSET_REF;
+}
 function blindBoxAssetCandidates(kind, theme) {
   if (!["entrance", "card-back"].includes(kind)) throw Error("Invalid blind-box artwork");
   if (kind === "card-back" && theme) {
     const id = THEME_IDS.includes(theme) ? theme : "archive", path = `assets/blind-box/card-backs/${id}.webp`;
-    const resource2 = `AliceNekoqqq/Aliceneko-Opening-Selector@${BLIND_BOX_THEME_ASSET_REF}/${path}`;
-    return [`https://cdn.jsdelivr.net/gh/${resource2}`, `https://testingcf.jsdelivr.net/gh/${resource2}`, `https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/${BLIND_BOX_THEME_ASSET_REF}/${path}`];
+    return themeAssetCandidates(path);
   }
   const resource = `AliceNekoqqq/Aliceneko-Opening-Selector@${BLIND_BOX_ASSET_REF}/assets/blind-box/${kind}.webp`;
   return [
@@ -48,11 +56,11 @@ function blindBoxAssetCandidates(kind, theme) {
 }
 function themeAssetCandidates(path) {
   if (!/^assets\/[a-z0-9/-]+\.webp$/.test(path)) throw Error("Invalid theme asset path");
-  const resource = `AliceNekoqqq/Aliceneko-Opening-Selector@${THEME_ASSET_REF}/${path}`;
+  const ref = themeAssetRef(path), resource = `AliceNekoqqq/Aliceneko-Opening-Selector@${ref}/${path}`;
   return [
     `https://cdn.jsdelivr.net/gh/${resource}`,
     `https://testingcf.jsdelivr.net/gh/${resource}`,
-    `https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/${THEME_ASSET_REF}/${path}`
+    `https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/${ref}/${path}`
   ];
 }
 
@@ -212,6 +220,7 @@ var BLIND_BOX_CONTROL_CSS = `
 var BLIND_BOX_DIALOG_CSS = `
 .uos-blind-box{--bg:#19131e;--surface:#2c2231;--text:#f1e7ee;--muted:#baa8b6;--accent:#d8b782;--line:#6c5264;color-scheme:dark;box-sizing:border-box;width:min(540px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;padding:0!important;margin:auto;border:1px solid var(--line)!important;border-radius:22px!important;background:var(--bg)!important;color:var(--text)!important;box-shadow:0 28px 100px #0008;overflow:auto;font:14px/1.6 system-ui,sans-serif}
 .uos-blind-box::backdrop{background:#090711bd;backdrop-filter:blur(8px)}
+.uos-blind-box:is([data-theme=paper],[data-theme=school]){color-scheme:light}
 .uos-blind-box *{box-sizing:border-box}
 .uos-blind-box [hidden]{display:none!important}
 .uos-blind-box button{appearance:none!important;margin:0!important;width:auto!important;min-width:0!important;min-height:44px!important;padding:10px 14px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--text)!important;font:600 13px/1.5 system-ui,sans-serif!important;box-shadow:none!important;cursor:pointer}
@@ -259,7 +268,6 @@ var BLIND_BOX_DIALOG_CSS = `
 `;
 
 // src/default-covers.js
-var DEFAULT_COVER_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var temporaryCoverSeed;
 function defaultCoverSlot(identity, index, host) {
   let seed;
@@ -279,8 +287,7 @@ function defaultCoverSlot(identity, index, host) {
   return (hash >>> 0) % 5 + 1;
 }
 function defaultCoverStyles(selector) {
-  const base = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${DEFAULT_COVER_REF}/assets/default-covers`;
-  return THEME_IDS.map((theme) => `${selector}[data-theme="${theme}"]{${Array.from({ length: 5 }, (_, i) => `--uos-default-cover-${i + 1}:url("${base}/${theme}-${i + 1}.webp")`).join(";")}}`).join("\n");
+  return THEME_IDS.map((theme) => `${selector}[data-theme="${theme}"]{${Array.from({ length: 5 }, (_, i) => `--uos-default-cover-${i + 1}:url("${themeAssetCandidates(`assets/default-covers/${theme}-${i + 1}.webp`)[0]}")`).join(";")}}`).join("\n");
 }
 
 // src/opening-presentation.js
@@ -856,6 +863,15 @@ var BLIND_PERFORMANCE_CSS = `
 .uos-blind-performance[data-theme=japan]::before{left:calc(50% - 45px);top:5%;width:90px;height:90px;border-radius:50%;border:1px solid currentColor;box-shadow:inset -18px 0 0 color-mix(in srgb,currentColor 15%,transparent)}
 .uos-blind-performance[data-theme=japan] .uos-blind-performance-piece{left:calc(6% + var(--piece) * 12%);top:15%;width:14px;height:58px;border:1px solid currentColor;background:repeating-linear-gradient(0deg,transparent 0 12px,color-mix(in srgb,currentColor 20%,transparent) 13px 14px);transform-origin:top center;animation:uos-show-fortune 4s ease-in-out infinite;animation-delay:calc(var(--piece) * -430ms)}
 .uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=japan]::before{transform:scale(1.3) translateY(-12px)}
+/* After school: classroom window light, a paper plane and drifting sakura petals. */
+.uos-blind-performance[data-theme=school]::before{inset:12% 13% 16%;border:2px solid currentColor;border-radius:9px;background:linear-gradient(90deg,transparent 49.5%,currentColor 50%,transparent 50.5%),linear-gradient(0deg,transparent 49.5%,currentColor 50%,transparent 50.5%),linear-gradient(135deg,#fff9 15%,transparent 55%);opacity:.2;transform:skewY(-4deg)}
+.uos-blind-performance[data-theme=school]::after{left:7%;top:26%;width:44px;height:32px;background:currentColor;clip-path:polygon(0 38%,100% 0,35% 100%,31% 62%,0 38%,100% 0,31% 62%,39% 54%);animation:uos-show-school-plane 6s ease-in-out infinite;opacity:.4}
+.uos-blind-performance[data-theme=school] .uos-blind-performance-piece{left:calc(7% + var(--piece) * 12%);top:-8%;width:12px;height:17px;border-radius:80% 10% 80% 20%;background:#ca7694;animation:uos-show-school-petal 5s ease-in-out infinite;animation-delay:calc(var(--piece) * -620ms)}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=school]::before{transform:skewY(0) scale(1.06);opacity:.12}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=school]::after{animation:uos-show-school-depart 1.3s ease-out both}
+@keyframes uos-show-school-plane{0%,100%{transform:translate(0,50px) rotate(8deg)}50%{transform:translate(240px,-25px) rotate(-8deg)}}
+@keyframes uos-show-school-petal{0%{transform:translate(0,0) rotate(0);opacity:0}20%,70%{opacity:.45}100%{transform:translate(38px,340px) rotate(160deg);opacity:0}}
+@keyframes uos-show-school-depart{from{transform:translate(80px,20px) rotate(-12deg);opacity:.5}to{transform:translate(420px,-110px) rotate(-25deg);opacity:0}}
 @keyframes uos-show-scan{0%,100%{transform:translateY(0);opacity:0}25%,75%{opacity:.45}50%{transform:translateY(280px)}}
 @keyframes uos-show-signal{0%,100%{transform:scaleY(.65);opacity:.2}50%{transform:scaleY(1.15);opacity:.45}}
 @keyframes uos-show-film{to{background-position:0 36px}}
@@ -1541,6 +1557,8 @@ function showPlayerUnsavedPrompt(doc, dialog, panel, groups, canSaveToCard, { si
 var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
 var THEME_ART = Object.freeze({
   icons: artUrl("theme-icons"),
+  schoolIcon: artUrl("theme-icon-school"),
+  schoolOrnament: artUrl("theme-ornament-school"),
   ornaments: artUrl("theme-ornaments"),
   openings: artUrl("tab-openings"),
   worldbooks: artUrl("tab-worldbooks"),
@@ -2312,7 +2330,7 @@ function createReadingPreferences(host) {
 // src/opening-preview.js
 var CSS = `
 dialog.uos-opening-preview{position:fixed;inset:0;width:min(760px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:min(850px,calc(100vh - 24px));height:min(850px,calc(100dvh - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);margin:auto;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text);box-shadow:0 22px 70px #0007;font:14px/1.7 system-ui,sans-serif;z-index:2147483646;overflow:hidden;color-scheme:dark}
-dialog.uos-opening-preview[data-theme=paper]{color-scheme:light}
+dialog.uos-opening-preview:is([data-theme=paper],[data-theme=school]){color-scheme:light}
 .uos-opening-preview::backdrop{background:#0009}
 .uos-opening-preview,.uos-opening-preview *{box-sizing:border-box}
 .uos-opening-preview [hidden]{display:none!important}
@@ -3058,7 +3076,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-search{display:flex;gap:8px;flex:none;margin:0 0 10px}.uos-user-search input,.uos-user-search select{min-width:0;flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}.uos-user-empty{padding:16px;color:var(--muted)}
 /* These selects live in the Tavern document and must override host control themes. */
 .uos-user-panel select,.uos-user-panel select option{background:var(--surface)!important;color:var(--text)!important;color-scheme:dark!important}
-.uos-user-panel[data-theme=paper] select,.uos-user-panel[data-theme=paper] select option{color-scheme:light!important}
+.uos-user-panel:is([data-theme=paper],[data-theme=school]) select,.uos-user-panel:is([data-theme=paper],[data-theme=school]) select option{color-scheme:light!important}
 
 /* Six authored visual systems. All decoration stays behind text and controls. */
 .uos-user-panel{--glow:transparent;--wash:transparent;--ornament:"✦";--frame:var(--line);position:relative;isolation:isolate;max-height:min(84dvh,780px);padding:22px 24px 18px;border:1px solid var(--frame);border-radius:20px;background:radial-gradient(ellipse at 82% -20%,var(--glow),transparent 57%),linear-gradient(145deg,var(--wash),transparent 44%),var(--bg);box-shadow:inset 0 0 0 5px color-mix(in srgb,var(--bg) 85%,var(--accent)),0 28px 80px #0009}
@@ -3190,6 +3208,13 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=japan] .uos-user-card::before{content:"⛩";font-style:normal;font-size:70px;opacity:.12}
 .uos-user-panel[data-theme=japan] .uos-user-background{opacity:.62}
 .uos-user-panel[data-theme=japan] .uos-user-kicker::after{content:"";display:inline-block;width:23px;height:23px;margin-left:8px;vertical-align:middle;background-image:url("${THEME_ICON_SPRITE}");background-size:500% 400%;background-position:0% 100%;background-repeat:no-repeat;filter:drop-shadow(0 2px 5px #0008)}
+
+.uos-user-trigger[data-theme=school]{background:#eef4fb;border-color:#86afd0;color:#32659b;box-shadow:0 4px 14px #5881a822}
+.uos-user-panel[data-theme=school]{--bg:#eef4fb;--surface:#fff;--text:#263b57;--muted:#536982;--accent:#32659b;--line:#b8cbdf;--glow:#f3bdd133;--wash:#c1dff333;--frame:#afc8df;background:radial-gradient(ellipse at 80% 0%,#e7c4d744,transparent 50%),var(--bg);color-scheme:light}
+.uos-user-panel[data-theme=school] .uos-user-head h2,.uos-user-panel[data-theme=school] .uos-user-card h3{font-family:system-ui,"Noto Sans SC",sans-serif}
+.uos-user-panel[data-theme=school] .uos-user-card{border-radius:15px;border-color:#b8cbdf;background:linear-gradient(145deg,#fff,#f5f8fe);box-shadow:0 8px 22px #5881a81a}
+.uos-user-panel[data-theme=school] .uos-user-card::after{border-radius:11px;border-color:#d5deee}.uos-user-panel[data-theme=school] .uos-user-background{opacity:.85}
+.uos-user-panel[data-theme=school] .uos-user-header-ornament{background-image:url("${THEME_ART.schoolOrnament}");background-size:contain;background-position:center}
 
 /* Same generated ornament atlas as the author page; pointer events stay disabled. */
 .uos-user-panel{--ornament-position:0% 0%}
@@ -3495,6 +3520,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       setBlindBoxTheme(blindTrigger, select.value);
       void backgroundControl?.setTheme(select.value);
       kicker.textContent = THEME_CAPTIONS[select.value];
+      kicker.append(headerArt);
       if (trigger) trigger.dataset.theme = select.value;
       try {
         host.localStorage.setItem("uos_player_theme", select.value);
@@ -5184,6 +5210,16 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos[data-theme=japan],.uos-theme-swatch[data-theme=japan]{--theme-icon-position:0% 100%}
 .uos[data-theme=japan]{--uos-theme-bg-active:var(--uos-theme-bg-japan)}
 .uos[data-theme=japan] .uos-background-art{opacity:.62}
+
+/* Airy Japanese urban school-life theme; its two standalone assets keep old atlases unchanged. */
+.uos{--uos-theme-bg-school:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@b11e5addc6e1e60dae710ed4d83cb4c8565b77ea/assets/theme-background-school.webp")}
+.uos[data-theme=school]{--bg:#eef4fb;--panel:#ffffff;--surface:#f7faff;--text:#263b57;--muted:#536982;--accent:#32659b;--line:#b8cbdf;--art:#b9d9ee;--cover:radial-gradient(circle at 75% 22%,#f3bdd180,transparent 35%),linear-gradient(135deg,#c1dff3,#f8e5ed);--display:system-ui,"Noto Sans SC",sans-serif;--uos-theme-bg-active:var(--uos-theme-bg-school);background:radial-gradient(ellipse at 80% 0%,#e7c4d744,transparent 50%),var(--bg);color-scheme:light}
+.uos[data-theme=school] .uos-card{border-radius:15px;border-color:#b8cbdf;background:linear-gradient(145deg,#fff,#f5f8fe);box-shadow:0 10px 28px #5881a81a}
+.uos[data-theme=school] .uos-card-body{border-top:1px solid #d5deee}.uos[data-theme=school] .uos-background-art{opacity:.85}
+.uos[data-theme=school] :is(input,select,textarea){color-scheme:light}
+.uos-theme-swatch[data-theme=school]{--sw-bg:#eef4fb;--sw-art:#c5dfef;--sw-accent:#32659b}
+.uos[data-theme=school] .uos-theme-art,.uos[data-theme=school] .uos-search-empty::before,.uos-theme-swatch[data-theme=school] .uos-theme-swatch-art{background-image:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@b11e5addc6e1e60dae710ed4d83cb4c8565b77ea/assets/theme-icon-school.webp");background-size:contain;background-position:center;background-repeat:no-repeat;filter:drop-shadow(0 2px 4px #5881a833)}
+.uos[data-theme=school] .uos-header-ornament{background-image:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@b11e5addc6e1e60dae710ed4d83cb4c8565b77ea/assets/theme-ornament-school.webp");background-size:contain;background-position:center}
 
 /* Generated transparent material ornaments: 4 x 4 atlas, decorative only. */
 .uos{--uos-ornament-sprite:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-ornaments.webp");--ornament-position:0% 0%}

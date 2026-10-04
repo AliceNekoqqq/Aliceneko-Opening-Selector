@@ -28,6 +28,7 @@ export const BLIND_BOX_CONTROL_CSS=`
 export const BLIND_BOX_DIALOG_CSS=`
 .uos-blind-box{--bg:#19131e;--surface:#2c2231;--text:#f1e7ee;--muted:#baa8b6;--accent:#d8b782;--line:#6c5264;color-scheme:dark;box-sizing:border-box;width:min(540px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;padding:0!important;margin:auto;border:1px solid var(--line)!important;border-radius:22px!important;background:var(--bg)!important;color:var(--text)!important;box-shadow:0 28px 100px #0008;overflow:auto;font:14px/1.6 system-ui,sans-serif}
 .uos-blind-box::backdrop{background:#090711bd;backdrop-filter:blur(8px)}
+.uos-blind-box:is([data-theme=paper],[data-theme=school]){color-scheme:light}
 .uos-blind-box *{box-sizing:border-box}
 .uos-blind-box [hidden]{display:none!important}
 .uos-blind-box button{appearance:none!important;margin:0!important;width:auto!important;min-width:0!important;min-height:44px!important;padding:10px 14px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--text)!important;font:600 13px/1.5 system-ui,sans-serif!important;box-shadow:none!important;cursor:pointer}
