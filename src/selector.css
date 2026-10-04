@@ -64,7 +64,7 @@
 .uos-card-shell .uos-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-height:0}
 .uos-card-names{color:var(--accent);font-size:12px;line-height:1.5;margin:12px 0 0;overflow-wrap:anywhere}
 .uos-card-details{padding:0 14px 14px;color:var(--text);font-size:12px}
-.uos-card-details .uos-card-preview-button{width:100%;white-space:normal;text-align:left;border:0;border-radius:0;box-shadow:none;background:transparent;color:var(--accent);padding:10px 2px;border-top:1px solid var(--line)}
+
 
 .uos-watermark{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;overflow-wrap:anywhere}
 .uos-version{margin-left:auto;color:var(--accent);font:10px/1.5 Georgia,serif;white-space:nowrap}
@@ -238,7 +238,7 @@
 .uos-card-names{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:16px 0 0}
 .uos-cast-label{width:100%;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:2px}
 .uos-name-chip{display:inline-block;max-width:100%;overflow-wrap:anywhere;padding:4px 9px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:6px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--accent);font-size:12px;line-height:1.5}
-.uos-card-details{padding:0 18px 12px}.uos-card-details .uos-card-preview-button{font-size:12px;line-height:1.6}
+.uos-card-details{padding:0 18px 12px}
 .uos .uos-card-shell:active{transform:translateY(0);box-shadow:inset 0 1px color-mix(in srgb,var(--text) 12%,transparent)}
 @media(hover:none){.uos .uos-card-shell:hover{transform:none}}
 @media(max-width:600px){.uos-card-shell .uos-cover{height:82px}.uos-card-shell .uos-number{font-size:36px}.uos-card-shell .uos-card-body{padding:13px;min-height:168px}.uos-card-shell .uos-card strong{font-size:17px}.uos-card-shell .uos-description{font-size:12px}.uos-card-details{padding:0 13px 10px}.uos-name-chip{font-size:11px;padding:3px 7px}}

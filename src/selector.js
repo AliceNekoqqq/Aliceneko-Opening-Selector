@@ -4,6 +4,7 @@ import {createMediaPlayer} from './media-player.js';
 import {createSettingsFields} from './settings-fields.js';
 import {renderMusicSettings} from './music-settings.js';
 import {RUNTIME_VERSION} from './version.js';
+import {decorateOpeningPreviewButton} from './opening-action-styles.js';
 import {createThemeBackgroundController} from './theme-backgrounds.js';
 import {THEMES} from './themes.js';
 import {defaultCoverStyles} from './default-covers.js';
@@ -276,7 +277,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       const source=greetings[i];
       if(source){
         previewItems.push({...entry,id:i+1,number:i+1,coverIndex:i,body:source,names:castNames,suggestions:entry.nameSuggestions});
-        const details=el('div','uos-card-details'),previewButton=el('button','uos-icon uos-card-preview-button','预览完整正文');previewButton.type='button';
+        const details=el('div','uos-card-details'),previewButton=el('button','uos-card-preview-button');previewButton.type='button';decorateOpeningPreviewButton(previewButton,el);
         previewButton.onclick=()=>{if(activePopup){status('请先关闭当前主题或设置窗口。');return}openingPreview.open(i+1,previewButton)};details.append(previewButton);shell.append(details);
       }
       target.append(shell);

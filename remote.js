@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.4" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.5" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
@@ -1442,6 +1442,35 @@ var OPENING_CATEGORY_CSS = `
 @media(max-width:480px){.uos-opening-filters{grid-template-columns:minmax(0,1fr)}.uos-opening-group>summary{font-size:14px}.uos-opening-tags{font-size:12px}}
 `;
 
+// src/opening-action-styles.js
+var OPENING_ACTION_CSS = `
+:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button){
+ appearance:none!important;display:flex!important;align-items:center;gap:10px;width:100%!important;min-width:0;min-height:44px!important;box-sizing:border-box;
+ margin:10px 0!important;padding:11px 14px!important;border:1px solid var(--line)!important;border-radius:12px!important;
+ background:var(--bg)!important;background:color-mix(in srgb,var(--accent) 9%,var(--bg))!important;color:var(--accent)!important;
+ box-shadow:inset 0 1px 0 #ffffff0a!important;font:600 13px/1.5 system-ui,"Noto Sans SC",sans-serif!important;letter-spacing:.035em;text-align:left;white-space:normal;cursor:pointer;
+ transition:background .18s,border-color .18s,box-shadow .18s;
+}
+.uos-reading-icon{position:relative;flex:none;width:18px;height:16px;border:1.5px solid currentColor;border-radius:3px 3px 5px 5px;opacity:.85}
+.uos-reading-icon::before{content:"";position:absolute;left:50%;top:-1px;bottom:-1px;border-left:1px solid currentColor}
+.uos-reading-icon::after{content:"";position:absolute;left:3px;right:3px;top:4px;height:4px;border-top:1px solid currentColor;border-bottom:1px solid currentColor;opacity:.5}
+.uos-reading-label{flex:1;min-width:0;overflow-wrap:anywhere}
+.uos-reading-arrow{flex:none;font-size:18px;font-weight:400;line-height:1;opacity:.75}
+:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button):focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+@media(hover:hover){:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button):hover{border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 16%,var(--bg))!important;box-shadow:0 3px 12px #0002!important;transform:none}}
+:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button):active{background:color-mix(in srgb,var(--accent) 22%,var(--bg))!important;transform:none}
+.uos-user-panel .uos-user-card .uos-user-select{appearance:none!important;min-height:44px!important;padding:10px 16px!important;border:1px solid var(--accent)!important;border-radius:10px!important;background:var(--accent)!important;color:var(--bg)!important;font:700 13px/1.5 system-ui,"Noto Sans SC",sans-serif!important;box-shadow:none!important;cursor:pointer}
+.uos-user-panel[data-theme=paper] .uos-user-card .uos-user-select{color:#fff8ec!important}
+.uos-user-panel .uos-user-card .uos-user-select:disabled{background:var(--bg)!important;border-color:var(--line)!important;color:var(--muted)!important;opacity:1;cursor:default}
+@media(prefers-reduced-motion:reduce){:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button){transition:none}}
+`;
+function decorateOpeningPreviewButton(button, el) {
+  const icon = el("span", "uos-reading-icon"), arrow = el("span", "uos-reading-arrow", "→");
+  icon.setAttribute("aria-hidden", "true");
+  arrow.setAttribute("aria-hidden", "true");
+  button.replaceChildren(icon, el("span", "uos-reading-label", "预览完整正文"), arrow);
+}
+
 // src/update-control.js
 function bindUpdateControl(button, hostDocument, { versionElements = [], autoCheckInput = null, autoCheckHint = null } = {}) {
   const doc = button.ownerDocument, host = hostDocument.defaultView || hostDocument;
@@ -1828,10 +1857,10 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-update{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--surface);color:var(--accent);font:inherit;white-space:nowrap;cursor:pointer}.uos-user-close{white-space:nowrap;flex-shrink:0}.uos-user-theme-control{display:flex;align-items:center;gap:10px;min-width:0}.uos-user-theme-label{color:var(--accent);font:600 12px/1.5 system-ui,sans-serif;letter-spacing:.12em;white-space:nowrap;padding:3px 0;border-bottom:1px solid var(--line)}.uos-user-theme-control select{min-width:0;min-height:38px;max-width:150px}.uos-user-tools{flex-wrap:wrap;gap:10px}
 .uos-user-update-settings .uos-user-update-auto{display:flex;grid-template-columns:none;align-items:center;gap:9px;margin:10px 0;color:var(--text);font-size:12px}.uos-user-update-settings .uos-user-update-auto input{flex:none;width:17px;height:17px;margin:0;padding:0;accent-color:var(--accent)}.uos-user-update-settings .uos-user-status{margin:4px 0 10px}.uos-update-star{margin-left:2px;color:var(--accent);font:700 8px/1 system-ui,sans-serif;vertical-align:super}
 .uos-user-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.uos-user-head h2{margin:0;color:var(--text);font:600 22px/1.3 Georgia,"Noto Serif SC",serif}.uos-user-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
-.uos-user-panel button,.uos-user-panel select{font:inherit}.uos-user-close,.uos-user-select{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}.uos-user-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--muted);font-size:12px}.uos-user-tools select{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
+.uos-user-panel button,.uos-user-panel select{font:inherit}.uos-user-close{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}.uos-user-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--muted);font-size:12px}.uos-user-tools select{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
 .uos-user-label-settings{flex:none;min-height:48px;max-height:min(35dvh,240px);overflow:auto;margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.uos-user-label-settings summary{color:var(--accent);cursor:pointer}.uos-user-label-settings label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:12px}.uos-user-label-settings input{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}.uos-user-label-settings button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--accent);color:var(--bg);font-weight:700}
 .uos-user-label-settings textarea{box-sizing:border-box;width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif;resize:vertical}.uos-worldbook-people{max-height:240px;overflow:auto;padding-left:22px;overflow-wrap:anywhere;font-size:13px}.uos-worldbook-people li{margin:10px 0}.uos-worldbook-people p{margin:4px 0;color:var(--muted);font-size:12px;line-height:1.5}.uos-user-candidates{font-size:12px;color:var(--muted)}
-.uos-user-list{display:grid;gap:12px;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 3px 12px}.uos-user-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.uos-user-card h3{margin:0 0 6px;color:var(--text);font:600 17px/1.4 Georgia,"Noto Serif SC",serif}.uos-user-card p{margin:0 0 9px;color:var(--muted);font-size:12px}.uos-user-card .uos-user-preview-button{color:var(--accent);cursor:pointer}.uos-user-select{background:var(--accent);color:var(--bg);font-weight:700}.uos-user-select:disabled{opacity:.65;cursor:default}.uos-user-status{min-height:18px;margin:8px 0 0;color:var(--accent);font-size:12px}
+.uos-user-list{display:grid;gap:12px;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 3px 12px}.uos-user-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.uos-user-card h3{margin:0 0 6px;color:var(--text);font:600 17px/1.4 Georgia,"Noto Serif SC",serif}.uos-user-card p{margin:0 0 9px;color:var(--muted);font-size:12px}.uos-user-status{min-height:18px;margin:8px 0 0;color:var(--accent);font-size:12px}
 .uos-user-card .uos-user-names{color:var(--accent);font-size:13px}
 .uos-user-search{display:flex;gap:8px;flex:none;margin:0 0 10px}.uos-user-search input,.uos-user-search select{min-width:0;flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}.uos-user-empty{padding:16px;color:var(--muted)}
 /* These selects live in the Tavern document and must override host control themes. */
@@ -1863,7 +1892,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-card p{position:relative;line-height:1.6}.uos-user-card .uos-user-names{font-weight:650;letter-spacing:.025em}
 
 
-.uos-user-select{min-height:39px;padding:9px 16px;border-radius:7px;letter-spacing:.08em}
+
 .uos-user-status{flex:none;margin:9px 0 0}
 /* Archive: ink blue, brass rules, an old catalog card. */
 .uos-user-panel[data-theme=archive]{--bg:#111d25;--surface:#1b2b34;--text:#f3ead9;--muted:#b9b7ac;--accent:#e0b875;--line:#b695645e;--glow:#956e3d45;--wash:#37505b3d;--frame:#a6885c}
@@ -1876,8 +1905,8 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=neon] .uos-user-head h2{text-shadow:0 0 18px #e556bd88}
 .uos-user-panel[data-theme=neon] .uos-user-card{border-radius:3px 13px 3px 13px;background:linear-gradient(135deg,#2a1b50,#101d3a 70%);box-shadow:inset 0 1px #cdaaff55,0 12px 28px #09052588}
 .uos-user-panel[data-theme=neon] .uos-user-card::after{border-color:#b784fa77;border-radius:1px 9px 1px 9px}
-.uos-user-panel[data-theme=neon] .uos-user-names,.uos-user-panel[data-theme=neon] .uos-user-card .uos-user-preview-button{color:#dcb5ff}
-.uos-user-panel[data-theme=neon] .uos-user-select{box-shadow:0 0 18px #ed5dc166}
+.uos-user-panel[data-theme=neon] .uos-user-names{color:#dcb5ff}
+
 /* Paper: ivory stock, vermilion editorial marks and generous type. */
 .uos-user-panel[data-theme=paper]{--bg:#e9dfcb;--surface:#f9f2e4;--text:#292926;--muted:#665e53;--accent:#a43c30;--line:#9a745e80;--glow:#d9ae7a55;--wash:#fff8e2aa;--frame:#906d52;color-scheme:light}
 .uos-user-panel[data-theme=paper]{border-radius:4px;box-shadow:inset 0 0 0 6px #f3ebda,0 23px 55px #2b201c66}
@@ -1885,7 +1914,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=paper] .uos-user-head h2,.uos-user-panel[data-theme=paper] .uos-user-card h3{font-family:Georgia,"Noto Serif SC",serif}
 .uos-user-panel[data-theme=paper] .uos-user-card{border-radius:2px;border-left:4px solid var(--accent);background:linear-gradient(90deg,#d2bdaa48 0 1px,transparent 1px),linear-gradient(#fffaf0,#f7efdf);box-shadow:2px 5px 0 #aa8d7040}
 .uos-user-panel[data-theme=paper] .uos-user-card::after{border-radius:0}
-.uos-user-panel[data-theme=paper] .uos-user-select{color:#fff8ec}
+
 /* Noir: framed monochrome film stills with restrained silver light. */
 .uos-user-panel[data-theme=noir]{--bg:#111214;--surface:#202124;--text:#f2f0e9;--muted:#bbbcb8;--accent:#e8e3d7;--line:#92959088;--glow:#c1c4c229;--wash:#373a3d33;--frame:#9ea19e;filter:grayscale(1)}
 .uos-user-panel[data-theme=noir]{border-radius:3px;background:repeating-linear-gradient(90deg,transparent 0 4px,#ffffff05 5px 6px),radial-gradient(circle at 78% -20%,var(--glow),transparent 55%),var(--bg)}
@@ -1927,8 +1956,8 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-card .uos-user-names{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0;font-weight:500}
 .uos-cast-label{width:100%;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:2px}
 .uos-name-chip{display:inline-block;max-width:100%;overflow-wrap:anywhere;padding:4px 9px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:6px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--accent);font-family:inherit;font-weight:500;font-size:12px;line-height:1.5}
-.uos-user-card .uos-user-preview-button{border-top:0;padding:10px 0;font-size:12px}
-.uos-user-card .uos-user-select{min-height:38px;padding:8px 14px;border-radius:8px}
+
+
 @media(hover:hover){.uos-user-card:hover{transform:translateY(-2px);border-color:var(--accent)}}
 .uos-user-card:focus-within{border-color:var(--accent)}
 @media(prefers-reduced-motion:reduce){.uos-user-panel .uos-user-card{transition:none}.uos-user-card:hover{transform:none}}
@@ -2006,7 +2035,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-card .uos-user-names{margin:10px 0;font-size:12px}
 
 
-.uos-user-card .uos-user-preview-button{display:block;width:100%;margin:10px 0;padding:10px 0;border:0;border-top:1px solid var(--line);background:transparent;text-align:left;font:inherit;cursor:pointer;min-height:40px}
+
 `;
 async function switchOpeningWithPreset(preset, presetManager, changeOpening) {
   let transaction = null;
@@ -2084,7 +2113,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
   let trigger = null, panelSession = null, updating = false, suppressClickUntil = 0;
   const positionKey = "uos_player_button_position";
@@ -2742,6 +2771,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         previewItems.push({ ...authorEntries[entry.index], ...openingMetadata(entry), id: entry.index, number: entry.index + 1, coverIndex: entry.index, title: display.title, description: entry.description, label: entry.label, names: display.names, body: entry.body, titleSource: display.titleSource, suggestions: entry.nameSuggestions, isCurrent: entry.index === snapshot.swipeId });
         const previewButton = el("button", "uos-user-preview-button", "预览完整正文");
         previewButton.type = "button";
+        decorateOpeningPreviewButton(previewButton, el);
         previewButton.onclick = () => openingPreview.open(entry.index, previewButton);
         card.append(previewButton);
         const choose = el("button", "uos-user-select", entry.index === snapshot.swipeId ? "当前开场" : `进入开场 ${entry.index + 1}`);
@@ -4223,8 +4253,9 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       const source = greetings[i];
       if (source) {
         previewItems.push({ ...entry, id: i + 1, number: i + 1, coverIndex: i, body: source, names: castNames, suggestions: entry.nameSuggestions });
-        const details = el("div", "uos-card-details"), previewButton = el("button", "uos-icon uos-card-preview-button", "预览完整正文");
+        const details = el("div", "uos-card-details"), previewButton = el("button", "uos-card-preview-button");
         previewButton.type = "button";
+        decorateOpeningPreviewButton(previewButton, el);
         previewButton.onclick = () => {
           if (activePopup) {
             status("请先关闭当前主题或设置窗口。");
@@ -4718,7 +4749,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-card-shell .uos-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-height:0}
 .uos-card-names{color:var(--accent);font-size:12px;line-height:1.5;margin:12px 0 0;overflow-wrap:anywhere}
 .uos-card-details{padding:0 14px 14px;color:var(--text);font-size:12px}
-.uos-card-details .uos-card-preview-button{width:100%;white-space:normal;text-align:left;border:0;border-radius:0;box-shadow:none;background:transparent;color:var(--accent);padding:10px 2px;border-top:1px solid var(--line)}
+
 
 .uos-watermark{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;overflow-wrap:anywhere}
 .uos-version{margin-left:auto;color:var(--accent);font:10px/1.5 Georgia,serif;white-space:nowrap}
@@ -4892,7 +4923,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-card-names{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:16px 0 0}
 .uos-cast-label{width:100%;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:2px}
 .uos-name-chip{display:inline-block;max-width:100%;overflow-wrap:anywhere;padding:4px 9px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:6px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--accent);font-size:12px;line-height:1.5}
-.uos-card-details{padding:0 18px 12px}.uos-card-details .uos-card-preview-button{font-size:12px;line-height:1.6}
+.uos-card-details{padding:0 18px 12px}
 .uos .uos-card-shell:active{transform:translateY(0);box-shadow:inset 0 1px color-mix(in srgb,var(--text) 12%,transparent)}
 @media(hover:none){.uos .uos-card-shell:hover{transform:none}}
 @media(max-width:600px){.uos-card-shell .uos-cover{height:82px}.uos-card-shell .uos-number{font-size:36px}.uos-card-shell .uos-card-body{padding:13px;min-height:168px}.uos-card-shell .uos-card strong{font-size:17px}.uos-card-shell .uos-description{font-size:12px}.uos-card-details{padding:0 13px 10px}.uos-name-chip{font-size:11px;padding:3px 7px}}
@@ -5072,6 +5103,27 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-opening-tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;color:var(--muted);font-size:11px}
 .uos-opening-tags>span{padding:2px 7px;border:1px solid var(--line);border-radius:5px;max-width:100%;overflow-wrap:anywhere}
 @media(max-width:480px){.uos-opening-filters{grid-template-columns:minmax(0,1fr)}.uos-opening-group>summary{font-size:14px}.uos-opening-tags{font-size:12px}}
+
+
+:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button){
+ appearance:none!important;display:flex!important;align-items:center;gap:10px;width:100%!important;min-width:0;min-height:44px!important;box-sizing:border-box;
+ margin:10px 0!important;padding:11px 14px!important;border:1px solid var(--line)!important;border-radius:12px!important;
+ background:var(--bg)!important;background:color-mix(in srgb,var(--accent) 9%,var(--bg))!important;color:var(--accent)!important;
+ box-shadow:inset 0 1px 0 #ffffff0a!important;font:600 13px/1.5 system-ui,"Noto Sans SC",sans-serif!important;letter-spacing:.035em;text-align:left;white-space:normal;cursor:pointer;
+ transition:background .18s,border-color .18s,box-shadow .18s;
+}
+.uos-reading-icon{position:relative;flex:none;width:18px;height:16px;border:1.5px solid currentColor;border-radius:3px 3px 5px 5px;opacity:.85}
+.uos-reading-icon::before{content:"";position:absolute;left:50%;top:-1px;bottom:-1px;border-left:1px solid currentColor}
+.uos-reading-icon::after{content:"";position:absolute;left:3px;right:3px;top:4px;height:4px;border-top:1px solid currentColor;border-bottom:1px solid currentColor;opacity:.5}
+.uos-reading-label{flex:1;min-width:0;overflow-wrap:anywhere}
+.uos-reading-arrow{flex:none;font-size:18px;font-weight:400;line-height:1;opacity:.75}
+:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button):focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+@media(hover:hover){:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button):hover{border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 16%,var(--bg))!important;box-shadow:0 3px 12px #0002!important;transform:none}}
+:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button):active{background:color-mix(in srgb,var(--accent) 22%,var(--bg))!important;transform:none}
+.uos-user-panel .uos-user-card .uos-user-select{appearance:none!important;min-height:44px!important;padding:10px 16px!important;border:1px solid var(--accent)!important;border-radius:10px!important;background:var(--accent)!important;color:var(--bg)!important;font:700 13px/1.5 system-ui,"Noto Sans SC",sans-serif!important;box-shadow:none!important;cursor:pointer}
+.uos-user-panel[data-theme=paper] .uos-user-card .uos-user-select{color:#fff8ec!important}
+.uos-user-panel .uos-user-card .uos-user-select:disabled{background:var(--bg)!important;border-color:var(--line)!important;color:var(--muted)!important;opacity:1;cursor:default}
+@media(prefers-reduced-motion:reduce){:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button){transition:none}}
 `;
 
 // src/author-template.js

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {THEME_ART} from '../../src/theme-art.js';
 import {OPENING_LAYOUT_CSS} from '../../src/opening-layout-styles.js';
 import {OPENING_CATEGORY_CSS} from '../../src/opening-category-styles.js';
+import {OPENING_ACTION_CSS} from '../../src/opening-action-styles.js';
 export function buildAuthorCss(){
 const themeBackgrounds=THEME_BACKGROUND_IMAGES;
 const tabArt=Object.fromEntries(['openings','worldbooks','bgm','diagnostics','updates'].map(id=>[id,THEME_ART[id]]));
@@ -15,5 +16,5 @@ const css=fs.readFileSync(new URL('../../src/selector.css',import.meta.url),'utf
     return replacements[token];
   })
   .replace(/<\/style/gi,'<\\/style');
-return css+'\n'+OPENING_LAYOUT_CSS+'\n'+OPENING_CATEGORY_CSS;
+return css+'\n'+OPENING_LAYOUT_CSS+'\n'+OPENING_CATEGORY_CSS+'\n'+OPENING_ACTION_CSS;
 }

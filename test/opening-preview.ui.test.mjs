@@ -15,6 +15,15 @@ try{
   (await import(url)).mountUniversalSelector(document,window.TavernHelper);
  },moduleUrl);
  await page.locator('.uos-user-trigger').click();const player=page.locator('.uos-user-panel');
+ // Simulate a host theme overriding generic button appearance.
+ await page.addStyleTag({content:'button{background:#999!important;color:#000!important;border-radius:0!important;border:2px dotted #888!important}'});
+ for(const theme of ['theatre','paper','neon']){
+  await player.evaluate((el,theme)=>el.dataset.theme=theme,theme);
+  const appearance=await player.locator('.uos-user-preview-button').first().evaluate(el=>{const css=getComputedStyle(el);return {color:css.color,bg:css.backgroundColor,radius:css.borderRadius,border:css.borderStyle,height:el.getBoundingClientRect().height}});
+  assert.notEqual(appearance.color,'rgb(0, 0, 0)');assert.notEqual(appearance.bg,'rgb(153, 153, 153)');assert.equal(appearance.radius,'12px');assert.equal(appearance.border,'solid');assert.ok(appearance.height>=44);
+  assert.equal(await player.locator('.uos-user-preview-button').first().getAttribute('type'),'button');
+ }
+ for(const width of [320,768]){await page.setViewportSize({width,height:760});assert.equal(await player.locator('.uos-user-card').first().evaluate(el=>el.scrollWidth<=el.clientWidth+1),true)}
  await player.getByRole('searchbox').fill('支线');assert.equal(await player.locator('.uos-user-card').count(),2);
  await player.getByRole('button',{name:'预览完整正文',exact:true}).first().click();const preview=page.locator('.uos-opening-preview');
  assert.equal(await preview.locator('.uos-preview-cast span').count(),4);assert.match(await preview.locator('.uos-preview-description').textContent(),/第二行/);
