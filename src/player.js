@@ -1,3 +1,7 @@
+import {createPlayerPanelSession} from './player-panel-session.js';
+import {createPlayerSettingsLayout} from './player-settings-layout.js';
+import {unsavedPlayerGroups,createPlayerDraftGuard,showPlayerUnsavedPrompt} from './player-draft-guard.js';
+export {unsavedPlayerGroups} from './player-draft-guard.js';
 import {THEME_ART} from './theme-art.js';
 import {RUNTIME_VERSION} from './version.js';
 import {THEME_BACKGROUND_IMAGES,createThemeBackgroundController} from './theme-backgrounds.js';
@@ -212,7 +216,6 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 
 `;
 
-export function unsavedPlayerGroups(baseline,current){if(!baseline||!current)return[];return Object.keys(current).filter(key=>JSON.stringify(baseline[key])!==JSON.stringify(current[key]))}
 export async function switchOpeningWithPreset(preset,presetManager,changeOpening){
   let transaction=null;
   try{
@@ -259,27 +262,6 @@ export function readPlayerState(context,helper){
   return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:bodies.map((body,i)=>({index:i,body,title:!isLegacyGeneratedEntry(body,metadata[i],i)&&metadata[i]?.title||greetingTitle(body,i,excluded),description:isLegacyGeneratedEntry(body,metadata[i],i)?'':metadata[i]?.description||'',names:people[i].names,nameEvidence:people[i].evidence,nameSuggestions:people[i].suggestions,label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
 }
 
-function showPlayerUnsavedPrompt(doc,dialog,panel,groups,canSaveToCard){
-  return new Promise(resolve=>{
-    const previous=doc.activeElement,overlay=doc.createElement('div');overlay.dataset.uosPlayerUnsaved='';overlay.setAttribute('role','presentation');
-    overlay.style.cssText='position:absolute;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:#000a;color:var(--text)';
-    const computed=doc.defaultView.getComputedStyle(panel);for(const key of ['--bg','--surface','--text','--muted','--accent','--line'])overlay.style.setProperty(key,computed.getPropertyValue(key));
-    const card=doc.createElement('section');card.setAttribute('role','alertdialog');card.setAttribute('aria-modal','true');card.setAttribute('aria-labelledby','uos-player-unsaved-title');card.style.cssText='width:min(440px,100%);padding:18px;border:1px solid var(--accent);border-radius:14px;background:var(--bg);color:var(--text);box-shadow:0 18px 54px #000b';
-    const title=doc.createElement('h2');title.id='uos-player-unsaved-title';title.textContent='有未保存的改动';title.style.cssText='margin:0 0 8px;font-size:18px';
-    const names={exclusion:'排除字段',people:'人物规则',edits:'开场修正',labels:'开场标签'};
-    const message=doc.createElement('p');message.textContent='未保存：'+groups.map(group=>names[group]||group).join('、');message.style.cssText='margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.5';
-    const actions=doc.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px';
-    let settled=false;const buttons=[];
-    const finish=value=>{if(settled)return;settled=true;doc.removeEventListener('keydown',onKeyDown,true);overlay.remove();try{previous?.focus?.()}catch{}resolve(value)};
-    const addButton=(label,value,primary=false)=>{const button=doc.createElement('button');button.type='button';button.textContent=label;button.style.cssText=`min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:${primary?'var(--accent)':'var(--surface)'};color:${primary?'var(--bg)':'var(--text)'};font:600 12px/1.35 system-ui,sans-serif;cursor:pointer`;button.onclick=()=>finish(value);buttons.push(button);actions.append(button);return button};
-    addButton('保存到本机并关闭','local',true);
-    if(canSaveToCard)addButton('保存到角色卡并关闭','card');
-    addButton('放弃更改并关闭','discard');const stay=addButton('继续编辑','stay');
-    const onKeyDown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();finish('stay');return}if(event.key==='Tab'){const index=buttons.indexOf(doc.activeElement);if(event.shiftKey&&index<=0){event.preventDefault();buttons.at(-1).focus()}else if(!event.shiftKey&&index===buttons.length-1){event.preventDefault();buttons[0].focus()}}};
-    overlay.addEventListener('pointerdown',event=>{if(event.target===overlay)finish('stay')});card.append(title,message,actions);overlay.append(card);dialog.append(overlay);doc.addEventListener('keydown',onKeyDown,true);stay.focus();
-  });
-}
-
 export function mountPlayerSelector(startDocument=document,helperApi,{backgroundService=null}={}){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
@@ -290,7 +272,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
-  let stopUpdateControl=null,trigger=null,overlay=null,updating=false,suppressClickUntil=0,panelCloseGuard=null,updateGuard=null;
+  let trigger=null,panelSession=null,updating=false,suppressClickUntil=0;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
     if(!trigger)return;
@@ -350,24 +332,32 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode){first.before(trigger);applySavedPosition()}
     }finally{updating=false}
   }
-  let backgroundControl=null;
-  function closePanel(force=false){if(!force&&panelCloseGuard){void panelCloseGuard();return}panelCloseGuard=null;updateGuard=null;backgroundControl?.close();backgroundControl=null;stopUpdateControl?.();stopUpdateControl=null;const active=overlay;overlay=null;if(active?.open)active.close();active?.remove()}
+  function closePanel(force=false){
+    if(force)panelSession?.close();else void panelSession?.requestClose();
+  }
   function openPanel(){
     const snapshot=state();if(!snapshot)return;
     const storageKey=labelKey(snapshot);let customLabels={};
     try{const saved=JSON.parse(host.localStorage.getItem(storageKey));if(saved && typeof saved==='object' && !Array.isArray(saved))customLabels=saved}catch{}
-    closePanel(true);overlay=el('dialog','uos-user-overlay');
+    closePanel(true);
+    const overlay=el('dialog','uos-user-overlay');
+    const session=createPlayerPanelSession(overlay,{
+      onDispose:closed=>{if(panelSession===closed)panelSession=null},
+      onError:error=>console.warn('[Aliceneko Opening Selector] 弹窗清理失败',error),
+    });
+    panelSession=session;
     const panel=el('section','uos-user-panel');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','预览和选择开场');
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
-    const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);backgroundControl=createThemeBackgroundController(panel,'--uos-user-background',doc.defaultView,{service:backgroundService});void backgroundControl.setTheme(panel.dataset.theme);
+    const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);const backgroundControl=createThemeBackgroundController(panel,'--uos-user-background',doc.defaultView,{service:backgroundService});void backgroundControl.setTheme(panel.dataset.theme);session.own(()=>backgroundControl.close());
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
-    const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>closePanel();const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
+    const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
-    const settings=el('section','uos-user-settings');settings.hidden=true;settings.id='uos-player-settings';settings.setAttribute('aria-label','开场设置');
-    const settingsButton=el('button','uos-user-settings-button','设置');settingsButton.type='button';settingsButton.setAttribute('aria-controls',settings.id);settingsButton.setAttribute('aria-expanded','false');settingsButton.onclick=()=>{settings.hidden=!settings.hidden;settingsButton.setAttribute('aria-expanded',String(!settings.hidden))};tools.append(settingsButton);
+    const settingsLayout=createPlayerSettingsLayout(el);
+    const {settings,button:settingsButton}=settingsLayout;
+    tools.append(settingsButton);session.own(()=>settingsLayout.close());
     const character=host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
     const authorConfig=(character?.data||character)?.extensions?.[KEY]||{};
     const authorEntries=Array.isArray(authorConfig.entries)?authorConfig.entries.map((entry,i)=>isLegacyGeneratedEntry(snapshot.entries[i]?.body,entry,i)?{...entry,title:'',description:''}:entry):[];
@@ -523,7 +513,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
         let current=state();
         if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';return}
         choose.disabled=true;
-        if(!await confirmPlayerChanges()){choose.disabled=false;return}
+        if(!await confirmPlayerChanges()||session.disposed){choose.disabled=false;return}
         current=state();
         if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';choose.disabled=false;return}
         status.textContent='正在切换开场…';
@@ -532,27 +522,23 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
           const preset=Array.isArray(authorConfig.worldbookPresets)?authorConfig.worldbookPresets.find(value=>value.id===presetId):null;
           if(preset)status.textContent='正在应用此开场的世界书条目预设…';
           await switchOpeningWithPreset(preset,worldbookPresetManager,async()=>{
-            const current=state();if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar)throw Error('角色或聊天已变化，请重新打开选择器');
+            const current=state();if(session.disposed||!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar)throw Error('角色或聊天已变化，请重新打开选择器');
             await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
             const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');
           });
-          closePanel(true);scan();
+          session.close();scan();
         }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
       };
       card.append(choose);list.append(card);
     }results.textContent=query.value.trim()||person.value?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty','没有匹配的开场，请换个关键词。'))}
-    const settingsSheets=[exclusion,personSettings,edits,labelSettings,updateSettings];
-    for(const sheet of settingsSheets)sheet.addEventListener('toggle',()=>{if(sheet.open)for(const other of settingsSheets)if(other!==sheet)other.open=false});
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
-    stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});
-    const settingsIntro=el('p','uos-user-settings-intro','按需要展开一项。修改后使用该项的保存按钮。');
-    const commonGroup=el('section','uos-user-settings-group');commonGroup.append(el('h3','','开场显示'),edits,labelSettings);
-    const advancedGroup=el('section','uos-user-settings-group');advancedGroup.append(el('h3','','识别规则'),exclusion,personSettings);
-    const systemGroup=el('section','uos-user-settings-group');systemGroup.append(el('h3','','插件'),updateSettings);
-    settings.append(settingsIntro,commonGroup,advancedGroup,systemGroup);panel.append(head,tools,settings,search,results,list,status,mark);overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
-    const active=overlay,activeBackgroundControl=backgroundControl;
+    const stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});session.own(stopUpdateControl);
+    settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings});
+    panel.append(head,tools,settings,search,results,list,status,mark);
+    overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
+    const active=overlay;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;
       exclusionInput.value=playerBaseline.exclusion;aliasInput.value=playerBaseline.people;
@@ -560,35 +546,23 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       labelInputs.forEach((input,i)=>{input.value=playerBaseline.labels[i]??''});
       updatePeople();renderCards();
     };
-    let closePromptOpen=false;
-    const confirmPlayerChanges=async()=>{
-      if(closePromptOpen)return false;
-      const groups=unsavedPlayerGroups(playerBaseline,readPlayerDraft());
-      if(!groups.length)return true;
-      closePromptOpen=true;
-      try{
-        const canSaveToCard=groups.some(group=>['exclusion','people','edits'].includes(group));
-        const choice=await showPlayerUnsavedPrompt(doc,active,panel,groups,canSaveToCard);
-        if(choice==='stay')return false;
-        if(choice==='discard'){restorePlayerDraft();return true}
-        const saved=choice==='card'?await saveCardDraft(groups):choice==='local'?saveLocalDraft(groups):false;
-        return !!saved;
-      }catch(error){status.textContent=`未保存内容处理失败：${error?.message||error}`}
-      finally{closePromptOpen=false}
-      return false;
-    };
-    const requestPanelClose=async()=>{if(await confirmPlayerChanges())closePanel(true)};
-    panelCloseGuard=requestPanelClose;updateGuard=confirmPlayerChanges;
+    const playerDraftGuard=createPlayerDraftGuard({
+      getGroups:()=>unsavedPlayerGroups(playerBaseline,readPlayerDraft()),
+      prompt:(groups,canSave,signal)=>showPlayerUnsavedPrompt(doc,active,panel,groups,canSave,{signal}),
+      restore:restorePlayerDraft,saveCard:saveCardDraft,saveLocal:saveLocalDraft,
+      isActive:()=>panelSession===session&&!session.disposed,status:message=>{status.textContent=message},
+    });
+    session.setGuard(playerDraftGuard);
+    const confirmPlayerChanges=()=>session.prepareForUpdate();
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
-        if(overlay!==active||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
+        if(panelSession!==session||session.disposed||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
         worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,worldbookPeople,result.diagnostics);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
-      }catch{if(overlay===active)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
+      }catch{if(panelSession===session&&!session.disposed)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();
-    try{active.showModal()}catch(error){closePanel(true);console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error);return}
-    active.addEventListener('cancel',event=>{event.preventDefault();closePanel()});active.onclick=e=>{if(e.target===active)closePanel()};active.onclose=()=>{activeBackgroundControl?.close();if(backgroundControl===activeBackgroundControl)backgroundControl=null;stopUpdateControl?.();stopUpdateControl=null;active.remove();if(overlay===active)overlay=null};close.focus();
+    try{session.show(close)}catch(error){console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error)}
   }
   const observer=new host.MutationObserver(scan);
   if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
@@ -597,7 +571,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:VERSION,scan,prepareForUpdate:async()=>updateGuard?updateGuard():true,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:VERSION,scan,prepareForUpdate:async()=>panelSession?panelSession.prepareForUpdate():true,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});

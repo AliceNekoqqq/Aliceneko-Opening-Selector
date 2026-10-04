@@ -125,6 +125,269 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
   };
 }
 
+// src/player-panel-session.js
+function createPlayerPanelSession(dialog, { onDispose = () => {
+}, onError = () => {
+} } = {}) {
+  let disposed = false, guard = null;
+  const cleanups = [];
+  function own(cleanup) {
+    if (typeof cleanup !== "function") return;
+    if (disposed) cleanup();
+    else cleanups.push(cleanup);
+  }
+  function close() {
+    if (disposed) return;
+    disposed = true;
+    dialog.removeEventListener("cancel", onCancel);
+    dialog.removeEventListener("click", onClick);
+    dialog.removeEventListener("close", onClose);
+    for (const cleanup of cleanups.splice(0).reverse()) {
+      try {
+        cleanup();
+      } catch (error) {
+        onError(error);
+      }
+    }
+    guard = null;
+    try {
+      if (dialog.open) dialog.close();
+    } finally {
+      dialog.remove();
+      onDispose(api);
+    }
+  }
+  async function prepareForUpdate() {
+    if (disposed) return true;
+    return guard ? guard.confirm() : true;
+  }
+  async function requestClose() {
+    if (disposed) return true;
+    if (!await prepareForUpdate()) return false;
+    if (!disposed) close();
+    return true;
+  }
+  const onCancel = (event) => {
+    event.preventDefault();
+    void requestClose();
+  };
+  const onClick = (event) => {
+    if (event.target === dialog) void requestClose();
+  };
+  const onClose = () => close();
+  dialog.addEventListener("cancel", onCancel);
+  dialog.addEventListener("click", onClick);
+  dialog.addEventListener("close", onClose);
+  const api = {
+    dialog,
+    own,
+    close,
+    requestClose,
+    prepareForUpdate,
+    get disposed() {
+      return disposed;
+    },
+    setGuard(value) {
+      if (guard) throw Error("弹窗已绑定草稿保护");
+      guard = value;
+      own(() => value.close());
+    },
+    show(focusTarget) {
+      if (disposed) return false;
+      try {
+        dialog.showModal();
+        focusTarget?.focus();
+        return true;
+      } catch (error) {
+        close();
+        throw error;
+      }
+    }
+  };
+  return api;
+}
+
+// src/player-settings-layout.js
+function createPlayerSettingsLayout(el) {
+  const settings = el("section", "uos-user-settings");
+  settings.hidden = true;
+  settings.id = "uos-player-settings";
+  settings.setAttribute("aria-label", "开场设置");
+  const button = el("button", "uos-user-settings-button", "设置");
+  button.type = "button";
+  button.setAttribute("aria-controls", settings.id);
+  button.setAttribute("aria-expanded", "false");
+  button.onclick = () => {
+    settings.hidden = !settings.hidden;
+    button.setAttribute("aria-expanded", String(!settings.hidden));
+  };
+  let stopToggles = () => {
+  }, closed = false;
+  function assemble({ exclusion, people, edits, labels, updates }) {
+    if (closed) return;
+    stopToggles();
+    const sheets = [exclusion, people, edits, labels, updates];
+    const listeners = sheets.map((sheet) => {
+      const onToggle = () => {
+        if (sheet.open) {
+          for (const other of sheets) if (other !== sheet) other.open = false;
+        }
+      };
+      sheet.addEventListener("toggle", onToggle);
+      return () => sheet.removeEventListener("toggle", onToggle);
+    });
+    stopToggles = () => {
+      listeners.forEach((stop) => stop());
+    };
+    const intro = el("p", "uos-user-settings-intro", "按需要展开一项。修改后使用该项的保存按钮。");
+    const common = el("section", "uos-user-settings-group");
+    common.append(el("h3", "", "开场显示"), edits, labels);
+    const advanced = el("section", "uos-user-settings-group");
+    advanced.append(el("h3", "", "识别规则"), exclusion, people);
+    const system = el("section", "uos-user-settings-group");
+    system.append(el("h3", "", "插件"), updates);
+    settings.replaceChildren(intro, common, advanced, system);
+  }
+  return { settings, button, assemble, close() {
+    if (closed) return;
+    closed = true;
+    stopToggles();
+    button.onclick = null;
+  } };
+}
+
+// src/player-draft-guard.js
+function unsavedPlayerGroups(baseline, current) {
+  if (!baseline || !current) return [];
+  return Object.keys(current).filter((key) => JSON.stringify(baseline[key]) !== JSON.stringify(current[key]));
+}
+function createPlayerDraftGuard({
+  getGroups,
+  prompt,
+  restore,
+  saveCard,
+  saveLocal,
+  status,
+  isActive = () => true,
+  AbortControllerClass = globalThis.AbortController
+}) {
+  let prompting = false, closed = false;
+  const controller = new AbortControllerClass();
+  const current = () => !closed && isActive();
+  async function confirm() {
+    if (prompting || !current()) return false;
+    const groups = getGroups();
+    if (!groups.length) return true;
+    prompting = true;
+    try {
+      const canSaveToCard = groups.some((group) => ["exclusion", "people", "edits"].includes(group));
+      const choice = await prompt(groups, canSaveToCard, controller.signal);
+      if (!current() || choice === "stay") return false;
+      if (choice === "discard") {
+        restore();
+        return true;
+      }
+      const saved = choice === "card" ? await saveCard(groups) : choice === "local" ? await saveLocal(groups) : false;
+      return current() && !!saved;
+    } catch (error) {
+      if (current()) status(`未保存内容处理失败：${error?.message || error}`);
+    } finally {
+      prompting = false;
+    }
+    return false;
+  }
+  return { confirm, close() {
+    if (closed) return;
+    closed = true;
+    controller.abort();
+  } };
+}
+function showPlayerUnsavedPrompt(doc, dialog, panel, groups, canSaveToCard, { signal } = {}) {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve("stay");
+      return;
+    }
+    const previous = doc.activeElement, overlay = doc.createElement("div");
+    overlay.dataset.uosPlayerUnsaved = "";
+    overlay.setAttribute("role", "presentation");
+    overlay.style.cssText = "position:absolute;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:#000a;color:var(--text)";
+    const computed = doc.defaultView.getComputedStyle(panel);
+    for (const key of ["--bg", "--surface", "--text", "--muted", "--accent", "--line"]) overlay.style.setProperty(key, computed.getPropertyValue(key));
+    const card = doc.createElement("section");
+    card.setAttribute("role", "alertdialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "uos-player-unsaved-title");
+    card.style.cssText = "width:min(440px,100%);padding:18px;border:1px solid var(--accent);border-radius:14px;background:var(--bg);color:var(--text);box-shadow:0 18px 54px #000b";
+    const title = doc.createElement("h2");
+    title.id = "uos-player-unsaved-title";
+    title.textContent = "有未保存的改动";
+    title.style.cssText = "margin:0 0 8px;font-size:18px";
+    const names = { exclusion: "排除字段", people: "人物规则", edits: "开场修正", labels: "开场标签" };
+    const message = doc.createElement("p");
+    message.textContent = "未保存：" + groups.map((group) => names[group] || group).join("、");
+    message.style.cssText = "margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.5";
+    const actions = doc.createElement("div");
+    actions.style.cssText = "display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px";
+    let settled = false;
+    const buttons = [];
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      doc.removeEventListener("keydown", onKeyDown, true);
+      signal?.removeEventListener("abort", onAbort);
+      overlay.remove();
+      try {
+        previous?.focus?.();
+      } catch {
+      }
+      resolve(value);
+    };
+    const addButton = (label, value, primary = false) => {
+      const button = doc.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.style.cssText = `min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:${primary ? "var(--accent)" : "var(--surface)"};color:${primary ? "var(--bg)" : "var(--text)"};font:600 12px/1.35 system-ui,sans-serif;cursor:pointer`;
+      button.onclick = () => finish(value);
+      buttons.push(button);
+      actions.append(button);
+      return button;
+    };
+    addButton("保存到本机并关闭", "local", true);
+    if (canSaveToCard) addButton("保存到角色卡并关闭", "card");
+    addButton("放弃更改并关闭", "discard");
+    const stay = addButton("继续编辑", "stay");
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        finish("stay");
+        return;
+      }
+      if (event.key === "Tab") {
+        const index = buttons.indexOf(doc.activeElement);
+        if (event.shiftKey && index <= 0) {
+          event.preventDefault();
+          buttons.at(-1).focus();
+        } else if (!event.shiftKey && index === buttons.length - 1) {
+          event.preventDefault();
+          buttons[0].focus();
+        }
+      }
+    };
+    const onAbort = () => finish("stay");
+    signal?.addEventListener("abort", onAbort, { once: true });
+    overlay.addEventListener("pointerdown", (event) => {
+      if (event.target === overlay) finish("stay");
+    });
+    card.append(title, message, actions);
+    overlay.append(card);
+    dialog.append(overlay);
+    doc.addEventListener("keydown", onKeyDown, true);
+    stay.focus();
+  });
+}
+
 // src/theme-art.js
 var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
 var THEME_ART = Object.freeze({
@@ -1364,10 +1627,6 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-diagnostics{margin-top:12px;border-top:1px solid var(--line)}
 
 `;
-function unsavedPlayerGroups(baseline, current) {
-  if (!baseline || !current) return [];
-  return Object.keys(current).filter((key) => JSON.stringify(baseline[key]) !== JSON.stringify(current[key]));
-}
 async function switchOpeningWithPreset(preset, presetManager, changeOpening) {
   let transaction = null;
   try {
@@ -1424,84 +1683,6 @@ function readPlayerState(context, helper) {
   const people = detectGreetingCollection(bodies, { characterName: data.name || c.name, knownNames: metadata.flatMap((entry) => typeof entry?.names === "string" ? parseNames(entry.names) : []), aliases: settings.personAliases || "" });
   return { characterId: context.characterId, avatar: c.avatar || data.name || "", swipeId: Number(message.swipe_id) || 0, entries: bodies.map((body, i) => ({ index: i, body, title: !isLegacyGeneratedEntry(body, metadata[i], i) && metadata[i]?.title || greetingTitle(body, i, excluded), description: isLegacyGeneratedEntry(body, metadata[i], i) ? "" : metadata[i]?.description || "", names: people[i].names, nameEvidence: people[i].evidence, nameSuggestions: people[i].suggestions, label: metadata[i]?.label || `OPENING ${String(i + 1).padStart(2, "0")}` })) };
 }
-function showPlayerUnsavedPrompt(doc, dialog, panel, groups, canSaveToCard) {
-  return new Promise((resolve) => {
-    const previous = doc.activeElement, overlay = doc.createElement("div");
-    overlay.dataset.uosPlayerUnsaved = "";
-    overlay.setAttribute("role", "presentation");
-    overlay.style.cssText = "position:absolute;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:#000a;color:var(--text)";
-    const computed = doc.defaultView.getComputedStyle(panel);
-    for (const key of ["--bg", "--surface", "--text", "--muted", "--accent", "--line"]) overlay.style.setProperty(key, computed.getPropertyValue(key));
-    const card = doc.createElement("section");
-    card.setAttribute("role", "alertdialog");
-    card.setAttribute("aria-modal", "true");
-    card.setAttribute("aria-labelledby", "uos-player-unsaved-title");
-    card.style.cssText = "width:min(440px,100%);padding:18px;border:1px solid var(--accent);border-radius:14px;background:var(--bg);color:var(--text);box-shadow:0 18px 54px #000b";
-    const title = doc.createElement("h2");
-    title.id = "uos-player-unsaved-title";
-    title.textContent = "有未保存的改动";
-    title.style.cssText = "margin:0 0 8px;font-size:18px";
-    const names = { exclusion: "排除字段", people: "人物规则", edits: "开场修正", labels: "开场标签" };
-    const message = doc.createElement("p");
-    message.textContent = "未保存：" + groups.map((group) => names[group] || group).join("、");
-    message.style.cssText = "margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.5";
-    const actions = doc.createElement("div");
-    actions.style.cssText = "display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px";
-    let settled = false;
-    const buttons = [];
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      doc.removeEventListener("keydown", onKeyDown, true);
-      overlay.remove();
-      try {
-        previous?.focus?.();
-      } catch {
-      }
-      resolve(value);
-    };
-    const addButton = (label, value, primary = false) => {
-      const button = doc.createElement("button");
-      button.type = "button";
-      button.textContent = label;
-      button.style.cssText = `min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:${primary ? "var(--accent)" : "var(--surface)"};color:${primary ? "var(--bg)" : "var(--text)"};font:600 12px/1.35 system-ui,sans-serif;cursor:pointer`;
-      button.onclick = () => finish(value);
-      buttons.push(button);
-      actions.append(button);
-      return button;
-    };
-    addButton("保存到本机并关闭", "local", true);
-    if (canSaveToCard) addButton("保存到角色卡并关闭", "card");
-    addButton("放弃更改并关闭", "discard");
-    const stay = addButton("继续编辑", "stay");
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        finish("stay");
-        return;
-      }
-      if (event.key === "Tab") {
-        const index = buttons.indexOf(doc.activeElement);
-        if (event.shiftKey && index <= 0) {
-          event.preventDefault();
-          buttons.at(-1).focus();
-        } else if (!event.shiftKey && index === buttons.length - 1) {
-          event.preventDefault();
-          buttons[0].focus();
-        }
-      }
-    };
-    overlay.addEventListener("pointerdown", (event) => {
-      if (event.target === overlay) finish("stay");
-    });
-    card.append(title, message, actions);
-    overlay.append(card);
-    dialog.append(overlay);
-    doc.addEventListener("keydown", onKeyDown, true);
-    stay.focus();
-  });
-}
 function mountPlayerSelector(startDocument = document, helperApi, { backgroundService = null } = {}) {
   let doc = startDocument, win = doc.defaultView;
   try {
@@ -1524,7 +1705,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   style.dataset.uosUserStyle = "";
   style.textContent = CSS + defaultCoverStyles(".uos-user-panel") + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
-  let stopUpdateControl = null, trigger = null, overlay = null, updating = false, suppressClickUntil = 0, panelCloseGuard = null, updateGuard = null;
+  let trigger = null, panelSession = null, updating = false, suppressClickUntil = 0;
   const positionKey = "uos_player_button_position";
   function clampButton(left, top) {
     if (!trigger) return;
@@ -1645,22 +1826,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       updating = false;
     }
   }
-  let backgroundControl = null;
   function closePanel(force = false) {
-    if (!force && panelCloseGuard) {
-      void panelCloseGuard();
-      return;
-    }
-    panelCloseGuard = null;
-    updateGuard = null;
-    backgroundControl?.close();
-    backgroundControl = null;
-    stopUpdateControl?.();
-    stopUpdateControl = null;
-    const active = overlay;
-    overlay = null;
-    if (active?.open) active.close();
-    active?.remove();
+    if (force) panelSession?.close();
+    else void panelSession?.requestClose();
   }
   function openPanel() {
     const snapshot = state();
@@ -1673,7 +1841,14 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     } catch {
     }
     closePanel(true);
-    overlay = el("dialog", "uos-user-overlay");
+    const overlay = el("dialog", "uos-user-overlay");
+    const session = createPlayerPanelSession(overlay, {
+      onDispose: (closed) => {
+        if (panelSession === closed) panelSession = null;
+      },
+      onError: (error) => console.warn("[Aliceneko Opening Selector] 弹窗清理失败", error)
+    });
+    panelSession = session;
     const panel = el("section", "uos-user-panel");
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-modal", "true");
@@ -1688,8 +1863,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     background.setAttribute("aria-hidden", "true");
     panel.style.setProperty("--uos-user-background", THEME_BACKGROUND_IMAGES[panel.dataset.theme] ? `url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")` : "none");
     panel.append(background);
-    backgroundControl = createThemeBackgroundController(panel, "--uos-user-background", doc.defaultView, { service: backgroundService });
+    const backgroundControl = createThemeBackgroundController(panel, "--uos-user-background", doc.defaultView, { service: backgroundService });
     void backgroundControl.setTheme(panel.dataset.theme);
+    session.own(() => backgroundControl.close());
     const head = el("div", "uos-user-head"), heading = el("div"), kicker = el("span", "uos-user-kicker", THEME_CAPTIONS[panel.dataset.theme]);
     const headerArt = el("span", "uos-user-header-ornament");
     headerArt.setAttribute("aria-hidden", "true");
@@ -1697,7 +1873,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     heading.append(kicker, el("h2", "", "选择故事的起点"), el("p", "", `共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close = el("button", "uos-user-close", "关闭");
     close.type = "button";
-    close.onclick = () => closePanel();
+    close.onclick = () => {
+      void session.requestClose();
+    };
     const versionBadge = el("small", "uos-user-version-badge", `v${VERSION}`);
     head.append(heading, versionBadge, close);
     const tools = el("div", "uos-user-tools");
@@ -1723,19 +1901,10 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     themeControl.append(el("span", "uos-user-theme-label", "主题"), select);
     tools.append(themeControl);
     const list = el("div", "uos-user-list"), status = el("p", "uos-user-status");
-    const settings = el("section", "uos-user-settings");
-    settings.hidden = true;
-    settings.id = "uos-player-settings";
-    settings.setAttribute("aria-label", "开场设置");
-    const settingsButton = el("button", "uos-user-settings-button", "设置");
-    settingsButton.type = "button";
-    settingsButton.setAttribute("aria-controls", settings.id);
-    settingsButton.setAttribute("aria-expanded", "false");
-    settingsButton.onclick = () => {
-      settings.hidden = !settings.hidden;
-      settingsButton.setAttribute("aria-expanded", String(!settings.hidden));
-    };
+    const settingsLayout = createPlayerSettingsLayout(el);
+    const { settings, button: settingsButton } = settingsLayout;
     tools.append(settingsButton);
+    session.own(() => settingsLayout.close());
     const character = host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
     const authorConfig = (character?.data || character)?.extensions?.[KEY] || {};
     const authorEntries = Array.isArray(authorConfig.entries) ? authorConfig.entries.map((entry, i) => isLegacyGeneratedEntry(snapshot.entries[i]?.body, entry, i) ? { ...entry, title: "", description: "" } : entry) : [];
@@ -2172,7 +2341,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
             return;
           }
           choose.disabled = true;
-          if (!await confirmPlayerChanges()) {
+          if (!await confirmPlayerChanges() || session.disposed) {
             choose.disabled = false;
             return;
           }
@@ -2189,12 +2358,12 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
             if (preset) status.textContent = "正在应用此开场的世界书条目预设…";
             await switchOpeningWithPreset(preset, worldbookPresetManager, async () => {
               const current2 = state();
-              if (!current2 || current2.characterId !== snapshot.characterId || current2.avatar !== snapshot.avatar) throw Error("角色或聊天已变化，请重新打开选择器");
+              if (session.disposed || !current2 || current2.characterId !== snapshot.characterId || current2.avatar !== snapshot.avatar) throw Error("角色或聊天已变化，请重新打开选择器");
               await helper.setChatMessages([{ message_id: 0, swipe_id: entry.index }], { refresh: "all" });
               const after = state();
               if (after?.swipeId !== entry.index) throw Error("消息页未切换");
             });
-            closePanel(true);
+            session.close();
             scan();
           } catch (error) {
             status.textContent = `切换失败：${error?.message || error}`;
@@ -2207,29 +2376,17 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       results.textContent = query.value.trim() || person.value ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
       if (!visible) list.append(el("p", "uos-user-empty", "没有匹配的开场，请换个关键词。"));
     }
-    const settingsSheets = [exclusion, personSettings, edits, labelSettings, updateSettings];
-    for (const sheet of settingsSheets) sheet.addEventListener("toggle", () => {
-      if (sheet.open) {
-        for (const other of settingsSheets) if (other !== sheet) other.open = false;
-      }
-    });
     updatePeople();
     renderCards();
     const mark = el("p", "uos-user-watermark", WATERMARK), footerVersion = el("span", "uos-user-version", `v${VERSION}`);
     mark.append(footerVersion);
-    stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
-    const settingsIntro = el("p", "uos-user-settings-intro", "按需要展开一项。修改后使用该项的保存按钮。");
-    const commonGroup = el("section", "uos-user-settings-group");
-    commonGroup.append(el("h3", "", "开场显示"), edits, labelSettings);
-    const advancedGroup = el("section", "uos-user-settings-group");
-    advancedGroup.append(el("h3", "", "识别规则"), exclusion, personSettings);
-    const systemGroup = el("section", "uos-user-settings-group");
-    systemGroup.append(el("h3", "", "插件"), updateSettings);
-    settings.append(settingsIntro, commonGroup, advancedGroup, systemGroup);
+    const stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
+    session.own(stopUpdateControl);
+    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings });
     panel.append(head, tools, settings, search, results, list, status, mark);
     overlay.append(panel);
     (doc.body || doc.documentElement).append(overlay);
-    const active = overlay, activeBackgroundControl = backgroundControl;
+    const active = overlay;
     const restorePlayerDraft = () => {
       if (!playerBaseline) return;
       exclusionInput.value = playerBaseline.exclusion;
@@ -2244,48 +2401,33 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       updatePeople();
       renderCards();
     };
-    let closePromptOpen = false;
-    const confirmPlayerChanges = async () => {
-      if (closePromptOpen) return false;
-      const groups = unsavedPlayerGroups(playerBaseline, readPlayerDraft());
-      if (!groups.length) return true;
-      closePromptOpen = true;
-      try {
-        const canSaveToCard = groups.some((group) => ["exclusion", "people", "edits"].includes(group));
-        const choice = await showPlayerUnsavedPrompt(doc, active, panel, groups, canSaveToCard);
-        if (choice === "stay") return false;
-        if (choice === "discard") {
-          restorePlayerDraft();
-          return true;
-        }
-        const saved = choice === "card" ? await saveCardDraft(groups) : choice === "local" ? saveLocalDraft(groups) : false;
-        return !!saved;
-      } catch (error) {
-        status.textContent = `未保存内容处理失败：${error?.message || error}`;
-      } finally {
-        closePromptOpen = false;
+    const playerDraftGuard = createPlayerDraftGuard({
+      getGroups: () => unsavedPlayerGroups(playerBaseline, readPlayerDraft()),
+      prompt: (groups, canSave, signal) => showPlayerUnsavedPrompt(doc, active, panel, groups, canSave, { signal }),
+      restore: restorePlayerDraft,
+      saveCard: saveCardDraft,
+      saveLocal: saveLocalDraft,
+      isActive: () => panelSession === session && !session.disposed,
+      status: (message) => {
+        status.textContent = message;
       }
-      return false;
-    };
-    const requestPanelClose = async () => {
-      if (await confirmPlayerChanges()) closePanel(true);
-    };
-    panelCloseGuard = requestPanelClose;
-    updateGuard = confirmPlayerChanges;
+    });
+    session.setGuard(playerDraftGuard);
+    const confirmPlayerChanges = () => session.prepareForUpdate();
     async function refreshWorldbook(refresh = false) {
       reloadWorldbook.disabled = true;
       worldbookStatus.textContent = "正在读取角色世界书人物名单…";
       try {
         const result = await readWorldbookPeople(character, { refresh });
         const current = host.SillyTavern?.getContext?.();
-        if (overlay !== active || current?.characterId !== snapshot.characterId || current?.characters?.[current.characterId]?.avatar !== character?.avatar) return;
+        if (panelSession !== session || session.disposed || current?.characterId !== snapshot.characterId || current?.characters?.[current.characterId]?.avatar !== character?.avatar) return;
         worldbookPeople = result.people;
         renderWorldbookPeopleList(doc, worldbookList, worldbookPeople, result.diagnostics);
         worldbookStatus.textContent = formatWorldbookPeopleStatus(result);
         updatePeople();
         renderCards();
       } catch {
-        if (overlay === active) worldbookStatus.textContent = "世界书读取失败，继续识别正文中的明确姓名；可重新读取。";
+        if (panelSession === session && !session.disposed) worldbookStatus.textContent = "世界书读取失败，继续识别正文中的明确姓名；可重新读取。";
       } finally {
         reloadWorldbook.disabled = false;
       }
@@ -2293,28 +2435,10 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     reloadWorldbook.onclick = () => refreshWorldbook(true);
     void refreshWorldbook();
     try {
-      active.showModal();
+      session.show(close);
     } catch (error) {
-      closePanel(true);
       console.warn("[Aliceneko Opening Selector] 弹窗无法打开", error);
-      return;
     }
-    active.addEventListener("cancel", (event) => {
-      event.preventDefault();
-      closePanel();
-    });
-    active.onclick = (e) => {
-      if (e.target === active) closePanel();
-    };
-    active.onclose = () => {
-      activeBackgroundControl?.close();
-      if (backgroundControl === activeBackgroundControl) backgroundControl = null;
-      stopUpdateControl?.();
-      stopUpdateControl = null;
-      active.remove();
-      if (overlay === active) overlay = null;
-    };
-    close.focus();
   }
   const observer = new host.MutationObserver(scan);
   if (doc.body) observer.observe(doc.body, { childList: true, subtree: true });
@@ -2328,7 +2452,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   const onPageHide = () => {
     if (doc.__uosPlayer === api) api.close();
   };
-  const api = { version: VERSION, scan, prepareForUpdate: async () => updateGuard ? updateGuard() : true, close: () => {
+  const api = { version: VERSION, scan, prepareForUpdate: async () => panelSession ? panelSession.prepareForUpdate() : true, close: () => {
     observer.disconnect();
     host.removeEventListener("resize", onResize);
     host.clearInterval(timer);
@@ -2343,7 +2467,460 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   return api;
 }
 
-// src/selector.js
+// src/worldbook-preset-editor.js
+function createWorldbookPresetEditor({
+  doc,
+  el,
+  query: $,
+  getDraft,
+  entries,
+  manager,
+  character,
+  isConnected,
+  status,
+  confirmPresetDelete
+}) {
+  let worldbookPresetData = { books: [], bindings: [], warnings: [] };
+  let worldbookPresetMessage = "正在读取绑定世界书…", closed = false, readRequest = 0;
+  const selection = { id: "", edit: null, dirty: false, isNew: false };
+  function reset() {
+    selection.id = "";
+    selection.edit = null;
+    selection.dirty = false;
+    selection.isNew = false;
+  }
+  async function refresh() {
+    const identity = character()?.avatar, request = ++readRequest;
+    const current = () => !closed && request === readRequest && isConnected() && character()?.avatar === identity;
+    try {
+      const result = await manager.read();
+      if (!current()) return;
+      worldbookPresetData = result;
+      worldbookPresetMessage = `已读取 ${result.books.length} 本、${result.entryCount} 条。${result.warnings.length ? `读取失败：${result.warnings.join("；")}` : ""}`;
+    } catch (error) {
+      if (!current()) return;
+      worldbookPresetData = { books: [], bindings: [], warnings: [] };
+      worldbookPresetMessage = String(error?.message || error);
+    }
+    const note = $("[data-worldbook-presets-status]");
+    if (note) note.textContent = worldbookPresetMessage;
+    render();
+  }
+  function commitPending({ fromForm = false } = {}) {
+    const draft = getDraft();
+    if (closed || !draft) return false;
+    if (!selection.dirty) return true;
+    const selected = selection.edit, name = String(selected?.name || "").trim().slice(0, 120);
+    if (!selected || !name) {
+      status(fromForm ? "请填写预设名称。" : "请先填写预设名称。");
+      return false;
+    }
+    if (worldbookPresetNameTaken(name, selected.id)) {
+      status(fromForm ? "已有同名预设，请换一个名称。" : "已有同名预设，请换一个名称后再保存。");
+      return false;
+    }
+    const saved = { ...JSON.parse(JSON.stringify(selected)), name };
+    if (selection.isNew) draft.worldbookPresets.push(saved);
+    else {
+      const index = draft.worldbookPresets.findIndex((preset) => preset.id === selected.id);
+      if (index < 0) {
+        status("找不到原预设，请刷新后重试。");
+        return false;
+      }
+      draft.worldbookPresets[index] = saved;
+    }
+    selection.edit = JSON.parse(JSON.stringify(saved));
+    selection.dirty = false;
+    selection.isNew = false;
+    render();
+    return true;
+  }
+  function worldbookPresetState(preset, book, item) {
+    const uid = item.uid ?? item.id;
+    const saved = preset?.books?.find((value) => value.name === book.name)?.entries?.find((value) => String(value.uid) === String(uid));
+    return saved ? saved.enabled : item.enabled !== false && item.disable !== true;
+  }
+  function setPresetEntry(preset, book, item, enabled) {
+    const uid = item.uid ?? item.id;
+    if (uid == null || String(uid) === "") throw Error("该条目没有唯一 UID，无法安全记录");
+    let savedBook = preset.books.find((value) => value.name === book.name);
+    if (!savedBook) {
+      savedBook = { name: book.name, entries: [] };
+      preset.books.push(savedBook);
+    }
+    const saved = savedBook.entries.find((value) => String(value.uid) === String(uid));
+    if (saved) saved.enabled = enabled;
+    else savedBook.entries.push({ uid, name: String(item.name || item.comment || "条目 " + uid).slice(0, 160), enabled });
+  }
+  function worldbookItemSearchText(item) {
+    const keys = Array.isArray(item.keys) ? item.keys : Array.isArray(item.strategy?.keys) ? item.strategy.keys : [];
+    return [item.name, item.comment, ...keys].map((value) => String(value || "")).join(" ").toLocaleLowerCase();
+  }
+  function makeWorldbookPresetId() {
+    const draft = getDraft();
+    const random = doc.defaultView?.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+    const base = "worldbook-" + Date.now().toString(36) + "-" + String(random).replace(/[^a-zA-Z0-9-]/g, "");
+    let id = base, index = 2;
+    while (draft.worldbookPresets.some((preset) => preset.id === id)) id = base + "-" + index++;
+    return id;
+  }
+  function worldbookPresetNameTaken(name, exceptId = "") {
+    const draft = getDraft();
+    const normalized = String(name || "").trim().toLocaleLowerCase();
+    return draft.worldbookPresets.some((preset) => preset.id !== exceptId && preset.name.toLocaleLowerCase() === normalized);
+  }
+  function nextWorldbookPresetName(base) {
+    const baseName = String(base || "世界书预设").trim().slice(0, 120) || "世界书预设";
+    let name = baseName, index = 2;
+    while (worldbookPresetNameTaken(name)) {
+      const suffix = " " + index++;
+      name = baseName.slice(0, 120 - suffix.length) + suffix;
+    }
+    return name;
+  }
+  function renderWorldbookPresetRows(list, preset, query, onChange = () => {
+  }) {
+    list.replaceChildren();
+    let matches = 0, remaining = 400, limited = false;
+    if (!preset) {
+      list.append(el("p", "uos-help", "先新建预设。"));
+      return 0;
+    }
+    for (const book of worldbookPresetData.books) {
+      const items = book.entries.filter((item) => !query || worldbookItemSearchText(item).includes(query));
+      if (!items.length) continue;
+      matches += items.length;
+      const shown = items.slice(0, Math.min(200, remaining));
+      remaining -= shown.length;
+      if (shown.length < items.length) limited = true;
+      const group = el("details", "uos-worldbook-group");
+      group.open = Boolean(query) || !query && worldbookPresetData.books.length === 1;
+      const summary = el("summary", "", book.name + " · " + items.filter((item) => worldbookPresetState(preset, book, item)).length + "/" + items.length + " 条启用");
+      group.append(summary);
+      const rows = el("div", "uos-worldbook-entry-list");
+      const renderEntries = () => {
+        rows.replaceChildren();
+        if (!group.open) return;
+        for (const item of shown) {
+          const uid = item.uid ?? item.id, key = uid == null ? "" : String(uid), label = el("label", "uos-worldbook-entry-toggle"), input = el("input");
+          input.type = "checkbox";
+          input.checked = worldbookPresetState(preset, book, item);
+          input.disabled = !key || worldbookPresetData.warnings.length > 0;
+          input.onchange = () => {
+            try {
+              setPresetEntry(preset, book, item, input.checked);
+              summary.textContent = book.name + " · " + items.filter((value) => worldbookPresetState(preset, book, value)).length + "/" + items.length + " 条启用";
+              onChange();
+              status("预设有未保存修改；保存预设后再保存角色卡。");
+            } catch (error) {
+              input.checked = worldbookPresetState(preset, book, item);
+              status("无法记录此条目：" + (error.message || error));
+            }
+          };
+          label.append(input, el("span", "uos-worldbook-entry-name", String(item.name || item.comment || "未命名条目 " + (key || "（无 UID）"))));
+          const keys = Array.isArray(item.keys) ? item.keys : Array.isArray(item.strategy?.keys) ? item.strategy.keys : [];
+          if (keys.length) label.append(el("small", "uos-worldbook-entry-keys", "关键词：" + keys.map((value) => String(value)).slice(0, 5).join("、") + (keys.length > 5 ? "…" : "")));
+          if (!key) label.append(el("small", "uos-worldbook-entry-keys", "缺少 UID，无法切换"));
+          rows.append(label);
+        }
+      };
+      group.addEventListener("toggle", renderEntries);
+      group.append(rows);
+      renderEntries();
+      list.append(group);
+    }
+    if (!matches) list.append(el("p", "uos-help", query ? "没有匹配条目。" : "没有可编辑条目。"));
+    if (limited) list.append(el("p", "uos-help", "结果过多，请缩小搜索范围。"));
+    return matches;
+  }
+  function render() {
+    const draft = getDraft(), panel = $("[data-worldbook-presets]");
+    if (closed || !panel || !draft) return;
+    panel.replaceChildren();
+    const statusLine = el("p", "uos-help", worldbookPresetMessage);
+    statusLine.dataset.worldbookPresetsStatus = "";
+    panel.append(statusLine);
+    const refresh2 = el("button", "uos-icon", "刷新");
+    refresh2.type = "button";
+    refresh2.onclick = async () => {
+      refresh2.disabled = true;
+      await refresh2();
+      refresh2.disabled = false;
+    };
+    panel.append(refresh2);
+    panel.append(el("p", "uos-help", "修改后点「保存预设」，最后点页面底部「保存到角色卡」。"));
+    if (worldbookPresetData.warnings.length) panel.append(el("p", "uos-help", "有世界书未能读取，暂不能新建或编辑预设。"));
+    const presets = draft.worldbookPresets || [];
+    if (selection.isNew) {
+      if (!selection.edit || selection.edit.id !== selection.id) {
+        selection.edit = null;
+        selection.isNew = false;
+        selection.dirty = false;
+      }
+    }
+    if (!selection.isNew) {
+      if (!presets.some((preset) => preset.id === selection.id)) selection.id = presets[0]?.id || "";
+      const saved = presets.find((preset) => preset.id === selection.id) || null;
+      if (!saved) {
+        selection.edit = null;
+        selection.dirty = false;
+      } else if (!selection.edit || selection.edit.id !== saved.id) selection.edit = JSON.parse(JSON.stringify(saved));
+    }
+    const active = () => selection.edit;
+    const updateDirty = () => {
+      if (selection.isNew) {
+        selection.dirty = true;
+        return;
+      }
+      const saved = presets.find((preset) => preset.id === selection.id);
+      selection.dirty = !saved || JSON.stringify(saved) !== JSON.stringify(selection.edit);
+    };
+    panel.append(el("h3", "uos-worldbook-section-title", "世界书预设"));
+    const createRow = el("div", "uos-worldbook-actions");
+    const newName = el("input", "uos-worldbook-name");
+    newName.type = "text";
+    newName.maxLength = 120;
+    newName.placeholder = "新预设名称（可留空）";
+    const create = el("button", "uos-icon", "新建预设");
+    create.type = "button";
+    create.disabled = worldbookPresetData.warnings.length > 0 || selection.dirty;
+    create.onclick = () => {
+      try {
+        const snapshot = captureWorldbookPreset(worldbookPresetData.books), name = nextWorldbookPresetName(newName.value.trim() || "世界书预设 " + (presets.length + 1));
+        selection.edit = { id: makeWorldbookPresetId(), name, ...snapshot };
+        selection.id = selection.edit.id;
+        selection.dirty = true;
+        selection.isNew = true;
+        render();
+        status("新预设草稿已创建；保存后才能分配给开场。");
+      } catch (error) {
+        status(error.message || String(error));
+      }
+    };
+    createRow.append(newName, create);
+    panel.append(createRow);
+    const selectRow = el("div", "uos-worldbook-actions");
+    const select = el("select", "uos-worldbook-select"), empty = doc.createElement("option");
+    empty.value = "";
+    empty.textContent = presets.length ? "选择预设" : "暂无预设";
+    select.append(empty);
+    for (const preset of presets) {
+      const option = doc.createElement("option");
+      option.value = preset.id;
+      option.textContent = preset.name;
+      select.append(option);
+    }
+    select.value = selection.isNew ? "" : selection.id;
+    select.disabled = selection.dirty;
+    select.setAttribute("aria-label", "选择世界书预设");
+    select.onchange = () => {
+      if (selection.dirty) {
+        select.value = selection.isNew ? "" : selection.id;
+        status("请先保存或撤销当前预设修改。");
+        return;
+      }
+      selection.id = select.value;
+      const saved = presets.find((preset) => preset.id === selection.id);
+      selection.edit = saved ? JSON.parse(JSON.stringify(saved)) : null;
+      selection.dirty = false;
+      selection.isNew = false;
+      render();
+    };
+    selectRow.append(select);
+    panel.append(selectRow);
+    const selected = active();
+    if (selected) {
+      const nameRow = el("div", "uos-worldbook-actions"), nameInput = el("input", "uos-worldbook-name");
+      nameInput.type = "text";
+      nameInput.maxLength = 120;
+      nameInput.value = selected.name;
+      nameInput.setAttribute("aria-label", "预设名称");
+      const savePreset = el("button", "uos-icon", selection.isNew ? "保存新预设" : "保存预设");
+      savePreset.type = "button";
+      savePreset.disabled = !selection.dirty;
+      const undo = el("button", "uos-icon", selection.isNew ? "取消新建" : "撤销修改");
+      undo.type = "button";
+      undo.disabled = !selection.dirty;
+      const duplicate = el("button", "uos-icon", "复制为新预设");
+      duplicate.type = "button";
+      duplicate.disabled = selection.dirty || selection.isNew;
+      const syncPresetControls = () => {
+        updateDirty();
+        savePreset.disabled = !selection.dirty;
+        undo.disabled = !selection.dirty;
+        duplicate.disabled = selection.dirty || selection.isNew;
+        if (remove) remove.disabled = selection.dirty;
+        select.disabled = selection.dirty;
+        create.disabled = worldbookPresetData.warnings.length > 0 || selection.dirty;
+      };
+      const remove = selection.isNew ? null : el("button", "uos-icon", "删除预设");
+      if (remove) {
+        remove.type = "button";
+        remove.disabled = selection.dirty;
+        remove.onclick = async () => {
+          if (!await confirmPresetDelete(selected.name) || closed || getDraft() !== draft) return;
+          draft.worldbookPresets = draft.worldbookPresets.filter((preset) => preset.id !== selected.id);
+          draft.entries.forEach((entry) => {
+            if (entry.worldbookPresetId === selected.id) delete entry.worldbookPresetId;
+          });
+          selection.id = draft.worldbookPresets[0]?.id || "";
+          selection.edit = null;
+          selection.dirty = false;
+          render();
+          status("预设已删除；点击底部「保存到角色卡」写入角色卡。");
+        };
+      }
+      const capture = el("button", "uos-icon", "复制当前世界书开关");
+      capture.type = "button";
+      capture.disabled = worldbookPresetData.warnings.length > 0;
+      capture.title = "把酒馆当前的世界书条目开关复制到此预设，不会立即切换条目。";
+      capture.onclick = () => {
+        try {
+          const snapshot = captureWorldbookPreset(worldbookPresetData.books);
+          selected.books = snapshot.books;
+          updateDirty();
+          render();
+          status("当前世界书开关已复制到预设草稿；点「保存预设」确认。");
+        } catch (error) {
+          status(error.message || String(error));
+        }
+      };
+      nameInput.oninput = () => {
+        selected.name = nameInput.value;
+        syncPresetControls();
+        status(selection.dirty ? "预设有未保存修改。" : "预设修改已撤销。");
+      };
+      savePreset.onclick = () => {
+        selected.name = nameInput.value;
+        if (!commitPending({ fromForm: true })) {
+          nameInput.focus();
+          return;
+        }
+        status("预设已保存；再点页面底部「保存到角色卡」写入角色卡。");
+      };
+      undo.onclick = () => {
+        if (selection.isNew) {
+          selection.id = presets[0]?.id || "";
+          selection.edit = presets[0] ? JSON.parse(JSON.stringify(presets[0])) : null;
+          selection.isNew = false;
+          selection.dirty = false;
+        } else {
+          const saved = presets.find((preset) => preset.id === selected.id);
+          selection.edit = saved ? JSON.parse(JSON.stringify(saved)) : null;
+          selection.dirty = false;
+        }
+        render();
+        status("预设修改已撤销。");
+      };
+      duplicate.onclick = () => {
+        const copy = JSON.parse(JSON.stringify(selected));
+        copy.id = makeWorldbookPresetId();
+        copy.name = nextWorldbookPresetName(selected.name + " 副本");
+        selection.id = copy.id;
+        selection.edit = copy;
+        selection.dirty = true;
+        selection.isNew = true;
+        render();
+        status("已复制为新预设草稿；点「保存新预设」确认。");
+      };
+      nameRow.append(nameInput, savePreset, undo, duplicate);
+      if (remove) nameRow.append(remove);
+      nameRow.append(capture);
+      panel.append(nameRow);
+      const search = el("input", "uos-worldbook-search");
+      search.type = "search";
+      search.placeholder = "搜索条目名称、注释或关键词";
+      search.setAttribute("aria-label", "搜索预设条目");
+      panel.append(search);
+      const bulk = el("div", "uos-worldbook-actions"), enable = el("button", "uos-icon", "在预设中启用搜索结果"), disable = el("button", "uos-icon", "在预设中停用搜索结果");
+      enable.type = disable.type = "button";
+      enable.disabled = disable.disabled = worldbookPresetData.warnings.length > 0;
+      bulk.append(enable, disable);
+      panel.append(bulk);
+      const rows = el("div", "uos-worldbook-presets-list");
+      panel.append(rows);
+      const renderRows = () => renderWorldbookPresetRows(rows, selected, search.value.trim().toLocaleLowerCase(), syncPresetControls);
+      search.oninput = renderRows;
+      renderRows();
+      const bulkChange = (enabled) => {
+        try {
+          const query = search.value.trim().toLocaleLowerCase();
+          let changed = 0;
+          for (const book of worldbookPresetData.books) for (const item of book.entries) {
+            if ((item.uid ?? item.id) != null && (!query || worldbookItemSearchText(item).includes(query))) {
+              setPresetEntry(selected, book, item, enabled);
+              changed++;
+            }
+          }
+          syncPresetControls();
+          renderRows();
+          status("已修改 " + changed + " 条预设开关；点「保存预设」确认。");
+        } catch (error) {
+          status(error.message || String(error));
+        }
+      };
+      enable.onclick = () => bulkChange(true);
+      disable.onclick = () => bulkChange(false);
+    } else {
+      panel.append(el("p", "uos-help", worldbookPresetData.books.length ? "先新建一个预设。" : "未读取到绑定世界书条目。"));
+    }
+    panel.append(el("h3", "uos-worldbook-section-title", "开场分配"));
+    const assignments = el("div", "uos-worldbook-assignment-list"), openings = entries();
+    openings.forEach((entry, index) => {
+      var _a;
+      (_a = draft.entries)[index] || (_a[index] = { ...entry });
+      entry = draft.entries[index];
+      const row = el("label", "uos-worldbook-assignment"), label = el("span", "uos-worldbook-assignment-name", index + 1 + " · " + entry.title);
+      const choice = el("select", "uos-worldbook-select");
+      choice.setAttribute("aria-label", entry.title + " 世界书预设");
+      const none = doc.createElement("option");
+      none.value = "";
+      none.textContent = "不切换";
+      choice.append(none);
+      for (const preset of presets) {
+        const option = doc.createElement("option");
+        option.value = preset.id;
+        option.textContent = preset.name;
+        choice.append(option);
+      }
+      choice.value = entry.worldbookPresetId || "";
+      choice.onchange = () => {
+        if (choice.value) entry.worldbookPresetId = choice.value;
+        else delete entry.worldbookPresetId;
+        status("分配已修改，保存到角色卡后生效。");
+      };
+      row.append(label, choice);
+      assignments.append(row);
+    });
+    if (!openings.length) assignments.append(el("p", "uos-help", "没有可分配的开场。"));
+    panel.append(assignments);
+  }
+  return {
+    render,
+    refresh,
+    commitPending,
+    reset,
+    hasUnsaved: () => selection.dirty,
+    close() {
+      closed = true;
+      readRequest++;
+      reset();
+    }
+  };
+}
+
+// src/media-files.js
+function readMediaFile(file, view = globalThis) {
+  return new Promise((resolve, reject) => {
+    const reader = new view.FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+async function readLyrics(file) {
+  return (await file.text()).slice(0, 3e5);
+}
 async function optimizeCoverData(source, file, doc = document) {
   if (file?.type === "image/gif" || !/^data:image\/(?:png|jpeg|webp);base64,/i.test(source)) return source;
   try {
@@ -2369,6 +2946,219 @@ async function optimizeCoverData(source, file, doc = document) {
     return source;
   }
 }
+
+// src/media-player.js
+function formatTime(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}`;
+}
+function lyricRows(source) {
+  const rows = [];
+  for (const line of String(source || "").split(/\r?\n/)) {
+    const match = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/.exec(line);
+    if (match) rows.push({ time: +match[1] * 60 + +match[2] + +("0." + (match[3] || "0")), text: match[4].trim() });
+  }
+  return rows.sort((a, b) => a.time - b.time);
+}
+function createMediaPlayer(root, { status = () => {
+} } = {}) {
+  const query = (selector) => root.querySelector(selector);
+  const player = query("[data-player]"), audio = player.querySelector("audio");
+  const play = query("[data-play]"), seek = query("[data-seek]"), clock = query("[data-clock]");
+  const title = query("[data-music-title]"), lyrics = query("[data-lyrics]");
+  const skips = Array.from(player.querySelectorAll("[data-skip]"));
+  let lastRow = null, closed = false;
+  function update() {
+    if (closed) return;
+    const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+    seek.value = String(duration ? Math.round(audio.currentTime / duration * 1e3) : 0);
+    clock.textContent = `${formatTime(audio.currentTime)} / ${formatTime(duration)}`;
+    play.textContent = audio.paused ? "▶" : "Ⅱ";
+    const rows = Array.from(lyrics.querySelectorAll("[data-time]"));
+    let active = -1;
+    rows.forEach((row, index) => {
+      if (+row.dataset.time <= audio.currentTime + 0.08) active = index;
+      row.classList.toggle("is-active", index === active);
+    });
+    if (active >= 0 && rows[active] !== lastRow) {
+      const row = rows[active];
+      lyrics.scrollTo({ top: row.offsetTop - lyrics.offsetTop - (lyrics.clientHeight - row.clientHeight) / 2, behavior: "smooth" });
+      lastRow = row;
+    }
+  }
+  function render(music) {
+    if (closed) return;
+    player.hidden = !music.enabled;
+    const source = music.enabled ? music.audio : "";
+    if (audio.getAttribute("src") !== source) {
+      audio.pause();
+      if (source) audio.src = source;
+      else audio.removeAttribute("src");
+      audio.load();
+    }
+    play.disabled = !source;
+    title.textContent = music.title || "开场音乐";
+    lyrics.replaceChildren();
+    const rows = lyricRows(music.lyrics);
+    if (rows.length) for (const row of rows) {
+      const button = root.ownerDocument.createElement("button");
+      button.className = "uos-lyric-row";
+      button.textContent = row.text;
+      button.type = "button";
+      button.dataset.time = String(row.time);
+      button.onclick = () => {
+        audio.currentTime = row.time;
+      };
+      lyrics.append(button);
+    }
+    else lyrics.textContent = music.lyrics?.trim() || "♫";
+    update();
+  }
+  play.onclick = () => {
+    if (audio.paused) audio.play().catch(() => {
+      if (!closed) status("无法播放该音乐文件");
+    });
+    else audio.pause();
+  };
+  skips.forEach((button) => button.onclick = () => {
+    audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, audio.currentTime + Number(button.dataset.skip)));
+    update();
+  });
+  seek.oninput = (event) => {
+    if (Number.isFinite(audio.duration)) audio.currentTime = audio.duration * Number(event.target.value) / 1e3;
+  };
+  audio.ontimeupdate = update;
+  audio.onloadedmetadata = update;
+  audio.onplay = update;
+  audio.onpause = update;
+  function close() {
+    if (closed) return;
+    closed = true;
+    play.onclick = null;
+    seek.oninput = null;
+    skips.forEach((button) => {
+      button.onclick = null;
+    });
+    audio.ontimeupdate = null;
+    audio.onloadedmetadata = null;
+    audio.onplay = null;
+    audio.onpause = null;
+    for (const row of lyrics.querySelectorAll("[data-time]")) row.onclick = null;
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    lastRow = null;
+  }
+  return { render, close };
+}
+
+// src/settings-fields.js
+function createSettingsFields({ el, view = globalThis, getDraft, status, onPendingChange = () => {
+} }) {
+  let pending = 0, closed = false;
+  const current = (target) => !closed && (!target || target === getDraft());
+  function field(label, value, change, multiline = false) {
+    const wrap = el("label", "uos-field"), input = el(multiline ? "textarea" : "input");
+    wrap.append(el("span", "", label));
+    input.value = value || "";
+    input.addEventListener("input", () => change(input.value));
+    wrap.append(input);
+    return wrap;
+  }
+  function toggleField(label, value, change) {
+    const wrap = el("label", "uos-toggle"), input = el("input");
+    input.type = "checkbox";
+    input.checked = Boolean(value);
+    input.onchange = () => change(input.checked);
+    wrap.append(input, el("span", "", label));
+    return wrap;
+  }
+  function fileField(label, accept, max, onload) {
+    const target = getDraft(), wrap = el("label", "uos-field"), input = el("input");
+    wrap.append(el("span", "", label));
+    input.type = "file";
+    input.accept = accept;
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file || !current(target)) return;
+      if (file.size > max) {
+        status(`${label}超过 ${Math.round(max / 1048576)} MB 限制`);
+        input.value = "";
+        return;
+      }
+      onPendingChange(++pending);
+      try {
+        const result = await readMediaFile(file, view);
+        if (!current(target)) return;
+        const message = await onload(result, file, target);
+        if (current(target)) status(message || `${label}已载入，点击保存后随角色卡导出。`);
+      } catch (error) {
+        if (current(target)) status(`文件读取失败：${error.message}`);
+      } finally {
+        pending = Math.max(0, pending - 1);
+        onPendingChange(pending);
+      }
+    };
+    wrap.append(input);
+    return wrap;
+  }
+  return { field, toggleField, fileField, isCurrent: current, close() {
+    closed = true;
+  } };
+}
+
+// src/music-settings.js
+function renderMusicSettings({ root, settings, isCurrent, fields, renderMusic }) {
+  const doc = root.ownerDocument;
+  const el = (tag, cls, text) => {
+    const node = doc.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  };
+  const { field, toggleField, fileField } = fields;
+  const music = root.querySelector("[data-bgm-fields]"), empty = root.querySelector("[data-bgm-empty]");
+  music.replaceChildren();
+  if (empty) empty.hidden = Boolean(settings.music.audio);
+  const loaded = el("p", "uos-help");
+  loaded.dataset.bgmLoaded = "";
+  loaded.textContent = settings.music.audio ? "已载入音乐" + (settings.music.lyrics ? "及歌词" : "") + "。保存后随卡导出。" : "尚未上传音乐";
+  music.append(
+    toggleField("启用 BGM 播放器", settings.music.enabled, (value) => {
+      settings.music.enabled = value;
+      renderMusic(settings.music);
+      loaded.textContent = value ? "BGM 已启用，保存后生效。" : "BGM 已关闭，播放器已隐藏；保存后生效。";
+    }),
+    field("曲名", settings.music.title, (value) => {
+      settings.music.title = value;
+    }),
+    fileField("上传音乐（8 MB 内）", "audio/mpeg,audio/mp4,audio/ogg,audio/wav", 8 * 1048576, (value, _file, target) => {
+      target.music.audio = value;
+      if (empty) empty.hidden = true;
+      renderMusic(target.music);
+      loaded.textContent = target.music.enabled ? "音乐已载入，可在选择页预览；点击保存写入角色卡。" : "音乐已载入。勾选启用 BGM 后显示播放器，点击保存写入角色卡。";
+    }),
+    fileField("上传歌词（LRC 或 TXT）", ".lrc,.txt,text/plain", 3e5, async (_data, file, target) => {
+      const lyrics = await readLyrics(file);
+      if (!isCurrent(target)) return;
+      target.music.lyrics = lyrics;
+      renderMusic(target.music);
+      loaded.textContent = "歌词已载入；点击保存写入角色卡。";
+    }),
+    loaded
+  );
+  const clear = el("button", "uos-icon", "移除音乐");
+  clear.type = "button";
+  clear.onclick = () => {
+    settings.music = { enabled: false, title: "", audio: "", lyrics: "" };
+    if (empty) empty.hidden = false;
+    renderMusic(settings.music);
+    loaded.textContent = "音乐已移除，点击保存生效";
+  };
+  music.append(clear, el("p", "uos-help", "请仅上传你有权分享的歌曲及歌词。下载与非商用不自动授予再分发许可。"));
+}
+
+// src/selector.js
 function mountInDocument(doc = document, helperApi = null, { backgroundService = null } = {}) {
   const KEY2 = "universal_opening_selector";
   const VERSION2 = RUNTIME_VERSION;
@@ -2396,9 +3186,15 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     }
     delete root.dataset.uosMounted;
   }
-  root.__uosStopBackground?.();
+  root.__uosDispose?.();
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
-  root.__uosStopBackground = () => backgroundControl?.close();
+  let mediaPlayer, settingsFields, worldbookEditor;
+  root.__uosDispose = () => {
+    backgroundControl?.close();
+    mediaPlayer?.close();
+    settingsFields?.close();
+    worldbookEditor?.close();
+  };
   const seed = JSON.parse(doc.getElementById("uos-seed").textContent);
   let host = doc.defaultView || window;
   for (let i = 0; i < 8; i++) {
@@ -2435,7 +3231,6 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   const readWorldbookPeople = createWorldbookPeopleReader(() => [helperApi, doc.defaultView?.TavernHelper, doc.defaultView, host.TavernHelper, host]);
   const worldbookPresetManager = createWorldbookPresetManager(() => [helperApi, doc.defaultView?.TavernHelper, doc.defaultView, host.TavernHelper, host], character);
   let worldbookPeople = [], worldbookDiagnostics = [], worldbookMessage = "正在读取角色世界书人物名单…";
-  let worldbookPresetData = { books: [], bindings: [], warnings: [] }, worldbookPresetMessage = "正在读取绑定世界书…", selectedWorldbookPresetId = "", selectedWorldbookPresetEdit = null, selectedWorldbookPresetDirty = false, selectedWorldbookPresetIsNew = false;
   let settingsDraftBaseline = null, pendingSettingsTasks = 0, saveSettingsToCard = async () => false;
   async function refreshWorldbookPeople(refresh = false) {
     const card = character(), identity = card?.avatar;
@@ -2454,22 +3249,6 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const list = $("[data-worldbook-list]");
     if (list) renderWorldbookPeopleList(doc, list, worldbookPeople, worldbookDiagnostics);
   }
-  async function refreshWorldbookPresets() {
-    const identity = character()?.avatar;
-    try {
-      const result = await worldbookPresetManager.read();
-      if (root.isConnected === false || character()?.avatar !== identity) return;
-      worldbookPresetData = result;
-      worldbookPresetMessage = `已读取 ${result.books.length} 本、${result.entryCount} 条。${result.warnings.length ? `读取失败：${result.warnings.join("；")}` : ""}`;
-    } catch (error) {
-      worldbookPresetData = { books: [], bindings: [], warnings: [] };
-      worldbookPresetMessage = String(error?.message || error);
-    }
-    const note = $("[data-worldbook-presets-status]");
-    if (note) note.textContent = worldbookPresetMessage;
-    const panel = $("[data-worldbook-presets]");
-    if (panel && draft) renderWorldbookPresetEditor();
-  }
   const stored = character()?.data?.extensions?.[KEY2] ?? character()?.extensions?.[KEY2];
   let config = normalize(stored || seed);
   let draft = null;
@@ -2483,6 +3262,30 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     if (content != null) n.textContent = String(content);
     return n;
   };
+  mediaPlayer = createMediaPlayer(root, { status });
+  const renderMusic = (music) => mediaPlayer.render(music);
+  settingsFields = createSettingsFields({
+    el,
+    view: doc.defaultView || globalThis,
+    getDraft: () => draft,
+    status,
+    onPendingChange: (count) => {
+      pendingSettingsTasks = count;
+    }
+  });
+  const { field, fileField } = settingsFields;
+  worldbookEditor = createWorldbookPresetEditor({
+    doc,
+    el,
+    query: $,
+    getDraft: () => draft,
+    entries,
+    manager: worldbookPresetManager,
+    character,
+    isConnected: () => root.isConnected !== false,
+    status,
+    confirmPresetDelete
+  });
   function normalize(input) {
     const x = input && typeof input === "object" ? input : {};
     const worldbookConfig = migrateWorldbookPresetAssignments(x.entries, x.worldbookPresets);
@@ -2558,7 +3361,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   }
   function hasUnsavedSettings() {
     if (!draft) return false;
-    if (selectedWorldbookPresetDirty || pendingSettingsTasks > 0) return true;
+    if (worldbookEditor.hasUnsaved() || pendingSettingsTasks > 0) return true;
     try {
       return settingsDraftBaseline !== null && JSON.stringify(normalize({ ...draft, theme: displayTheme })) !== settingsDraftBaseline;
     } catch {
@@ -2784,10 +3587,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           const hadDraft = Boolean(draft);
           draft = null;
           settingsDraftBaseline = null;
-          selectedWorldbookPresetEdit = null;
-          selectedWorldbookPresetDirty = false;
-          selectedWorldbookPresetIsNew = false;
-          selectedWorldbookPresetId = "";
+          worldbookEditor.reset();
           renderMusic(config.music);
           if (discarded && hadDraft) status("未保存的设置已放弃。");
         }
@@ -2940,62 +3740,6 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       root.append(watermark);
     }
   }
-  function formatTime(s) {
-    const n = Math.max(0, Math.floor(Number(s) || 0));
-    return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
-  }
-  function lyricRows(source) {
-    const rows = [];
-    for (const line of String(source || "").split(/\r?\n/)) {
-      const m = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/.exec(line);
-      if (m) rows.push({ time: +m[1] * 60 + +m[2] + +("0." + (m[3] || "0")), text: m[4].trim() });
-    }
-    return rows.sort((a, b) => a.time - b.time);
-  }
-  function renderMusic(music) {
-    const player = $("[data-player]"), audio2 = $("audio", player), box = $("[data-lyrics]");
-    player.hidden = !music.enabled;
-    const source = music.enabled ? music.audio : "";
-    if (audio2.getAttribute("src") !== source) {
-      audio2.pause();
-      if (source) audio2.src = source;
-      else audio2.removeAttribute("src");
-      audio2.load();
-    }
-    $("[data-play]").disabled = !source;
-    $("[data-music-title]").textContent = music.title || "开场音乐";
-    box.replaceChildren();
-    const rows = lyricRows(music.lyrics);
-    if (rows.length) {
-      for (const row of rows) {
-        const b = el("button", "uos-lyric-row", row.text);
-        b.type = "button";
-        b.dataset.time = String(row.time);
-        b.onclick = () => {
-          audio2.currentTime = row.time;
-        };
-        box.append(b);
-      }
-    } else box.textContent = music.lyrics?.trim() || "♫";
-    updatePlayer();
-  }
-  function updatePlayer() {
-    const audio2 = $("[data-player] audio"), duration = Number.isFinite(audio2.duration) ? audio2.duration : 0;
-    $("[data-seek]").value = String(duration ? Math.round(audio2.currentTime / duration * 1e3) : 0);
-    $("[data-clock]").textContent = `${formatTime(audio2.currentTime)} / ${formatTime(duration)}`;
-    $("[data-play]").textContent = audio2.paused ? "▶" : "Ⅱ";
-    const rows = Array.from($("[data-lyrics]").querySelectorAll("[data-time]"));
-    let active = -1;
-    rows.forEach((row, i) => {
-      if (+row.dataset.time <= audio2.currentTime + 0.08) active = i;
-      row.classList.toggle("is-active", i === active);
-    });
-    if (active >= 0 && rows[active] !== updatePlayer.lastRow) {
-      const box = $("[data-lyrics]"), row = rows[active];
-      box.scrollTo({ top: row.offsetTop - box.offsetTop - (box.clientHeight - row.clientHeight) / 2, behavior: "smooth" });
-      updatePlayer.lastRow = row;
-    }
-  }
   async function choose(target) {
     const h = helper();
     if (!h) {
@@ -3085,24 +3829,6 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const media = entries().reduce((n, e) => n + (e.image?.length || 0), 0) + (config.music.audio?.length || 0);
     return [["正式开场", `${greetings.length} 条`], ["选择页运行方式", roleScript ? "作者角色脚本随卡导出" : legacy ? "旧版打包卡" : "未检测到可导出的作者脚本"], ["作者配置", saved ? "已载入角色卡扩展字段" : "当前使用默认配置"], ["当前角色数据大小", size ? `${(size / 1048576).toFixed(2)} MB` : "无法估算"], ["其中封面与音频数据", `${(media / 1048576).toFixed(2)} MB`]];
   }
-  function field(label, value, change, multiline = false) {
-    const wrap = el("label", "uos-field");
-    wrap.append(el("span", "", label));
-    const input = el(multiline ? "textarea" : "input");
-    input.value = value || "";
-    input.addEventListener("input", () => change(input.value));
-    wrap.append(input);
-    return wrap;
-  }
-  function toggleField(label, value, change) {
-    const wrap = el("label", "uos-toggle");
-    const input = el("input");
-    input.type = "checkbox";
-    input.checked = Boolean(value);
-    input.onchange = () => change(input.checked);
-    wrap.append(input, el("span", "", label));
-    return wrap;
-  }
   function ensureUpdateSettings(dlg) {
     if (dlg.querySelector('[data-tab="updates"]')) return;
     const tabs = dlg.querySelector(".uos-tabs");
@@ -3129,425 +3855,6 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     tabs.after(panel);
     tabs.append(tab);
     bindUpdateControl(check, host.document, { versionElements: [...root.querySelectorAll(".uos-version-badge,.uos-version")], autoCheckInput: autoCheck, autoCheckHint: hint });
-  }
-  function worldbookPresetState(preset, book, item) {
-    const uid = item.uid ?? item.id;
-    const saved = preset?.books?.find((value) => value.name === book.name)?.entries?.find((value) => String(value.uid) === String(uid));
-    return saved ? saved.enabled : item.enabled !== false && item.disable !== true;
-  }
-  function setPresetEntry(preset, book, item, enabled) {
-    const uid = item.uid ?? item.id;
-    if (uid == null || String(uid) === "") throw Error("该条目没有唯一 UID，无法安全记录");
-    let savedBook = preset.books.find((value) => value.name === book.name);
-    if (!savedBook) {
-      savedBook = { name: book.name, entries: [] };
-      preset.books.push(savedBook);
-    }
-    const saved = savedBook.entries.find((value) => String(value.uid) === String(uid));
-    if (saved) saved.enabled = enabled;
-    else savedBook.entries.push({ uid, name: String(item.name || item.comment || "条目 " + uid).slice(0, 160), enabled });
-  }
-  function worldbookItemSearchText(item) {
-    const keys = Array.isArray(item.keys) ? item.keys : Array.isArray(item.strategy?.keys) ? item.strategy.keys : [];
-    return [item.name, item.comment, ...keys].map((value) => String(value || "")).join(" ").toLocaleLowerCase();
-  }
-  function makeWorldbookPresetId() {
-    const random = doc.defaultView?.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-    const base = "worldbook-" + Date.now().toString(36) + "-" + String(random).replace(/[^a-zA-Z0-9-]/g, "");
-    let id = base, index = 2;
-    while (draft.worldbookPresets.some((preset) => preset.id === id)) id = base + "-" + index++;
-    return id;
-  }
-  function worldbookPresetNameTaken(name, exceptId = "") {
-    const normalized = String(name || "").trim().toLocaleLowerCase();
-    return draft.worldbookPresets.some((preset) => preset.id !== exceptId && preset.name.toLocaleLowerCase() === normalized);
-  }
-  function nextWorldbookPresetName(base) {
-    const baseName = String(base || "世界书预设").trim().slice(0, 120) || "世界书预设";
-    let name = baseName, index = 2;
-    while (worldbookPresetNameTaken(name)) {
-      const suffix = " " + index++;
-      name = baseName.slice(0, 120 - suffix.length) + suffix;
-    }
-    return name;
-  }
-  function renderWorldbookPresetRows(list, preset, query, onChange = () => {
-  }) {
-    list.replaceChildren();
-    let matches = 0, remaining = 400, limited = false;
-    if (!preset) {
-      list.append(el("p", "uos-help", "先新建预设。"));
-      return 0;
-    }
-    for (const book of worldbookPresetData.books) {
-      const items = book.entries.filter((item) => !query || worldbookItemSearchText(item).includes(query));
-      if (!items.length) continue;
-      matches += items.length;
-      const shown = items.slice(0, Math.min(200, remaining));
-      remaining -= shown.length;
-      if (shown.length < items.length) limited = true;
-      const group = el("details", "uos-worldbook-group");
-      group.open = Boolean(query) || !query && worldbookPresetData.books.length === 1;
-      const summary = el("summary", "", book.name + " · " + items.filter((item) => worldbookPresetState(preset, book, item)).length + "/" + items.length + " 条启用");
-      group.append(summary);
-      const rows = el("div", "uos-worldbook-entry-list");
-      const renderEntries = () => {
-        rows.replaceChildren();
-        if (!group.open) return;
-        for (const item of shown) {
-          const uid = item.uid ?? item.id, key = uid == null ? "" : String(uid), label = el("label", "uos-worldbook-entry-toggle"), input = el("input");
-          input.type = "checkbox";
-          input.checked = worldbookPresetState(preset, book, item);
-          input.disabled = !key || worldbookPresetData.warnings.length > 0;
-          input.onchange = () => {
-            try {
-              setPresetEntry(preset, book, item, input.checked);
-              summary.textContent = book.name + " · " + items.filter((value) => worldbookPresetState(preset, book, value)).length + "/" + items.length + " 条启用";
-              onChange();
-              status("预设有未保存修改；保存预设后再保存角色卡。");
-            } catch (error) {
-              input.checked = worldbookPresetState(preset, book, item);
-              status("无法记录此条目：" + (error.message || error));
-            }
-          };
-          label.append(input, el("span", "uos-worldbook-entry-name", String(item.name || item.comment || "未命名条目 " + (key || "（无 UID）"))));
-          const keys = Array.isArray(item.keys) ? item.keys : Array.isArray(item.strategy?.keys) ? item.strategy.keys : [];
-          if (keys.length) label.append(el("small", "uos-worldbook-entry-keys", "关键词：" + keys.map((value) => String(value)).slice(0, 5).join("、") + (keys.length > 5 ? "…" : "")));
-          if (!key) label.append(el("small", "uos-worldbook-entry-keys", "缺少 UID，无法切换"));
-          rows.append(label);
-        }
-      };
-      group.addEventListener("toggle", renderEntries);
-      group.append(rows);
-      renderEntries();
-      list.append(group);
-    }
-    if (!matches) list.append(el("p", "uos-help", query ? "没有匹配条目。" : "没有可编辑条目。"));
-    if (limited) list.append(el("p", "uos-help", "结果过多，请缩小搜索范围。"));
-    return matches;
-  }
-  function renderWorldbookPresetEditor() {
-    const panel = $("[data-worldbook-presets]");
-    if (!panel || !draft) return;
-    panel.replaceChildren();
-    const statusLine = el("p", "uos-help", worldbookPresetMessage);
-    statusLine.dataset.worldbookPresetsStatus = "";
-    panel.append(statusLine);
-    const refresh = el("button", "uos-icon", "刷新");
-    refresh.type = "button";
-    refresh.onclick = async () => {
-      refresh.disabled = true;
-      await refreshWorldbookPresets();
-      refresh.disabled = false;
-    };
-    panel.append(refresh);
-    panel.append(el("p", "uos-help", "修改后点「保存预设」，最后点页面底部「保存到角色卡」。"));
-    if (worldbookPresetData.warnings.length) panel.append(el("p", "uos-help", "有世界书未能读取，暂不能新建或编辑预设。"));
-    const presets = draft.worldbookPresets || [];
-    if (selectedWorldbookPresetIsNew) {
-      if (!selectedWorldbookPresetEdit || selectedWorldbookPresetEdit.id !== selectedWorldbookPresetId) {
-        selectedWorldbookPresetEdit = null;
-        selectedWorldbookPresetIsNew = false;
-        selectedWorldbookPresetDirty = false;
-      }
-    }
-    if (!selectedWorldbookPresetIsNew) {
-      if (!presets.some((preset) => preset.id === selectedWorldbookPresetId)) selectedWorldbookPresetId = presets[0]?.id || "";
-      const saved = presets.find((preset) => preset.id === selectedWorldbookPresetId) || null;
-      if (!saved) {
-        selectedWorldbookPresetEdit = null;
-        selectedWorldbookPresetDirty = false;
-      } else if (!selectedWorldbookPresetEdit || selectedWorldbookPresetEdit.id !== saved.id) selectedWorldbookPresetEdit = JSON.parse(JSON.stringify(saved));
-    }
-    const active = () => selectedWorldbookPresetEdit;
-    const updateDirty = () => {
-      if (selectedWorldbookPresetIsNew) {
-        selectedWorldbookPresetDirty = true;
-        return;
-      }
-      const saved = presets.find((preset) => preset.id === selectedWorldbookPresetId);
-      selectedWorldbookPresetDirty = !saved || JSON.stringify(saved) !== JSON.stringify(selectedWorldbookPresetEdit);
-    };
-    panel.append(el("h3", "uos-worldbook-section-title", "世界书预设"));
-    const createRow = el("div", "uos-worldbook-actions");
-    const newName = el("input", "uos-worldbook-name");
-    newName.type = "text";
-    newName.maxLength = 120;
-    newName.placeholder = "新预设名称（可留空）";
-    const create = el("button", "uos-icon", "新建预设");
-    create.type = "button";
-    create.disabled = worldbookPresetData.warnings.length > 0 || selectedWorldbookPresetDirty;
-    create.onclick = () => {
-      try {
-        const snapshot = captureWorldbookPreset(worldbookPresetData.books), name = nextWorldbookPresetName(newName.value.trim() || "世界书预设 " + (presets.length + 1));
-        selectedWorldbookPresetEdit = { id: makeWorldbookPresetId(), name, ...snapshot };
-        selectedWorldbookPresetId = selectedWorldbookPresetEdit.id;
-        selectedWorldbookPresetDirty = true;
-        selectedWorldbookPresetIsNew = true;
-        renderWorldbookPresetEditor();
-        status("新预设草稿已创建；保存后才能分配给开场。");
-      } catch (error) {
-        status(error.message || String(error));
-      }
-    };
-    createRow.append(newName, create);
-    panel.append(createRow);
-    const selectRow = el("div", "uos-worldbook-actions");
-    const select = el("select", "uos-worldbook-select"), empty = doc.createElement("option");
-    empty.value = "";
-    empty.textContent = presets.length ? "选择预设" : "暂无预设";
-    select.append(empty);
-    for (const preset of presets) {
-      const option = doc.createElement("option");
-      option.value = preset.id;
-      option.textContent = preset.name;
-      select.append(option);
-    }
-    select.value = selectedWorldbookPresetIsNew ? "" : selectedWorldbookPresetId;
-    select.disabled = selectedWorldbookPresetDirty;
-    select.setAttribute("aria-label", "选择世界书预设");
-    select.onchange = () => {
-      if (selectedWorldbookPresetDirty) {
-        select.value = selectedWorldbookPresetIsNew ? "" : selectedWorldbookPresetId;
-        status("请先保存或撤销当前预设修改。");
-        return;
-      }
-      selectedWorldbookPresetId = select.value;
-      const saved = presets.find((preset) => preset.id === selectedWorldbookPresetId);
-      selectedWorldbookPresetEdit = saved ? JSON.parse(JSON.stringify(saved)) : null;
-      selectedWorldbookPresetDirty = false;
-      selectedWorldbookPresetIsNew = false;
-      renderWorldbookPresetEditor();
-    };
-    selectRow.append(select);
-    panel.append(selectRow);
-    const selected = active();
-    if (selected) {
-      const nameRow = el("div", "uos-worldbook-actions"), nameInput = el("input", "uos-worldbook-name");
-      nameInput.type = "text";
-      nameInput.maxLength = 120;
-      nameInput.value = selected.name;
-      nameInput.setAttribute("aria-label", "预设名称");
-      const savePreset = el("button", "uos-icon", selectedWorldbookPresetIsNew ? "保存新预设" : "保存预设");
-      savePreset.type = "button";
-      savePreset.disabled = !selectedWorldbookPresetDirty;
-      const undo = el("button", "uos-icon", selectedWorldbookPresetIsNew ? "取消新建" : "撤销修改");
-      undo.type = "button";
-      undo.disabled = !selectedWorldbookPresetDirty;
-      const duplicate = el("button", "uos-icon", "复制为新预设");
-      duplicate.type = "button";
-      duplicate.disabled = selectedWorldbookPresetDirty || selectedWorldbookPresetIsNew;
-      const syncPresetControls = () => {
-        updateDirty();
-        savePreset.disabled = !selectedWorldbookPresetDirty;
-        undo.disabled = !selectedWorldbookPresetDirty;
-        duplicate.disabled = selectedWorldbookPresetDirty || selectedWorldbookPresetIsNew;
-        if (remove) remove.disabled = selectedWorldbookPresetDirty;
-        select.disabled = selectedWorldbookPresetDirty;
-        create.disabled = worldbookPresetData.warnings.length > 0 || selectedWorldbookPresetDirty;
-      };
-      const remove = selectedWorldbookPresetIsNew ? null : el("button", "uos-icon", "删除预设");
-      if (remove) {
-        remove.type = "button";
-        remove.disabled = selectedWorldbookPresetDirty;
-        remove.onclick = async () => {
-          if (!await confirmPresetDelete(selected.name) || !draft) return;
-          draft.worldbookPresets = draft.worldbookPresets.filter((preset) => preset.id !== selected.id);
-          draft.entries.forEach((entry) => {
-            if (entry.worldbookPresetId === selected.id) delete entry.worldbookPresetId;
-          });
-          selectedWorldbookPresetId = draft.worldbookPresets[0]?.id || "";
-          selectedWorldbookPresetEdit = null;
-          selectedWorldbookPresetDirty = false;
-          renderWorldbookPresetEditor();
-          status("预设已删除；点击底部「保存到角色卡」写入角色卡。");
-        };
-      }
-      const capture = el("button", "uos-icon", "复制当前世界书开关");
-      capture.type = "button";
-      capture.disabled = worldbookPresetData.warnings.length > 0;
-      capture.title = "把酒馆当前的世界书条目开关复制到此预设，不会立即切换条目。";
-      capture.onclick = () => {
-        try {
-          const snapshot = captureWorldbookPreset(worldbookPresetData.books);
-          selected.books = snapshot.books;
-          updateDirty();
-          renderWorldbookPresetEditor();
-          status("当前世界书开关已复制到预设草稿；点「保存预设」确认。");
-        } catch (error) {
-          status(error.message || String(error));
-        }
-      };
-      nameInput.oninput = () => {
-        selected.name = nameInput.value;
-        syncPresetControls();
-        status(selectedWorldbookPresetDirty ? "预设有未保存修改。" : "预设修改已撤销。");
-      };
-      savePreset.onclick = () => {
-        const name = nameInput.value.trim().slice(0, 120);
-        if (!name) {
-          status("请填写预设名称。");
-          nameInput.focus();
-          return;
-        }
-        if (worldbookPresetNameTaken(name, selected.id)) {
-          status("已有同名预设，请换一个名称。");
-          nameInput.focus();
-          return;
-        }
-        selected.name = name;
-        const saved = JSON.parse(JSON.stringify(selected));
-        if (selectedWorldbookPresetIsNew) presets.push(saved);
-        else {
-          const index = presets.findIndex((preset) => preset.id === selected.id);
-          if (index < 0) {
-            status("找不到原预设，请刷新后重试。");
-            return;
-          }
-          presets[index] = saved;
-        }
-        selectedWorldbookPresetEdit = JSON.parse(JSON.stringify(saved));
-        selectedWorldbookPresetDirty = false;
-        selectedWorldbookPresetIsNew = false;
-        renderWorldbookPresetEditor();
-        status("预设已保存；再点页面底部「保存到角色卡」写入角色卡。");
-      };
-      undo.onclick = () => {
-        if (selectedWorldbookPresetIsNew) {
-          selectedWorldbookPresetId = presets[0]?.id || "";
-          selectedWorldbookPresetEdit = presets[0] ? JSON.parse(JSON.stringify(presets[0])) : null;
-          selectedWorldbookPresetIsNew = false;
-          selectedWorldbookPresetDirty = false;
-        } else {
-          const saved = presets.find((preset) => preset.id === selected.id);
-          selectedWorldbookPresetEdit = saved ? JSON.parse(JSON.stringify(saved)) : null;
-          selectedWorldbookPresetDirty = false;
-        }
-        renderWorldbookPresetEditor();
-        status("预设修改已撤销。");
-      };
-      duplicate.onclick = () => {
-        const copy = JSON.parse(JSON.stringify(selected));
-        copy.id = makeWorldbookPresetId();
-        copy.name = nextWorldbookPresetName(selected.name + " 副本");
-        selectedWorldbookPresetId = copy.id;
-        selectedWorldbookPresetEdit = copy;
-        selectedWorldbookPresetDirty = true;
-        selectedWorldbookPresetIsNew = true;
-        renderWorldbookPresetEditor();
-        status("已复制为新预设草稿；点「保存新预设」确认。");
-      };
-      nameRow.append(nameInput, savePreset, undo, duplicate);
-      if (remove) nameRow.append(remove);
-      nameRow.append(capture);
-      panel.append(nameRow);
-      const search = el("input", "uos-worldbook-search");
-      search.type = "search";
-      search.placeholder = "搜索条目名称、注释或关键词";
-      search.setAttribute("aria-label", "搜索预设条目");
-      panel.append(search);
-      const bulk = el("div", "uos-worldbook-actions"), enable = el("button", "uos-icon", "在预设中启用搜索结果"), disable = el("button", "uos-icon", "在预设中停用搜索结果");
-      enable.type = disable.type = "button";
-      enable.disabled = disable.disabled = worldbookPresetData.warnings.length > 0;
-      bulk.append(enable, disable);
-      panel.append(bulk);
-      const rows = el("div", "uos-worldbook-presets-list");
-      panel.append(rows);
-      const renderRows = () => renderWorldbookPresetRows(rows, selected, search.value.trim().toLocaleLowerCase(), syncPresetControls);
-      search.oninput = renderRows;
-      renderRows();
-      const bulkChange = (enabled) => {
-        try {
-          const query = search.value.trim().toLocaleLowerCase();
-          let changed = 0;
-          for (const book of worldbookPresetData.books) for (const item of book.entries) {
-            if ((item.uid ?? item.id) != null && (!query || worldbookItemSearchText(item).includes(query))) {
-              setPresetEntry(selected, book, item, enabled);
-              changed++;
-            }
-          }
-          syncPresetControls();
-          renderRows();
-          status("已修改 " + changed + " 条预设开关；点「保存预设」确认。");
-        } catch (error) {
-          status(error.message || String(error));
-        }
-      };
-      enable.onclick = () => bulkChange(true);
-      disable.onclick = () => bulkChange(false);
-    } else {
-      panel.append(el("p", "uos-help", worldbookPresetData.books.length ? "先新建一个预设。" : "未读取到绑定世界书条目。"));
-    }
-    panel.append(el("h3", "uos-worldbook-section-title", "开场分配"));
-    const assignments = el("div", "uos-worldbook-assignment-list"), openings = entries();
-    openings.forEach((entry, index) => {
-      var _a;
-      (_a = draft.entries)[index] || (_a[index] = { ...entry });
-      entry = draft.entries[index];
-      const row = el("label", "uos-worldbook-assignment"), label = el("span", "uos-worldbook-assignment-name", index + 1 + " · " + entry.title);
-      const choice = el("select", "uos-worldbook-select");
-      choice.setAttribute("aria-label", entry.title + " 世界书预设");
-      const none = doc.createElement("option");
-      none.value = "";
-      none.textContent = "不切换";
-      choice.append(none);
-      for (const preset of presets) {
-        const option = doc.createElement("option");
-        option.value = preset.id;
-        option.textContent = preset.name;
-        choice.append(option);
-      }
-      choice.value = entry.worldbookPresetId || "";
-      choice.onchange = () => {
-        if (choice.value) entry.worldbookPresetId = choice.value;
-        else delete entry.worldbookPresetId;
-        status("分配已修改，保存到角色卡后生效。");
-      };
-      row.append(label, choice);
-      assignments.append(row);
-    });
-    if (!openings.length) assignments.append(el("p", "uos-help", "没有可分配的开场。"));
-    panel.append(assignments);
-  }
-  function fileField(label, accept, max, onload) {
-    const targetDraft = draft, wrap = el("label", "uos-field");
-    wrap.append(el("span", "", label));
-    const input = el("input");
-    input.type = "file";
-    input.accept = accept;
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      if (file.size > max) {
-        status(`${label}超过 ${Math.round(max / 1048576)} MB 限制`);
-        input.value = "";
-        return;
-      }
-      pendingSettingsTasks++;
-      try {
-        const result = await readFile(file);
-        if (targetDraft && targetDraft !== draft) return;
-        const message = await onload(result, file, targetDraft);
-        if (targetDraft && targetDraft !== draft) return;
-        status(message || `${label}已载入，点击保存后随角色卡导出。`);
-      } catch (e) {
-        if (!targetDraft || targetDraft === draft) status(`文件读取失败：${e.message}`);
-      } finally {
-        pendingSettingsTasks = Math.max(0, pendingSettingsTasks - 1);
-      }
-    };
-    wrap.append(input);
-    return wrap;
-  }
-  const readFile = (file) => new Promise((ok, fail) => {
-    const reader = new FileReader();
-    reader.onload = () => ok(String(reader.result));
-    reader.onerror = () => fail(reader.error);
-    reader.readAsDataURL(file);
-  });
-  async function lyricsText(file) {
-    const text = await file.text();
-    return text.slice(0, 3e5);
   }
   function openSettings() {
     const dlg = showSheet("[data-settings-dialog]");
@@ -3644,8 +3951,9 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           entry.description = v;
           updatePreview();
         }, true),
-        fileField("上传封面（原图 8 MB 内）", "image/png,image/jpeg,image/webp,image/gif", 8 * 1048576, async (v, file) => {
+        fileField("上传封面（原图 8 MB 内）", "image/png,image/jpeg,image/webp,image/gif", 8 * 1048576, async (v, file, settings) => {
           const next = await optimizeCoverData(v, file, doc);
+          if (!settingsFields.isCurrent(settings)) return;
           if (next.length > 14e5) throw Error("压缩后仍超过约 1 MB，请换更小的图片；GIF 动图不会压缩");
           entry.image = next;
           updatePreview();
@@ -3690,45 +3998,13 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       box.append(clear);
       list.append(box);
     });
-    const music = $("[data-bgm-fields]");
-    music.replaceChildren();
-    const emptyMusic = $("[data-bgm-empty]");
-    if (emptyMusic) emptyMusic.hidden = Boolean(draft.music.audio);
-    music.append(
-      toggleField("启用 BGM 播放器", draft.music.enabled, (v) => {
-        draft.music.enabled = v;
-        renderMusic(draft.music);
-        loaded.textContent = v ? "BGM 已启用，保存后生效。" : "BGM 已关闭，播放器已隐藏；保存后生效。";
-      }),
-      field("曲名", draft.music.title, (v) => draft.music.title = v),
-      fileField("上传音乐（8 MB 内）", "audio/mpeg,audio/mp4,audio/ogg,audio/wav", 8 * 1048576, (v, _file, settings) => {
-        settings.music.audio = v;
-        if (emptyMusic) emptyMusic.hidden = true;
-        renderMusic(settings.music);
-        $("[data-bgm-loaded]").textContent = settings.music.enabled ? "音乐已载入，可在选择页预览；点击保存写入角色卡。" : "音乐已载入。勾选启用 BGM 后显示播放器，点击保存写入角色卡。";
-      }),
-      fileField("上传歌词（LRC 或 TXT）", ".lrc,.txt,text/plain", 3e5, async (_data, file, settings) => {
-        const lyrics = await lyricsText(file);
-        if (settings !== draft) return;
-        settings.music.lyrics = lyrics;
-        renderMusic(settings.music);
-        $("[data-bgm-loaded]").textContent = "歌词已载入；点击保存写入角色卡。";
-      })
-    );
-    const loaded = el("p", "uos-help");
-    loaded.dataset.bgmLoaded = "";
-    loaded.textContent = draft.music.audio ? "已载入音乐" + (draft.music.lyrics ? "及歌词" : "") + "。保存后随卡导出。" : "尚未上传音乐";
-    music.append(loaded);
-    const clearMusic = el("button", "uos-icon", "移除音乐");
-    clearMusic.type = "button";
-    clearMusic.onclick = () => {
-      draft.music = { enabled: false, title: "", audio: "", lyrics: "" };
-      if (emptyMusic) emptyMusic.hidden = false;
-      renderMusic(draft.music);
-      loaded.textContent = "音乐已移除，点击保存生效";
-    };
-    music.append(clearMusic);
-    music.append(el("p", "uos-help", "请仅上传你有权分享的歌曲及歌词。下载与非商用不自动授予再分发许可。"));
+    renderMusicSettings({
+      root: dlg,
+      settings: draft,
+      isCurrent: settingsFields.isCurrent,
+      fields: settingsFields,
+      renderMusic
+    });
     const diag = $("[data-diagnostics]");
     diag.replaceChildren();
     for (const [key, value] of diagnostics()) {
@@ -3736,8 +4012,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       row.append(el("span", "", key), el("strong", "", value));
       diag.append(row);
     }
-    renderWorldbookPresetEditor();
-    void refreshWorldbookPresets();
+    worldbookEditor.render();
+    void worldbookEditor.refresh();
     dlg.querySelectorAll("[data-tab]").forEach((button) => button.onclick = () => {
       dlg.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b === button)));
       dlg.querySelectorAll("[data-tab-panel]").forEach((panel) => panel.hidden = panel.dataset.tabPanel !== button.dataset.tab);
@@ -3748,34 +4024,12 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         status("文件仍在处理，请稍候后再保存。");
         return false;
       }
-      if (selectedWorldbookPresetDirty) {
+      if (worldbookEditor.hasUnsaved()) {
         if (!commitPresetDraft) {
           status("当前预设尚未保存；请先点「保存预设」或「撤销修改」。");
           return false;
         }
-        const selected = selectedWorldbookPresetEdit, name = String(selected?.name || "").trim().slice(0, 120);
-        if (!selected || !name) {
-          status("请先填写预设名称。");
-          return false;
-        }
-        if (worldbookPresetNameTaken(name, selected.id)) {
-          status("已有同名预设，请换一个名称后再保存。");
-          return false;
-        }
-        const saved = { ...JSON.parse(JSON.stringify(selected)), name };
-        if (selectedWorldbookPresetIsNew) draft.worldbookPresets.push(saved);
-        else {
-          const index = draft.worldbookPresets.findIndex((preset) => preset.id === selected.id);
-          if (index < 0) {
-            status("找不到原预设，请刷新后重试。");
-            return false;
-          }
-          draft.worldbookPresets[index] = saved;
-        }
-        selectedWorldbookPresetEdit = JSON.parse(JSON.stringify(saved));
-        selectedWorldbookPresetDirty = false;
-        selectedWorldbookPresetIsNew = false;
-        renderWorldbookPresetEditor();
+        if (!worldbookEditor.commitPending()) return false;
       }
       const c = context();
       if (!c || c.characterId == null || !c.writeExtensionField) {
@@ -3814,10 +4068,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         config = normalize(saveData);
         draft = null;
         settingsDraftBaseline = null;
-        selectedWorldbookPresetEdit = null;
-        selectedWorldbookPresetDirty = false;
-        selectedWorldbookPresetIsNew = false;
-        selectedWorldbookPresetId = "";
+        worldbookEditor.reset();
         render();
         status("已保存并复核角色卡。导出角色卡时会带上配置和素材。");
         if (closeOnSuccess) void activePopup?.complete(null);
@@ -3839,26 +4090,10 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   $("[data-theme-button]").onclick = openThemes;
   $("[data-settings-button]").onclick = openSettings;
   root.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => activePopup?.complete(null));
-  const audio = $("[data-player] audio");
-  $("[data-play]").onclick = () => {
-    if (audio.paused) audio.play().catch(() => status("无法播放该音乐文件"));
-    else audio.pause();
-  };
-  $("[data-player]").querySelectorAll("[data-skip]").forEach((b) => b.onclick = () => {
-    audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, audio.currentTime + Number(b.dataset.skip)));
-    updatePlayer();
-  });
-  $("[data-seek]").oninput = (e) => {
-    if (Number.isFinite(audio.duration)) audio.currentTime = audio.duration * Number(e.target.value) / 1e3;
-  };
-  audio.ontimeupdate = updatePlayer;
-  audio.onloadedmetadata = updatePlayer;
-  audio.onplay = updatePlayer;
-  audio.onpause = updatePlayer;
   render();
   ensureUpdateSettings($("[data-settings-dialog]"));
   void refreshWorldbookPeople();
-  void refreshWorldbookPresets();
+  void worldbookEditor.refresh();
   root.dataset.uosMounted = "1";
   root.__uosPrepareForUpdate = async () => {
     if (!hasUnsavedSettings()) return true;
@@ -3968,7 +4203,7 @@ function mountAuthorSelector(startDocument = document, helperApi, { showSetupHin
     container.prepend(notice);
   }
   function closeFrame() {
-    active?.frame.contentDocument?.querySelector("[data-uos]")?.__uosStopBackground?.();
+    active?.frame.contentDocument?.querySelector("[data-uos]")?.__uosDispose?.();
     if (!active) return;
     const { frame, container, contents, resize } = active;
     active = null;

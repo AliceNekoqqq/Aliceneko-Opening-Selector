@@ -62,7 +62,7 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
     const copy=doc.createElement('span');copy.textContent=message;notice.append(art,copy);container.prepend(notice);
   }
   function closeFrame(){
-    active?.frame.contentDocument?.querySelector('[data-uos]')?.__uosStopBackground?.();
+    active?.frame.contentDocument?.querySelector('[data-uos]')?.__uosDispose?.();
     if(!active)return;
     const {frame,container,contents,resize}=active;active=null;resize?.disconnect();
     for(const popup of doc.querySelectorAll('iframe[data-uos-frame]'))popup.remove();frame.remove();
