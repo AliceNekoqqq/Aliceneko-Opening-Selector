@@ -33,7 +33,9 @@ export function renderAuthorPagePreview({doc,model,host,groups}){
 
 export function createAuthorPagePreview({doc,readModel,host,backgroundService,watch}){
   const view=doc.defaultView,el=(tag,cls='',text)=>{const node=doc.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=String(text);return node};
-  const element=el('details','uos-page-preview'),summary=el('summary','','整页实时预览'),tools=el('div','uos-page-preview-tools'),phone=el('button','uos-icon','手机 · 390px'),desktop=el('button','uos-icon','桌面 · 900px');
+  const element=el('details','uos-page-preview'),summary=el('summary'),tools=el('div','uos-page-preview-tools'),phone=el('button','uos-icon','手机 · 390px'),desktop=el('button','uos-icon','桌面 · 900px');
+  const icon=el('span','uos-page-preview-icon','▣'),copy=el('span','uos-page-preview-copy'),action=el('span','uos-page-preview-action','展开预览');icon.setAttribute('aria-hidden','true');
+  copy.append(el('strong','','点击预览整个选择页'),el('small','','查看手机／电脑效果，修改后实时更新'));summary.append(icon,copy,action);
   phone.type=desktop.type='button';tools.setAttribute('role','group');tools.setAttribute('aria-label','整页预览宽度');tools.append(phone,desktop);
   const stage=el('div','uos-page-preview-stage');element.append(summary,el('p','uos-help','编辑时自动同步；预览只用于查看，点击保存后写入角色卡。'),tools,stage);
   let width=390,frame=null,background=null,groups=null,timer=null,observer=null,disposed=false;
@@ -61,7 +63,7 @@ export function createAuthorPagePreview({doc,readModel,host,backgroundService,wa
     renderAuthorPagePreview({doc:frame.contentDocument,model,host,groups});void background.setTheme(model.theme);fit();
   }
   function refresh(){if(disposed||!element.open||timer!==null)return;timer=view.setTimeout(update,80)}
-  const onToggle=()=>{if(element.open)refresh()};element.addEventListener('toggle',onToggle);
+  const onToggle=()=>{if(disposed)return;action.textContent=element.open?'收起预览':'展开预览';if(element.open)refresh()};element.addEventListener('toggle',onToggle);
   watch?.addEventListener('input',refresh);watch?.addEventListener('change',refresh);
   phone.onclick=()=>{if(disposed)return;width=390;controls();fit()};desktop.onclick=()=>{if(disposed)return;width=900;controls();fit()};
   return {element,refresh,dispose(){if(disposed)return;disposed=true;if(timer!==null)view.clearTimeout(timer);element.removeEventListener('toggle',onToggle);watch?.removeEventListener('input',refresh);watch?.removeEventListener('change',refresh);view.removeEventListener('resize',fit);observer?.disconnect();background?.close();frame?.remove();element.remove()}};

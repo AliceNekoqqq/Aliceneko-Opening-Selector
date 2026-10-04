@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.7" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.8" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
@@ -1225,9 +1225,12 @@ dialog.uos-opening-preview[data-theme=paper]{color-scheme:light}
 .uos-opening-preview .uos-preview-select{background:var(--accent)!important;color:var(--bg)!important;font-weight:600!important}
 .uos-opening-preview .uos-preview-reading{flex-basis:100%;min-width:0;color:var(--muted);font-size:12px}
 .uos-opening-preview .uos-preview-reading>summary{min-height:32px;padding:5px 0;color:var(--accent);cursor:pointer}
-.uos-opening-preview .uos-preview-reading-controls{display:flex;align-items:end;flex-wrap:wrap;gap:10px;padding:6px 0}
-.uos-opening-preview .uos-preview-reading-controls label{display:grid;gap:4px;flex:1;min-width:110px;max-width:190px}
-.uos-opening-preview .uos-preview-reading-controls select{min-width:0;width:100%;min-height:44px;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--surface)!important;color:var(--text)!important;font:14px/1.5 system-ui,sans-serif!important;color-scheme:inherit}
+.uos-opening-preview .uos-preview-reading-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;align-items:end;gap:10px;padding:6px 0}
+.uos-opening-preview .uos-preview-reading-controls label{display:grid;gap:4px;min-width:0;margin:0!important;padding:0!important}
+.uos-opening-preview .uos-preview-reading-controls :is(select,.uos-preview-focus){height:44px!important;min-height:44px!important;max-height:44px!important;box-sizing:border-box!important;margin:0!important;font:14px/1.5 system-ui,sans-serif!important;align-self:end}
+.uos-opening-preview .uos-preview-reading-controls select{min-width:0;width:100%;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--surface)!important;color:var(--text)!important;color-scheme:inherit}
+.uos-opening-preview .uos-preview-focus{display:flex;align-items:center;justify-content:center;white-space:nowrap}
+@media(max-width:480px){.uos-opening-preview .uos-preview-reading-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.uos-opening-preview .uos-preview-focus{grid-column:1/-1;width:100%}}
 .uos-opening-preview .uos-preview-focus[aria-pressed=true]{border-color:var(--accent)!important;background:var(--bg)!important;color:var(--accent)!important;box-shadow:inset 0 0 0 1px var(--accent)!important}
 .uos-opening-preview .uos-preview-content{overflow:auto;min-height:0;flex:1;overscroll-behavior:contain;padding:18px;scrollbar-width:thin}
 .uos-opening-preview .uos-preview-cover{width:100%;height:clamp(130px,27vw,300px);background-size:cover;background-position:center;background-color:var(--surface);border-radius:10px;margin:0 0 18px}
@@ -3735,8 +3738,16 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 :where([hidden]){display:none!important}
 
 /* A fixed viewport inside the settings pane previews real responsive breakpoints. */
-.uos-page-preview{min-width:0;margin:18px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-.uos-page-preview>summary{min-height:32px;color:var(--accent);font-weight:650;font-size:13px;cursor:pointer}
+.uos-page-preview{min-width:0;margin:18px 0;padding:12px;border:1px solid var(--accent);border-radius:12px;background:var(--panel)}
+.uos-page-preview>summary{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:64px;padding:6px 2px;color:var(--accent);cursor:pointer;list-style:none}
+.uos-page-preview>summary::-webkit-details-marker{display:none}
+.uos-page-preview>summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:6px}
+.uos-page-preview-icon{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:22px}
+.uos-page-preview-copy{display:grid;gap:5px;min-width:0}
+.uos-page-preview-copy strong{font-size:16px;font-weight:750;line-height:1.5;overflow-wrap:anywhere}
+.uos-page-preview-copy small{color:var(--muted);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.uos-page-preview-action{padding:6px 10px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);color:var(--bg);font-size:12px;font-weight:650;white-space:nowrap}
+@media(max-width:480px){.uos-page-preview>summary{grid-template-columns:minmax(0,1fr) auto;gap:8px}.uos-page-preview-icon{display:none}.uos-page-preview-action{padding:6px 8px}}
 .uos-page-preview-tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 .uos-page-preview-tools button{min-height:44px}
 .uos-page-preview-tools button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
@@ -4274,7 +4285,11 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
     if (text != null) node.textContent = String(text);
     return node;
   };
-  const element = el("details", "uos-page-preview"), summary = el("summary", "", "整页实时预览"), tools = el("div", "uos-page-preview-tools"), phone = el("button", "uos-icon", "手机 · 390px"), desktop = el("button", "uos-icon", "桌面 · 900px");
+  const element = el("details", "uos-page-preview"), summary = el("summary"), tools = el("div", "uos-page-preview-tools"), phone = el("button", "uos-icon", "手机 · 390px"), desktop = el("button", "uos-icon", "桌面 · 900px");
+  const icon = el("span", "uos-page-preview-icon", "▣"), copy = el("span", "uos-page-preview-copy"), action = el("span", "uos-page-preview-action", "展开预览");
+  icon.setAttribute("aria-hidden", "true");
+  copy.append(el("strong", "", "点击预览整个选择页"), el("small", "", "查看手机／电脑效果，修改后实时更新"));
+  summary.append(icon, copy, action);
   phone.type = desktop.type = "button";
   tools.setAttribute("role", "group");
   tools.setAttribute("aria-label", "整页预览宽度");
@@ -4341,6 +4356,8 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
     timer = view.setTimeout(update, 80);
   }
   const onToggle = () => {
+    if (disposed) return;
+    action.textContent = element.open ? "收起预览" : "展开预览";
     if (element.open) refresh();
   };
   element.addEventListener("toggle", onToggle);

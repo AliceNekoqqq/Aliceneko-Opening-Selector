@@ -20,9 +20,12 @@ dialog.uos-opening-preview[data-theme=paper]{color-scheme:light}
 .uos-opening-preview .uos-preview-select{background:var(--accent)!important;color:var(--bg)!important;font-weight:600!important}
 .uos-opening-preview .uos-preview-reading{flex-basis:100%;min-width:0;color:var(--muted);font-size:12px}
 .uos-opening-preview .uos-preview-reading>summary{min-height:32px;padding:5px 0;color:var(--accent);cursor:pointer}
-.uos-opening-preview .uos-preview-reading-controls{display:flex;align-items:end;flex-wrap:wrap;gap:10px;padding:6px 0}
-.uos-opening-preview .uos-preview-reading-controls label{display:grid;gap:4px;flex:1;min-width:110px;max-width:190px}
-.uos-opening-preview .uos-preview-reading-controls select{min-width:0;width:100%;min-height:44px;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--surface)!important;color:var(--text)!important;font:14px/1.5 system-ui,sans-serif!important;color-scheme:inherit}
+.uos-opening-preview .uos-preview-reading-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;align-items:end;gap:10px;padding:6px 0}
+.uos-opening-preview .uos-preview-reading-controls label{display:grid;gap:4px;min-width:0;margin:0!important;padding:0!important}
+.uos-opening-preview .uos-preview-reading-controls :is(select,.uos-preview-focus){height:44px!important;min-height:44px!important;max-height:44px!important;box-sizing:border-box!important;margin:0!important;font:14px/1.5 system-ui,sans-serif!important;align-self:end}
+.uos-opening-preview .uos-preview-reading-controls select{min-width:0;width:100%;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:var(--surface)!important;color:var(--text)!important;color-scheme:inherit}
+.uos-opening-preview .uos-preview-focus{display:flex;align-items:center;justify-content:center;white-space:nowrap}
+@media(max-width:480px){.uos-opening-preview .uos-preview-reading-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.uos-opening-preview .uos-preview-focus{grid-column:1/-1;width:100%}}
 .uos-opening-preview .uos-preview-focus[aria-pressed=true]{border-color:var(--accent)!important;background:var(--bg)!important;color:var(--accent)!important;box-shadow:inset 0 0 0 1px var(--accent)!important}
 .uos-opening-preview .uos-preview-content{overflow:auto;min-height:0;flex:1;overscroll-behavior:contain;padding:18px;scrollbar-width:thin}
 .uos-opening-preview .uos-preview-cover{width:100%;height:clamp(130px,27vw,300px);background-size:cover;background-position:center;background-color:var(--surface);border-radius:10px;margin:0 0 18px}

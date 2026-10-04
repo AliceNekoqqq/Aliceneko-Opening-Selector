@@ -16,7 +16,8 @@ try{
  },moduleUrl);
  const author=page.frameLocator('[data-uos-author-frame]'),settings=page.frameLocator('[data-uos-frame]'),preview=settings.frameLocator('.uos-page-preview-frame');
  await author.locator('[data-settings-button]').click();assert.equal(await settings.locator('.uos-page-preview-frame').count(),0);
- await settings.locator('.uos-page-preview>summary').click();await preview.locator('[data-title]').filter({hasText:'原标题'}).waitFor();
+ assert.match(await settings.locator('.uos-page-preview>summary').textContent(),/点击预览整个选择页/);assert.equal(await settings.locator('.uos-page-preview-copy small').isVisible(),true);assert.equal(await settings.locator('.uos-page-preview-action').textContent(),'展开预览');
+ await settings.locator('.uos-page-preview>summary').click();await preview.locator('[data-title]').filter({hasText:'原标题'}).waitFor();assert.equal(await settings.locator('.uos-page-preview-action').textContent(),'收起预览');
  assert.equal(await preview.locator('audio').count(),0);assert.equal(await preview.locator('[data-uos]').evaluate(node=>node.inert),true);assert.equal(await preview.locator('.uos-card-preview-button').first().isDisabled(),true);
  await settings.getByLabel('页面标题',{exact:true}).fill('实时草稿标题');await preview.locator('[data-title]').filter({hasText:'实时草稿标题'}).waitFor();assert.equal(await author.locator('[data-title]').textContent(),'原标题');
  await settings.getByLabel('页面版式',{exact:true}).selectOption('catalog');await preview.locator('[data-uos][data-layout=catalog]').waitFor();

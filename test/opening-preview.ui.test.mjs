@@ -16,7 +16,7 @@ try{
  },moduleUrl);
  await page.locator('.uos-user-trigger').click();const player=page.locator('.uos-user-panel');
  // Simulate a host theme overriding generic button appearance.
- await page.addStyleTag({content:'button{background:#999!important;color:#000!important;border-radius:0!important;border:2px dotted #888!important}'});
+ await page.addStyleTag({content:'button{background:#999!important;color:#000!important;border-radius:0!important;border:2px dotted #888!important;margin:5px 0}'});
  for(const theme of ['theatre','paper','neon']){
   await player.evaluate((el,theme)=>el.dataset.theme=theme,theme);
   const appearance=await player.locator('.uos-user-preview-button').first().evaluate(el=>{const css=getComputedStyle(el);return {color:css.color,bg:css.backgroundColor,radius:css.borderRadius,border:css.borderStyle,height:el.getBoundingClientRect().height}});
@@ -34,7 +34,9 @@ try{
  assert.equal(await preview.getByRole('button',{name:'上一条',exact:true}).isDisabled(),true);
  await preview.getByRole('button',{name:'下一条',exact:true}).click();assert.equal(await preview.locator('.uos-preview-title').textContent(),'支线清晨');assert.match(await preview.locator('.uos-preview-body').textContent(),/第三条/);
  assert.equal(await page.evaluate(()=>__state.writes),0,'navigation never switches greetings');
- for(const width of [320,768]){await page.setViewportSize({width,height:760});assert.equal(await preview.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);const bounds=await preview.boundingBox();assert.ok(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=width+1&&bounds.y+bounds.height<=761)}
+ for(const width of [320,768]){await page.setViewportSize({width,height:760});
+ const geometry=await preview.locator('.uos-preview-reading-controls').evaluate(el=>{const fields=[...el.querySelectorAll('select')],button=el.querySelector('.uos-preview-focus');return [...fields,button].map(node=>{const r=node.getBoundingClientRect();return {height:r.height,bottom:r.bottom,width:r.width}})});assert.ok(geometry.every(r=>Math.abs(r.height-44)<1));if(width>480){assert.ok(Math.abs(geometry[0].bottom-geometry[2].bottom)<1);assert.ok(Math.abs(geometry[1].bottom-geometry[2].bottom)<1)}else{assert.ok(geometry[2].width>geometry[0].width);assert.ok(geometry[2].bottom>geometry[0].bottom)}
+ assert.equal(await preview.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);const bounds=await preview.boundingBox();assert.ok(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=width+1&&bounds.y+bounds.height<=761)}
  await preview.getByRole('button',{name:'关闭预览',exact:true}).click();assert.equal(await player.locator('.uos-user-card').count(),2);assert.equal(await player.getByRole('searchbox').inputValue(),'支线');
  // Reopen from the same filtered list: local typography and focus preferences survive.
  await player.getByRole('button',{name:'预览完整正文',exact:true}).first().click();await preview.locator('.uos-preview-reading>summary').click();assert.equal(await preview.getByLabel('正文字号',{exact:true}).inputValue(),'large');assert.equal(await preview.getByLabel('正文行距',{exact:true}).inputValue(),'relaxed');assert.equal(await preview.locator('.uos-preview-cover').isVisible(),false);
