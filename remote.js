@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.8" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.9" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
@@ -124,6 +124,162 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
     }
   };
 }
+
+// src/opening-favorites.js
+function openingFavoriteKeys(bodies) {
+  const occurrences = /* @__PURE__ */ new Map();
+  return bodies.map((value) => {
+    const body = String(value || "");
+    if (!body) return null;
+    let a = 2166136261, b = 2654435769;
+    for (let i = 0; i < body.length; i++) {
+      const code = body.charCodeAt(i);
+      a = Math.imul(a ^ code, 16777619);
+      b = Math.imul(b ^ code, 2246822507);
+    }
+    const base = (a >>> 0).toString(16).padStart(8, "0") + (b >>> 0).toString(16).padStart(8, "0") + ":" + body.length;
+    const occurrence = occurrences.get(base) || 0;
+    occurrences.set(base, occurrence + 1);
+    return base + ":" + occurrence;
+  });
+}
+var validKey = (key) => typeof key === "string" && /^[0-9a-f]{16}:\d{1,10}:\d{1,10}$/.test(key);
+function createOpeningFavorites(host, avatar) {
+  const storageKey = avatar ? "uos_favorites_v1_" + encodeURIComponent(String(avatar)) : null;
+  let memory = /* @__PURE__ */ new Set(), lastBodies = [], lastKeys = [];
+  const pending = /* @__PURE__ */ new Map();
+  function snapshot() {
+    try {
+      const raw = storageKey && host?.localStorage?.getItem(storageKey);
+      if (raw != null) {
+        const value = JSON.parse(raw);
+        memory = new Set(value?.version === 1 && Array.isArray(value.keys) ? value.keys.filter(validKey).slice(0, 5e3) : []);
+      }
+    } catch {
+    }
+    for (const [key, selected] of pending) {
+      if (selected) memory.add(key);
+      else memory.delete(key);
+    }
+    return new Set(memory);
+  }
+  return {
+    keys(bodies) {
+      if (bodies.length !== lastBodies.length || bodies.some((body, i) => body !== lastBodies[i])) {
+        lastBodies = bodies.slice();
+        lastKeys = openingFavoriteKeys(bodies);
+      }
+      return lastKeys.slice();
+    },
+    snapshot,
+    toggle(key) {
+      if (!validKey(key)) return { selected: false, persisted: false };
+      const next = snapshot(), selected = !next.has(key);
+      if (selected) next.add(key);
+      else next.delete(key);
+      memory = next;
+      let persisted = false;
+      try {
+        if (storageKey && host?.localStorage) {
+          host.localStorage.setItem(storageKey, JSON.stringify({ version: 1, keys: [...next] }));
+          persisted = true;
+          pending.clear();
+        }
+      } catch {
+      }
+      if (!persisted) pending.set(key, selected);
+      return { selected, persisted };
+    }
+  };
+}
+
+// src/opening-favorites-ui.js
+function openingFavoriteButton(el, { key, title, selected = false, onToggle }) {
+  const button = el("button", "uos-opening-favorite"), icon = el("span", "", selected ? "★" : "☆");
+  button.type = "button";
+  icon.setAttribute("aria-hidden", "true");
+  button.append(icon);
+  const label = (selected ? "取消收藏：" : "收藏：") + title;
+  button.setAttribute("aria-label", label);
+  button.setAttribute("title", label);
+  button.setAttribute("aria-pressed", String(selected));
+  button.dataset.favoriteKey = key || "";
+  if (onToggle) button.onclick = onToggle;
+  else button.disabled = true;
+  return button;
+}
+function openingFavoritesFilter(el, count, onToggle) {
+  const button = el("button", "uos-favorites-filter", `☆ 只看收藏 · ${count}`);
+  button.type = "button";
+  button.setAttribute("aria-label", "只看收藏");
+  button.setAttribute("aria-pressed", "false");
+  if (onToggle) button.onclick = onToggle;
+  else button.disabled = true;
+  return button;
+}
+function createOpeningFavoritesUI({ el, store, onChange, onUnavailable = () => {
+}, isActive = () => true }) {
+  let onlyFavorites = false, disposed = false, keys = /* @__PURE__ */ new Set();
+  const buttons = /* @__PURE__ */ new Map();
+  const active = () => !disposed && isActive();
+  const element = openingFavoritesFilter(el, 0, () => {
+    if (!active() || element.isConnected === false) return;
+    onlyFavorites = !onlyFavorites;
+    onChange();
+  });
+  return {
+    element,
+    onlyFavorites: () => onlyFavorites,
+    update(rows) {
+      const identities = store.keys(rows.map((row) => row.body)), saved = store.snapshot();
+      keys = new Set(identities.filter(Boolean));
+      buttons.clear();
+      const result = rows.map((row, i) => ({ ...row, favoriteKey: identities[i], favorite: saved.has(identities[i]) }));
+      element.textContent = `${onlyFavorites ? "★" : "☆"} 只看收藏 · ${result.filter((row) => row.favorite).length}`;
+      element.setAttribute("aria-pressed", String(onlyFavorites));
+      return result;
+    },
+    button(row) {
+      let button;
+      button = openingFavoriteButton(el, { key: row.favoriteKey, title: row.title, selected: row.favorite, onToggle: () => {
+        if (!active() || button.isConnected === false || !keys.has(row.favoriteKey)) return;
+        const result = store.toggle(row.favoriteKey);
+        if (!result.persisted) onUnavailable();
+        onChange();
+        const target = buttons.get(row.favoriteKey) || element;
+        try {
+          if (target.isConnected !== false) target.focus();
+        } catch {
+        }
+      } });
+      button.disabled = !row.favoriteKey;
+      buttons.set(row.favoriteKey, button);
+      return button;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      buttons.clear();
+      keys.clear();
+      element.remove();
+    }
+  };
+}
+
+// src/opening-favorites-styles.js
+var OPENING_FAVORITES_CSS = `
+:is(.uos,.uos-user-panel) .uos-favorites-filter{appearance:none!important;flex:none;min-height:44px;margin:0!important;padding:8px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--bg)!important;color:var(--accent)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer;white-space:nowrap;box-shadow:none!important}
+:is(.uos,.uos-user-panel) .uos-favorites-filter[aria-pressed=true]{border-color:var(--accent)!important;box-shadow:inset 0 0 0 1px var(--accent)!important}
+:is(.uos,.uos-user-panel) .uos-card-actions{display:flex;align-items:stretch;gap:8px;min-width:0}
+.uos-user-panel .uos-user-card-actions{margin:10px 0}
+:is(.uos,.uos-user-panel) .uos-card-actions :is(.uos-card-preview-button,.uos-user-preview-button){flex:1 1 0;min-width:0;margin:0!important}
+:is(.uos,.uos-user-panel) .uos-opening-favorite{appearance:none!important;display:grid;place-items:center;flex:none;width:44px!important;min-height:44px!important;box-sizing:border-box!important;margin:0!important;padding:6px!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--bg)!important;color:var(--accent)!important;font:22px/1 system-ui,sans-serif!important;cursor:pointer;box-shadow:none!important}
+:is(.uos,.uos-user-panel) .uos-opening-favorite[aria-pressed=true]{border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 12%,var(--bg))!important}
+:is(.uos,.uos-user-panel) :is(.uos-opening-favorite,.uos-favorites-filter):focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-card-actions{grid-column:1/-1}
+.uos-user-panel .uos-user-search{flex-wrap:wrap}
+@media(max-width:600px){.uos:not([data-layout=catalog]) .uos-card-actions .uos-card-preview-button{gap:0;padding:8px!important;font-size:12px!important}.uos:not([data-layout=catalog]) .uos-card-actions :is(.uos-reading-icon,.uos-reading-arrow){display:none}}
+`;
 
 // src/player-panel-session.js
 function createPlayerPanelSession(dialog, { onDispose = () => {
@@ -1096,7 +1252,7 @@ var OPENING_LAYOUT_CSS = `
 .uos[data-layout=catalog] .uos-card-shell .uos-card-body{min-height:0;padding:18px 22px}
 .uos-user-panel[data-layout=catalog] .uos-user-card{display:grid;grid-template-columns:minmax(110px,24%) minmax(0,1fr);gap:18px}
 .uos-user-panel[data-layout=catalog] .uos-user-default-cover{height:auto;min-height:145px;margin:0}
-.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-preview-button,.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-select{grid-column:1/-1}
+.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-select{grid-column:1/-1}
 .uos[data-layout=dossier] .uos-grid,.uos-user-panel[data-layout=dossier] .uos-user-list{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));align-items:start}
 .uos[data-layout=dossier] .uos-card-shell{border-radius:4px;border-top:3px solid var(--accent)}
 .uos[data-layout=dossier] .uos-card-shell .uos-cover{height:72px;border-bottom:1px dashed var(--line)}
@@ -2204,7 +2360,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
   let trigger = null, panelSession = null, updating = false, suppressClickUntil = 0;
   const positionKey = "uos_player_button_position";
@@ -2812,6 +2968,21 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     results.setAttribute("role", "status");
     const categories = createOpeningCategoryFilters({ el, onChange: () => renderCards() });
     search.append(categories.element);
+    const favoritesStore = createOpeningFavorites(host, snapshot.avatar);
+    const favoriteUI = createOpeningFavoritesUI({
+      el,
+      store: favoritesStore,
+      onChange: () => renderCards(),
+      isActive: () => {
+        const current = state();
+        return !session.disposed && panelSession === session && current?.avatar === snapshot.avatar && current?.characterId === snapshot.characterId;
+      },
+      onUnavailable: () => {
+        status.textContent = "浏览器未能保存，收藏暂时只在当前窗口有效。";
+      }
+    });
+    search.append(favoriteUI.element);
+    session.own(() => favoriteUI.dispose());
     const openingGroups = createOpeningGroupRenderer({ el, gridClass: "uos-user-list" });
     query.oninput = () => renderCards();
     person.onchange = () => renderCards();
@@ -2831,9 +3002,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         person.append(option);
       }
       person.value = selected;
-      const rows = snapshot.entries.map((entry) => ({ ...entry, ...resolved[entry.index], ...openingMetadata(authorEntries[entry.index]), label: typeof customLabels[entry.index] === "string" && customLabels[entry.index] ? customLabels[entry.index] : entry.label }));
+      const rows = favoriteUI.update(snapshot.entries.map((entry) => ({ ...entry, ...resolved[entry.index], ...openingMetadata(authorEntries[entry.index]), label: typeof customLabels[entry.index] === "string" && customLabels[entry.index] ? customLabels[entry.index] : entry.label })));
       categories.update(rows);
-      const categoryValues = categories.values(), filtered = rows.filter((row) => matchesOpening(row, { query: query.value, person: person.value, ...categoryValues })), visible = filtered.length;
+      const categoryValues = categories.values(), filtered = rows.filter((row) => (!favoriteUI.onlyFavorites() || row.favorite) && matchesOpening(row, { query: query.value, person: person.value, ...categoryValues })), visible = filtered.length;
       openingGroups.render(filtered, list, (entry, target) => {
         const display = entry;
         const card = el("article", "uos-user-card");
@@ -2864,7 +3035,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         previewButton.type = "button";
         decorateOpeningPreviewButton(previewButton, el);
         previewButton.onclick = () => openingPreview.open(entry.index, previewButton);
-        card.append(previewButton);
+        const cardActions = el("div", "uos-card-actions uos-user-card-actions");
+        cardActions.append(previewButton, favoriteUI.button(entry));
+        card.append(cardActions);
         const choose = el("button", "uos-user-select", entry.index === snapshot.swipeId ? "当前开场" : `进入开场 ${entry.index + 1}`);
         choose.type = "button";
         choose.disabled = entry.index === snapshot.swipeId;
@@ -2908,8 +3081,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         card.append(choose);
         target.append(card);
       }, rows);
-      results.textContent = query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
-      if (!visible) list.append(el("p", "uos-user-empty", "没有匹配的开场，请调整关键词或筛选条件。"));
+      results.textContent = favoriteUI.onlyFavorites() || query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
+      if (!visible) list.append(el("p", "uos-user-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
     }
     updatePeople();
     renderCards();
@@ -3694,7 +3867,7 @@ function renderMusicSettings({ root, settings, isCurrent, fields, renderMusic })
 }
 
 // src/author-opening-card.js
-function createAuthorOpeningCard({ el, entry, index, body, host, onChoose, onPreview }) {
+function createAuthorOpeningCard({ el, entry, index, body, host, onChoose, onPreview, favoriteButton }) {
   const names = Array.isArray(entry.names) ? entry.names : String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean);
   const shell = el("article", "uos-card-shell"), card = el("button", "uos-card");
   card.type = "button";
@@ -3722,12 +3895,12 @@ function createAuthorOpeningCard({ el, entry, index, body, host, onChoose, onPre
   else card.disabled = true;
   shell.append(card);
   if (body) {
-    const details = el("div", "uos-card-details"), button = el("button", "uos-card-preview-button");
+    const details = el("div", "uos-card-details uos-card-actions"), button = el("button", "uos-card-preview-button");
     button.type = "button";
     decorateOpeningPreviewButton(button, el);
     if (onPreview) button.onclick = () => onPreview(index + 1, button);
     else button.disabled = true;
-    details.append(button);
+    details.append(button, favoriteButton || openingFavoriteButton(el, { key: entry.favoriteKey, title: entry.title, selected: entry.favorite }));
     shell.append(details);
   }
   return shell;
@@ -4113,7 +4286,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos[data-layout=catalog] .uos-card-shell .uos-card-body{min-height:0;padding:18px 22px}
 .uos-user-panel[data-layout=catalog] .uos-user-card{display:grid;grid-template-columns:minmax(110px,24%) minmax(0,1fr);gap:18px}
 .uos-user-panel[data-layout=catalog] .uos-user-default-cover{height:auto;min-height:145px;margin:0}
-.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-preview-button,.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-select{grid-column:1/-1}
+.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-select{grid-column:1/-1}
 .uos[data-layout=dossier] .uos-grid,.uos-user-panel[data-layout=dossier] .uos-user-list{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));align-items:start}
 .uos[data-layout=dossier] .uos-card-shell{border-radius:4px;border-top:3px solid var(--accent)}
 .uos[data-layout=dossier] .uos-card-shell .uos-cover{height:72px;border-bottom:1px dashed var(--line)}
@@ -4192,6 +4365,19 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-user-panel[data-theme=paper] .uos-user-card .uos-user-select{color:#fff8ec!important}
 .uos-user-panel .uos-user-card .uos-user-select:disabled{background:var(--bg)!important;border-color:var(--line)!important;color:var(--muted)!important;opacity:1;cursor:default}
 @media(prefers-reduced-motion:reduce){:is(.uos-card-details .uos-card-preview-button,.uos-user-panel .uos-user-card .uos-user-preview-button){transition:none}}
+
+
+:is(.uos,.uos-user-panel) .uos-favorites-filter{appearance:none!important;flex:none;min-height:44px;margin:0!important;padding:8px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--bg)!important;color:var(--accent)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer;white-space:nowrap;box-shadow:none!important}
+:is(.uos,.uos-user-panel) .uos-favorites-filter[aria-pressed=true]{border-color:var(--accent)!important;box-shadow:inset 0 0 0 1px var(--accent)!important}
+:is(.uos,.uos-user-panel) .uos-card-actions{display:flex;align-items:stretch;gap:8px;min-width:0}
+.uos-user-panel .uos-user-card-actions{margin:10px 0}
+:is(.uos,.uos-user-panel) .uos-card-actions :is(.uos-card-preview-button,.uos-user-preview-button){flex:1 1 0;min-width:0;margin:0!important}
+:is(.uos,.uos-user-panel) .uos-opening-favorite{appearance:none!important;display:grid;place-items:center;flex:none;width:44px!important;min-height:44px!important;box-sizing:border-box!important;margin:0!important;padding:6px!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--bg)!important;color:var(--accent)!important;font:22px/1 system-ui,sans-serif!important;cursor:pointer;box-shadow:none!important}
+:is(.uos,.uos-user-panel) .uos-opening-favorite[aria-pressed=true]{border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 12%,var(--bg))!important}
+:is(.uos,.uos-user-panel) :is(.uos-opening-favorite,.uos-favorites-filter):focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-card-actions{grid-column:1/-1}
+.uos-user-panel .uos-user-search{flex-wrap:wrap}
+@media(max-width:600px){.uos:not([data-layout=catalog]) .uos-card-actions .uos-card-preview-button{gap:0;padding:8px!important;font-size:12px!important}.uos:not([data-layout=catalog]) .uos-card-actions :is(.uos-reading-icon,.uos-reading-arrow){display:none}}
 `;
 
 // src/author-template.js
@@ -4239,7 +4425,7 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
     people.append(option);
   }
   people.disabled = true;
-  filters.append(search, people);
+  filters.append(search, people, openingFavoritesFilter(el, model.items.filter((item) => item.favorite).length));
   const categories = createOpeningCategoryFilters({ el, onChange: () => {
   } });
   categories.update(model.items);
@@ -4495,9 +4681,10 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   }
   root.__uosDispose?.();
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
-  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview;
+  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI;
   let previewItems = [];
   root.__uosDispose = () => {
+    favoriteUI?.dispose();
     pagePreview?.dispose();
     openingPreview?.dispose();
     backgroundControl?.close();
@@ -4590,6 +4777,14 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   const { field, fileField } = settingsFields;
   const openingGroups = createOpeningGroupRenderer({ el, gridClass: "uos-grid" });
   const previewAvatar = character()?.avatar, previewCharacterId = context()?.characterId;
+  const favoritesStore = createOpeningFavorites(host, previewAvatar);
+  favoriteUI = createOpeningFavoritesUI({
+    el,
+    store: favoritesStore,
+    onChange: () => render(),
+    isActive: () => root.isConnected !== false && character()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
+    onUnavailable: () => status("浏览器未能保存，收藏暂时只在当前窗口有效。")
+  });
   openingPreview = createOpeningPreview({
     doc: host.document,
     host,
@@ -4999,7 +5194,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     }
     const query = filters.querySelector("input").value.trim().toLocaleLowerCase(), person = filters.querySelector("select"), selected = person.value;
     const items = entries(), greetings = greetingList(), people = /* @__PURE__ */ new Set();
-    const rows = items.map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings[i] || "", names: String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean) }));
+    const rows = favoriteUI.update(items.map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings[i] || "", names: String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean) })));
+    if (!filters.contains(favoriteUI.element)) filters.append(favoriteUI.element);
     if (!filters.__uosCategories) {
       filters.__uosCategories = createOpeningCategoryFilters({ el, onChange: () => render() });
       filters.append(filters.__uosCategories.element);
@@ -5018,7 +5214,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       person.append(option);
     }
     person.value = selected;
-    const categoryValues = filters.__uosCategories.values(), filtered = rows.filter((row) => matchesOpening(row, { query, person: person.value, ...categoryValues })), visible = filtered.length;
+    const categoryValues = filters.__uosCategories.values(), filtered = rows.filter((row) => (!favoriteUI.onlyFavorites() || row.favorite) && matchesOpening(row, { query, person: person.value, ...categoryValues })), visible = filtered.length;
     openingGroups.render(filtered, grid, (entry, target) => {
       const i = entry.id, source = greetings[i];
       if (source) previewItems.push({ ...entry, id: i + 1, number: i + 1, coverIndex: i, body: source, names: entry.names, suggestions: entry.nameSuggestions });
@@ -5029,6 +5225,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         body: source,
         host,
         onChoose: choose,
+        favoriteButton: favoriteUI.button(entry),
         onPreview: (id, button) => {
           if (activePopup) {
             status("请先关闭当前主题或设置窗口。");
@@ -5044,8 +5241,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       result.setAttribute("role", "status");
       grid.before(result);
     }
-    result.textContent = query || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${items.length} 个开场` : `${items.length} 个开场 · 点击卡片进入`;
-    if (!visible) grid.append(el("p", "uos-search-empty", "没有匹配的开场，请调整关键词或筛选条件。"));
+    result.textContent = favoriteUI.onlyFavorites() || query || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${items.length} 个开场` : `${items.length} 个开场 · 点击卡片进入`;
+    if (!visible) grid.append(el("p", "uos-search-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
     renderMusic(config.music);
     const actions = root.querySelector(".uos-actions");
     if (actions && !actions.querySelector(".uos-version-badge")) actions.append(el("small", "uos-version-badge", `v${VERSION2}`));
@@ -5211,7 +5408,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           const { names, ...automatic } = entry;
           return automatic;
         }) }), greetings2 = greetingList();
-        return { ...settings, items: entries(settings).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", names: String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean) })) };
+        const favoriteKeys = favoritesStore.keys(greetings2), savedFavorites = favoritesStore.snapshot();
+        return { ...settings, items: entries(settings).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", favoriteKey: favoriteKeys[i], favorite: savedFavorites.has(favoriteKeys[i]), names: String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean) })) };
       }
     });
     fields.append(pagePreview.element);

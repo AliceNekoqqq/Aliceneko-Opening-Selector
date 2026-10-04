@@ -1,3 +1,4 @@
+import {OPENING_FAVORITES_CSS} from '../../src/opening-favorites-styles.js';
 import {THEME_BACKGROUND_IMAGES} from '../../src/theme-backgrounds.js';
 import fs from 'node:fs';
 import {THEME_ART} from '../../src/theme-art.js';
@@ -16,5 +17,5 @@ const css=fs.readFileSync(new URL('../../src/selector.css',import.meta.url),'utf
     return replacements[token];
   })
   .replace(/<\/style/gi,'<\\/style');
-return css+'\n'+OPENING_LAYOUT_CSS+'\n'+OPENING_CATEGORY_CSS+'\n'+OPENING_ACTION_CSS;
+return css+'\n'+OPENING_LAYOUT_CSS+'\n'+OPENING_CATEGORY_CSS+'\n'+OPENING_ACTION_CSS+'\n'+OPENING_FAVORITES_CSS;
 }

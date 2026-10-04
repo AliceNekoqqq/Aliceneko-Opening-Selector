@@ -1,3 +1,6 @@
+import {createOpeningFavorites} from './opening-favorites.js';
+import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
+import {OPENING_FAVORITES_CSS} from './opening-favorites-styles.js';
 import {createPlayerPanelSession} from './player-panel-session.js';
 import {createPlayerSettingsLayout} from './player-settings-layout.js';
 import {unsavedPlayerGroups,createPlayerDraftGuard,showPlayerUnsavedPrompt} from './player-draft-guard.js';
@@ -279,7 +282,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
+  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
   let trigger=null,panelSession=null,updating=false,suppressClickUntil=0;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
@@ -513,13 +516,18 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const search=el('div','uos-user-search'),query=el('input'),person=el('select');query.type='search';query.placeholder='搜索标题、人物或开场正文';query.setAttribute('aria-label','搜索开场');person.setAttribute('aria-label','按人物筛选');search.append(query,person);
     const results=el('p','uos-user-results');results.setAttribute('role','status');
     const categories=createOpeningCategoryFilters({el,onChange:()=>renderCards()});search.append(categories.element);
+    const favoritesStore=createOpeningFavorites(host,snapshot.avatar);
+    const favoriteUI=createOpeningFavoritesUI({el,store:favoritesStore,onChange:()=>renderCards(),
+      isActive:()=>{const current=state();return !session.disposed&&panelSession===session&&current?.avatar===snapshot.avatar&&current?.characterId===snapshot.characterId},
+      onUnavailable:()=>{status.textContent='浏览器未能保存，收藏暂时只在当前窗口有效。'}});
+    search.append(favoriteUI.element);session.own(()=>favoriteUI.dispose());
     const openingGroups=createOpeningGroupRenderer({el,gridClass:'uos-user-list'});
     query.oninput=()=>renderCards();person.onchange=()=>renderCards();
     function renderCards(){list.replaceChildren();previewItems=[];previewActions.clear();const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
       const selected=person.value;person.replaceChildren();const any=el('option','','全部人物');any.value='';person.append(any);
       for(const name of new Set(resolved.flatMap(x=>x.names))){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
-      const rows=snapshot.entries.map(entry=>({...entry,...resolved[entry.index],...openingMetadata(authorEntries[entry.index]),label:typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label}));categories.update(rows);
-      const categoryValues=categories.values(),filtered=rows.filter(row=>matchesOpening(row,{query:query.value,person:person.value,...categoryValues})),visible=filtered.length;
+      const rows=favoriteUI.update(snapshot.entries.map(entry=>({...entry,...resolved[entry.index],...openingMetadata(authorEntries[entry.index]),label:typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label})));categories.update(rows);
+      const categoryValues=categories.values(),filtered=rows.filter(row=>(!favoriteUI.onlyFavorites()||row.favorite)&&matchesOpening(row,{query:query.value,person:person.value,...categoryValues})),visible=filtered.length;
       openingGroups.render(filtered,list,(entry,target)=>{const display=entry;
       const card=el('article','uos-user-card');card.dataset.current=String(entry.index===snapshot.swipeId);card.dataset.number=String(entry.index+1).padStart(2,'0');
       const illustration=el('div','uos-user-default-cover');illustration.setAttribute('aria-hidden','true');applyOpeningCover(illustration,authorEntries[entry.index],entry.body,entry.index,host);card.append(illustration);
@@ -530,7 +538,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       const tagChips=openingTagChips(el,entry.tags);if(tagChips)cardBody.append(tagChips);
       if(display.names.length){const cast=el('p','uos-user-names');cast.append(el('span','uos-cast-label','人物'));for(const name of display.names.slice(0,3))cast.append(el('span','uos-name-chip',name));if(display.names.length>3)cast.append(el('span','uos-name-chip',`+${display.names.length-3}`));cardBody.append(cast)}
       previewItems.push({...authorEntries[entry.index],...openingMetadata(entry),id:entry.index,number:entry.index+1,coverIndex:entry.index,title:display.title,description:entry.description,label:entry.label,names:display.names,body:entry.body,titleSource:display.titleSource,suggestions:entry.nameSuggestions,isCurrent:entry.index===snapshot.swipeId});
-      const previewButton=el('button','uos-user-preview-button','预览完整正文');previewButton.type='button';decorateOpeningPreviewButton(previewButton,el);previewButton.onclick=()=>openingPreview.open(entry.index,previewButton);card.append(previewButton);
+      const previewButton=el('button','uos-user-preview-button','预览完整正文');previewButton.type='button';decorateOpeningPreviewButton(previewButton,el);previewButton.onclick=()=>openingPreview.open(entry.index,previewButton);const cardActions=el('div','uos-card-actions uos-user-card-actions');cardActions.append(previewButton,favoriteUI.button(entry));card.append(cardActions);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{
         let current=state();
@@ -554,7 +562,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       };
       previewActions.set(entry.index,choose.onclick);
       card.append(choose);target.append(card);
-    },rows);results.textContent=query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty','没有匹配的开场，请调整关键词或筛选条件。'))}
+    },rows);results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);

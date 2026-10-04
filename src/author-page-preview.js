@@ -1,3 +1,4 @@
+import {openingFavoritesFilter} from './opening-favorites-ui.js';
 import {buildAuthorHtml} from './author-template.js';
 import {createAuthorOpeningCard} from './author-opening-card.js';
 import {createOpeningGroupRenderer,createOpeningCategoryFilters} from './opening-category-ui.js';
@@ -16,7 +17,7 @@ export function renderAuthorPagePreview({doc,model,host,groups}){
   let filters=root.querySelector('.uos-search');
   if(!filters){filters=el('div','uos-search');root.querySelector('[data-grid]').before(filters)}
   filters.replaceChildren();const search=el('input'),people=el('select');search.type='search';search.placeholder='搜索标题、人物或正文';search.disabled=true;
-  const all=el('option','','全部人物');all.value='';people.append(all);for(const name of new Set(model.items.flatMap(item=>item.names))){const option=el('option','',name);option.value=name;people.append(option)}people.disabled=true;filters.append(search,people);
+  const all=el('option','','全部人物');all.value='';people.append(all);for(const name of new Set(model.items.flatMap(item=>item.names))){const option=el('option','',name);option.value=name;people.append(option)}people.disabled=true;filters.append(search,people,openingFavoritesFilter(el,model.items.filter(item=>item.favorite).length));
   const categories=createOpeningCategoryFilters({el,onChange:()=>{}});categories.update(model.items);filters.append(categories.element);
   for(const select of categories.element.querySelectorAll('select'))select.disabled=true;
   let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');filters.after(result)}result.textContent=`${model.items.length} 个开场 · 点击卡片进入`;

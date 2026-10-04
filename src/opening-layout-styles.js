@@ -10,7 +10,7 @@ export const OPENING_LAYOUT_CSS = `
 .uos[data-layout=catalog] .uos-card-shell .uos-card-body{min-height:0;padding:18px 22px}
 .uos-user-panel[data-layout=catalog] .uos-user-card{display:grid;grid-template-columns:minmax(110px,24%) minmax(0,1fr);gap:18px}
 .uos-user-panel[data-layout=catalog] .uos-user-default-cover{height:auto;min-height:145px;margin:0}
-.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-preview-button,.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-select{grid-column:1/-1}
+.uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-select{grid-column:1/-1}
 .uos[data-layout=dossier] .uos-grid,.uos-user-panel[data-layout=dossier] .uos-user-list{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));align-items:start}
 .uos[data-layout=dossier] .uos-card-shell{border-radius:4px;border-top:3px solid var(--accent)}
 .uos[data-layout=dossier] .uos-card-shell .uos-cover{height:72px;border-bottom:1px dashed var(--line)}

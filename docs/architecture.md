@@ -12,6 +12,8 @@
 | src/theme-backgrounds.js | 共享背景预加载、在途去重、缓存、备用源与取消 |
 | src/opening-categories.js | 作者明确填写的分组／标签规范、组合筛选与按原索引分组；不依赖 UI |
 | src/opening-category-ui.js / opening-category-styles.js | 共用分类筛选控件、分组折叠、标签展示与样式 |
+| src/opening-favorites.js | 原始正文指纹与按角色本机收藏；不依赖 UI，不保存原文 |
+| src/opening-favorites-ui.js / opening-favorites-styles.js | 收藏按钮、组合筛选开关、焦点恢复及过期事件保护；不调用选择事务 |
 | src/opening-action-styles.js | 作者／玩家阅读入口装饰及防宿主覆盖的共用按钮样式 |
 | src/author-opening-card.js | 作者实际页与草稿预览共用卡片渲染；不持有草稿或选择事务 |
 | src/author-page-preview.js | 设置草稿整页只读展示、固定手机／桌面视口与资源清理；不挂载业务运行时 |

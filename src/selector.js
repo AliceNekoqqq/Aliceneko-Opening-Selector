@@ -4,6 +4,8 @@ import {createMediaPlayer} from './media-player.js';
 import {createSettingsFields} from './settings-fields.js';
 import {renderMusicSettings} from './music-settings.js';
 import {RUNTIME_VERSION} from './version.js';
+import {createOpeningFavorites} from './opening-favorites.js';
+import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {createAuthorOpeningCard} from './author-opening-card.js';
 import {createAuthorPagePreview} from './author-page-preview.js';
 import {createThemeBackgroundController} from './theme-backgrounds.js';
@@ -37,9 +39,9 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   }
   root.__uosDispose?.();
   const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
-  let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview;
+  let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI;
   let previewItems=[];
-  root.__uosDispose=()=>{pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
+  root.__uosDispose=()=>{favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -86,6 +88,10 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   const {field,fileField}=settingsFields;
   const openingGroups=createOpeningGroupRenderer({el,gridClass:'uos-grid'});
   const previewAvatar=character()?.avatar,previewCharacterId=context()?.characterId;
+  const favoritesStore=createOpeningFavorites(host,previewAvatar);
+  favoriteUI=createOpeningFavoritesUI({el,store:favoritesStore,onChange:()=>render(),
+    isActive:()=>root.isConnected!==false&&character()?.avatar===previewAvatar&&context()?.characterId===previewCharacterId,
+    onUnavailable:()=>status('浏览器未能保存，收藏暂时只在当前窗口有效。')});
   openingPreview=createOpeningPreview({doc:host.document,host,getItems:()=>previewItems,getPalette:()=>root,
     onChoose:async item=>{if(context()?.characterId!==previewCharacterId||character()?.avatar!==previewAvatar||root.isConnected===false){status('角色或聊天已变化，请重新打开选择器。');return}await choose(item.id)}});
   worldbookEditor=createWorldbookPresetEditor({doc,el,query:$,getDraft:()=>draft,entries,
@@ -256,20 +262,21 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     if(!filters){filters=el('div','uos-search');const input=el('input'),person=el('select');input.type='search';input.placeholder='搜索标题、人物或正文';input.setAttribute('aria-label','搜索作者开场');person.setAttribute('aria-label','按人物筛选作者开场');input.oninput=()=>render();person.onchange=()=>render();filters.append(input,person);grid.before(filters)}
     const query=filters.querySelector('input').value.trim().toLocaleLowerCase(),person=filters.querySelector('select'),selected=person.value;
     const items=entries(),greetings=greetingList(),people=new Set();
-    const rows=items.map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}));
+    const rows=favoriteUI.update(items.map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)})));
+    if(!filters.contains(favoriteUI.element))filters.append(favoriteUI.element);
     if(!filters.__uosCategories){filters.__uosCategories=createOpeningCategoryFilters({el,onChange:()=>render()});filters.append(filters.__uosCategories.element)}filters.__uosCategories.update(rows);
     const openingCount=$('[data-opening-count]');if(openingCount)openingCount.textContent=`共 ${items.length} 个开场`;
     for(const entry of items)for(const name of String(entry.names||'').split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean))people.add(name);
     person.replaceChildren();const all=el('option','','全部人物');all.value='';person.append(all);for(const name of people){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
-    const categoryValues=filters.__uosCategories.values(),filtered=rows.filter(row=>matchesOpening(row,{query,person:person.value,...categoryValues})),visible=filtered.length;
+    const categoryValues=filters.__uosCategories.values(),filtered=rows.filter(row=>(!favoriteUI.onlyFavorites()||row.favorite)&&matchesOpening(row,{query,person:person.value,...categoryValues})),visible=filtered.length;
     openingGroups.render(filtered,grid,(entry,target)=>{
       const i=entry.id,source=greetings[i];
       if(source)previewItems.push({...entry,id:i+1,number:i+1,coverIndex:i,body:source,names:entry.names,suggestions:entry.nameSuggestions});
-      target.append(createAuthorOpeningCard({el,entry,index:i,body:source,host,onChoose:choose,
+      target.append(createAuthorOpeningCard({el,entry,index:i,body:source,host,onChoose:choose,favoriteButton:favoriteUI.button(entry),
         onPreview:(id,button)=>{if(activePopup){status('请先关闭当前主题或设置窗口。');return}openingPreview.open(id,button)}}));
     },rows);
-    let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=query||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
-    if(!visible)grid.append(el('p','uos-search-empty','没有匹配的开场，请调整关键词或筛选条件。'));
+    let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=favoriteUI.onlyFavorites()||query||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
+    if(!visible)grid.append(el('p','uos-search-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'));
     renderMusic(config.music);
     const actions=root.querySelector('.uos-actions');if(actions&&!actions.querySelector('.uos-version-badge'))actions.append(el('small','uos-version-badge',`v${VERSION}`));
     let watermark=root.querySelector('[data-uos-watermark]');
@@ -336,7 +343,8 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
           if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return entry;
           const {names,...automatic}=entry;return automatic;
         })}),greetings=greetingList();
-        return {...settings,items:entries(settings).map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}))};
+        const favoriteKeys=favoritesStore.keys(greetings),savedFavorites=favoritesStore.snapshot();
+        return {...settings,items:entries(settings).map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',favoriteKey:favoriteKeys[i],favorite:savedFavorites.has(favoriteKeys[i]),names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}))};
       }});fields.append(pagePreview.element);
     const recognition=el('details','uos-settings-group');recognition.append(el('summary','','高级 · 标题与人物识别'),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));fields.append(recognition);
     const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));recognition.append(personRules);
