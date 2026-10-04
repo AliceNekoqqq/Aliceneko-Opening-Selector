@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.15" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.16" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -1370,6 +1370,124 @@ function createPlayerPanelSession(dialog, { onDispose = () => {
     }
   };
   return api;
+}
+
+// src/player-button-drag.js
+function createPlayerButtonDrag(button, { positionKey = "uos_player_button_position" } = {}) {
+  const doc = button.ownerDocument, host = doc.defaultView;
+  let gesture = null, frame = 0, disposed = false, ignoreClick = false;
+  function bounds() {
+    const view = host.visualViewport;
+    return { left: view?.offsetLeft || 0, top: view?.offsetTop || 0, width: view?.width || host.innerWidth, height: view?.height || host.innerHeight };
+  }
+  function place(left, top) {
+    const view = bounds(), rect = button.getBoundingClientRect();
+    const x = Math.max(view.left + 8, Math.min(left, view.left + view.width - rect.width - 8));
+    const y = Math.max(view.top + 8, Math.min(top, view.top + view.height - rect.height - 8));
+    button.style.left = `${x}px`;
+    button.style.top = `${y}px`;
+  }
+  function float() {
+    button.dataset.floating = "true";
+    if (button.parentNode !== doc.body) doc.body.append(button);
+  }
+  function save() {
+    try {
+      host.localStorage.setItem(positionKey, JSON.stringify({ x: parseFloat(button.style.left) / host.innerWidth, y: parseFloat(button.style.top) / host.innerHeight }));
+    } catch {
+    }
+  }
+  function render() {
+    frame = 0;
+    if (!disposed && gesture?.moved) place(gesture.left + gesture.dx, gesture.top + gesture.dy);
+  }
+  function release(id) {
+    try {
+      if (button.hasPointerCapture?.(id)) button.releasePointerCapture(id);
+    } catch {
+    }
+  }
+  function finish(event) {
+    if (!gesture || event.pointerId !== gesture.id) return;
+    if (frame) host.cancelAnimationFrame(frame);
+    frame = 0;
+    if (gesture.moved) {
+      if (event.type === "pointerup") {
+        gesture.dx = event.clientX - gesture.startX;
+        gesture.dy = event.clientY - gesture.startY;
+      }
+      render();
+      save();
+      ignoreClick = true;
+    }
+    const id = gesture.id;
+    gesture = null;
+    release(id);
+  }
+  function down(event) {
+    if (disposed || gesture || event.isPrimary === false || event.button != null && event.button !== 0) return;
+    ignoreClick = false;
+    const rect = button.getBoundingClientRect();
+    gesture = { id: event.pointerId, startX: event.clientX, startY: event.clientY, left: rect.left, top: rect.top, dx: 0, dy: 0, moved: false };
+  }
+  function move(event) {
+    if (disposed || !gesture || event.pointerId !== gesture.id) return;
+    const dx = event.clientX - gesture.startX, dy = event.clientY - gesture.startY;
+    if (!gesture.moved && Math.hypot(dx, dy) < 8) return;
+    if (!gesture.moved) {
+      gesture.moved = true;
+      float();
+      place(gesture.left, gesture.top);
+      try {
+        button.setPointerCapture?.(event.pointerId);
+      } catch {
+      }
+    }
+    gesture.dx = dx;
+    gesture.dy = dy;
+    if (!frame) frame = host.requestAnimationFrame(render);
+    event.preventDefault();
+  }
+  function lost(event) {
+    if (!button.hasPointerCapture?.(event.pointerId)) finish(event);
+  }
+  function clamp() {
+    if (disposed || button.dataset.floating !== "true") return;
+    if (gesture) finish({ pointerId: gesture.id, type: "resize" });
+    place(parseFloat(button.style.left) || 8, parseFloat(button.style.top) || 8);
+  }
+  const listeners = [[button, "pointerdown", down], [doc, "pointermove", move], [doc, "pointerup", finish], [doc, "pointercancel", finish], [button, "lostpointercapture", lost], [host, "resize", clamp]];
+  if (host.visualViewport) listeners.push([host.visualViewport, "resize", clamp], [host.visualViewport, "scroll", clamp]);
+  for (const [target, type, fn] of listeners) target.addEventListener(type, fn, { capture: true, passive: false });
+  return {
+    restore() {
+      if (disposed) return;
+      try {
+        const saved = JSON.parse(host.localStorage.getItem(positionKey));
+        if (!Number.isFinite(saved?.x) || !Number.isFinite(saved?.y)) return;
+        float();
+        place(saved.x * host.innerWidth, saved.y * host.innerHeight);
+      } catch {
+      }
+    },
+    suppressClick(event) {
+      if (!ignoreClick || event.detail === 0) return false;
+      ignoreClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      if (frame) host.cancelAnimationFrame(frame);
+      frame = 0;
+      const id = gesture?.id;
+      gesture = null;
+      if (id != null) release(id);
+      for (const [target, type, fn] of listeners) target.removeEventListener(type, fn, true);
+    }
+  };
 }
 
 // src/player-settings-layout.js
@@ -3052,7 +3170,7 @@ var THEME_ORNAMENT_SPRITE = THEME_ART.ornaments;
 var THEME_ICON_SPRITE = THEME_ART.icons;
 var CSS2 = `
 .uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
-.uos-user-trigger[data-floating=true]{position:fixed;z-index:2147483645;margin:0;touch-action:none}
+.uos-user-trigger[data-floating=true]{position:fixed!important;z-index:2147483645;right:auto!important;bottom:auto!important;margin:0!important;transform:none!important;transition:none!important;touch-action:none;user-select:none}
 .uos-user-trigger[data-theme=neon]{background:#211839;border-color:#d279ef;color:#fff0fa;box-shadow:0 0 18px #b044c288}.uos-user-trigger[data-theme=paper]{background:#f8eedb;border-color:#a3493b;color:#522d28}.uos-user-trigger[data-theme=noir]{background:#1b1c1e;border-color:#e1dfda;color:#f7f5ef}.uos-user-trigger[data-theme=meadow]{background:#1d392f;border-color:#bec889;color:#f3f1d9}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
 dialog.uos-user-overlay{position:fixed;inset:0;z-index:2147483646;box-sizing:border-box;width:min(620px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:calc(100dvh - 28px);margin:auto;padding:0;border:0;border-radius:18px;background:transparent;color:inherit;overflow:hidden;box-shadow:0 20px 60px #0008}
@@ -3333,83 +3451,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   style.dataset.uosUserStyle = "";
   style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
-  let trigger = null, panelSession = null, updating = false, suppressClickUntil = 0;
-  const positionKey = "uos_player_button_position";
-  function clampButton(left, top) {
-    if (!trigger) return;
-    const width = trigger.offsetWidth, height = trigger.offsetHeight;
-    const x = Math.max(8, Math.min(left, host.innerWidth - width - 8));
-    const y = Math.max(8, Math.min(top, host.innerHeight - height - 8));
-    trigger.style.left = `${x}px`;
-    trigger.style.top = `${y}px`;
-  }
-  function applySavedPosition() {
-    try {
-      const saved = JSON.parse(host.localStorage.getItem(positionKey));
-      if (!Number.isFinite(saved?.x) || !Number.isFinite(saved?.y)) return;
-      trigger.dataset.floating = "true";
-      clampButton(saved.x * host.innerWidth, saved.y * host.innerHeight);
-    } catch {
-    }
-  }
-  function enableDrag(button) {
-    let gesture = null, frame = 0;
-    const render = () => {
-      frame = 0;
-      if (!gesture?.moved) return;
-      const x = Math.max(8, Math.min(gesture.left + gesture.dx, host.innerWidth - gesture.width - 8));
-      const y = Math.max(8, Math.min(gesture.top + gesture.dy, host.innerHeight - gesture.height - 8));
-      gesture.x = x;
-      gesture.y = y;
-      button.style.transform = `translate3d(${x - gesture.left}px,${y - gesture.top}px,0)`;
-    };
-    button.onpointerdown = (e) => {
-      if (e.button !== 0 && e.pointerType === "mouse") return;
-      const rect = button.getBoundingClientRect();
-      gesture = { id: e.pointerId, startX: e.clientX, startY: e.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height, dx: 0, dy: 0, moved: false };
-      button.setPointerCapture?.(e.pointerId);
-    };
-    button.onpointermove = (e) => {
-      if (!gesture || e.pointerId !== gesture.id) return;
-      const dx = e.clientX - gesture.startX, dy = e.clientY - gesture.startY;
-      if (!gesture.moved && Math.hypot(dx, dy) < 8) return;
-      if (!gesture.moved) {
-        gesture.moved = true;
-        button.dataset.floating = "true";
-        button.style.left = `${gesture.left}px`;
-        button.style.top = `${gesture.top}px`;
-        button.style.willChange = "transform";
-      }
-      gesture.dx = dx;
-      gesture.dy = dy;
-      if (!frame) frame = host.requestAnimationFrame(render);
-      e.preventDefault();
-    };
-    const finish = (e) => {
-      if (!gesture || e.pointerId !== gesture.id) return;
-      if (gesture.moved) {
-        suppressClickUntil = Date.now() + 500;
-        if (frame) host.cancelAnimationFrame(frame);
-        frame = 0;
-        if (e.type === "pointerup") {
-          gesture.dx = e.clientX - gesture.startX;
-          gesture.dy = e.clientY - gesture.startY;
-        }
-        render();
-        button.style.transform = "";
-        button.style.willChange = "";
-        button.style.left = `${gesture.x}px`;
-        button.style.top = `${gesture.y}px`;
-        try {
-          host.localStorage.setItem(positionKey, JSON.stringify({ x: gesture.x / host.innerWidth, y: gesture.y / host.innerHeight }));
-        } catch {
-        }
-      }
-      gesture = null;
-    };
-    button.onpointerup = finish;
-    button.onpointercancel = finish;
-  }
+  let trigger = null, triggerDrag = null, panelSession = null, updating = false;
   const el = (tag, className, text) => {
     const node = doc.createElement(tag);
     node.className = className;
@@ -3418,6 +3460,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   };
   const state = () => readPlayerState(host.SillyTavern?.getContext?.(), helper);
   const removeTrigger = () => {
+    triggerDrag?.dispose();
+    triggerDrag = null;
     trigger?.remove();
     trigger = null;
   };
@@ -3435,10 +3479,10 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         trigger = el("button", "uos-user-trigger");
         trigger.type = "button";
         trigger.style.touchAction = "none";
-        trigger.onclick = () => {
-          if (Date.now() >= suppressClickUntil) openPanel();
+        triggerDrag = createPlayerButtonDrag(trigger);
+        trigger.onclick = (event) => {
+          if (!triggerDrag?.suppressClick(event)) openPanel();
         };
-        enableDrag(trigger);
       }
       try {
         trigger.dataset.theme = host.localStorage.getItem("uos_player_theme") || "archive";
@@ -3446,9 +3490,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       }
       const label = `◈ 预览开场 · ${snapshot.swipeId + 1}/${snapshot.entries.length}`;
       if (trigger.textContent !== label) trigger.textContent = label;
-      if (trigger.nextElementSibling !== first || trigger.parentNode !== first.parentNode) {
+      if (trigger.dataset.floating !== "true" && (trigger.nextElementSibling !== first || trigger.parentNode !== first.parentNode)) {
         first.before(trigger);
-        applySavedPosition();
+        triggerDrag.restore();
       }
     } finally {
       updating = false;
@@ -4154,10 +4198,6 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   }
   const observer = new host.MutationObserver(scan);
   if (doc.body) observer.observe(doc.body, { childList: true, subtree: true });
-  const onResize = () => {
-    if (trigger?.dataset.floating === "true") clampButton(parseFloat(trigger.style.left) || 8, parseFloat(trigger.style.top) || 8);
-  };
-  host.addEventListener("resize", onResize);
   const timer = host.setInterval(scan, 1500);
   scan();
   const runnerWindow = startDocument.defaultView;
@@ -4166,7 +4206,6 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   };
   const api = { version: VERSION, scan, prepareForUpdate: async () => panelSession ? panelSession.prepareForUpdate() : true, close: () => {
     observer.disconnect();
-    host.removeEventListener("resize", onResize);
     host.clearInterval(timer);
     runnerWindow?.removeEventListener?.("pagehide", onPageHide);
     closePanel(true);

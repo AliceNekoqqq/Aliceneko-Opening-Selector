@@ -4,6 +4,7 @@ import {createOpeningFavorites} from './opening-favorites.js';
 import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {OPENING_FAVORITES_CSS} from './opening-favorites-styles.js';
 import {createPlayerPanelSession} from './player-panel-session.js';
+import {createPlayerButtonDrag} from './player-button-drag.js';
 import {createPlayerSettingsLayout} from './player-settings-layout.js';
 import {unsavedPlayerGroups,createPlayerDraftGuard,showPlayerUnsavedPrompt} from './player-draft-guard.js';
 export {unsavedPlayerGroups} from './player-draft-guard.js';
@@ -32,7 +33,7 @@ const THEME_ORNAMENT_SPRITE=THEME_ART.ornaments;
 const THEME_ICON_SPRITE=THEME_ART.icons;
 const CSS=`
 .uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
-.uos-user-trigger[data-floating=true]{position:fixed;z-index:2147483645;margin:0;touch-action:none}
+.uos-user-trigger[data-floating=true]{position:fixed!important;z-index:2147483645;right:auto!important;bottom:auto!important;margin:0!important;transform:none!important;transition:none!important;touch-action:none;user-select:none}
 .uos-user-trigger[data-theme=neon]{background:#211839;border-color:#d279ef;color:#fff0fa;box-shadow:0 0 18px #b044c288}.uos-user-trigger[data-theme=paper]{background:#f8eedb;border-color:#a3493b;color:#522d28}.uos-user-trigger[data-theme=noir]{background:#1b1c1e;border-color:#e1dfda;color:#f7f5ef}.uos-user-trigger[data-theme=meadow]{background:#1d392f;border-color:#bec889;color:#f3f1d9}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
 dialog.uos-user-overlay{position:fixed;inset:0;z-index:2147483646;box-sizing:border-box;width:min(620px,calc(100vw - 28px));max-width:calc(100vw - 28px);max-height:calc(100dvh - 28px);margin:auto;padding:0;border:0;border-radius:18px;background:transparent;color:inherit;overflow:hidden;box-shadow:0 20px 60px #0008}
@@ -292,64 +293,22 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
   const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
-  let trigger=null,panelSession=null,updating=false,suppressClickUntil=0;
-  const positionKey='uos_player_button_position';
-  function clampButton(left,top){
-    if(!trigger)return;
-    const width=trigger.offsetWidth,height=trigger.offsetHeight;
-    const x=Math.max(8,Math.min(left,host.innerWidth-width-8));
-    const y=Math.max(8,Math.min(top,host.innerHeight-height-8));
-    trigger.style.left=`${x}px`;trigger.style.top=`${y}px`;
-  }
-  function applySavedPosition(){
-    try{const saved=JSON.parse(host.localStorage.getItem(positionKey));
-      if(!Number.isFinite(saved?.x)||!Number.isFinite(saved?.y))return;
-      trigger.dataset.floating='true';clampButton(saved.x*host.innerWidth,saved.y*host.innerHeight);
-    }catch{}
-  }
-  function enableDrag(button){
-    let gesture=null,frame=0;
-    const render=()=>{frame=0;if(!gesture?.moved)return;
-      const x=Math.max(8,Math.min(gesture.left+gesture.dx,host.innerWidth-gesture.width-8));
-      const y=Math.max(8,Math.min(gesture.top+gesture.dy,host.innerHeight-gesture.height-8));
-      gesture.x=x;gesture.y=y;button.style.transform=`translate3d(${x-gesture.left}px,${y-gesture.top}px,0)`;
-    };
-    button.onpointerdown=e=>{if(e.button!==0 && e.pointerType==='mouse')return;
-      const rect=button.getBoundingClientRect();gesture={id:e.pointerId,startX:e.clientX,startY:e.clientY,left:rect.left,top:rect.top,width:rect.width,height:rect.height,dx:0,dy:0,moved:false};
-      button.setPointerCapture?.(e.pointerId);
-    };
-    button.onpointermove=e=>{if(!gesture||e.pointerId!==gesture.id)return;
-      const dx=e.clientX-gesture.startX,dy=e.clientY-gesture.startY;
-      if(!gesture.moved && Math.hypot(dx,dy)<8)return;
-      if(!gesture.moved){gesture.moved=true;button.dataset.floating='true';button.style.left=`${gesture.left}px`;button.style.top=`${gesture.top}px`;button.style.willChange='transform'}
-      gesture.dx=dx;gesture.dy=dy;if(!frame)frame=host.requestAnimationFrame(render);
-      e.preventDefault();
-    };
-    const finish=e=>{if(!gesture||e.pointerId!==gesture.id)return;
-      if(gesture.moved){suppressClickUntil=Date.now()+500;if(frame)host.cancelAnimationFrame(frame);frame=0;
-        if(e.type==='pointerup'){gesture.dx=e.clientX-gesture.startX;gesture.dy=e.clientY-gesture.startY}render();
-        button.style.transform='';button.style.willChange='';button.style.left=`${gesture.x}px`;button.style.top=`${gesture.y}px`;
-        try{host.localStorage.setItem(positionKey,JSON.stringify({x:gesture.x/host.innerWidth,y:gesture.y/host.innerHeight}))}catch{}
-      }
-      gesture=null;
-    };
-    button.onpointerup=finish;button.onpointercancel=finish;
-  }
+  let trigger=null,triggerDrag=null,panelSession=null,updating=false;
   const el=(tag,className,text)=>{const node=doc.createElement(tag);node.className=className;if(text!=null)node.textContent=String(text);return node};
   const state=()=>readPlayerState(host.SillyTavern?.getContext?.(),helper);
-  const removeTrigger=()=>{trigger?.remove();trigger=null};
+  const removeTrigger=()=>{triggerDrag?.dispose();triggerDrag=null;trigger?.remove();trigger=null};
   function scan(){
     if(updating)return;updating=true;
     try{
       const snapshot=state(),first=doc.querySelector('#chat .mes[mesid="0"],#chat .mes[data-mesid="0"]');
       if(!snapshot||!first){removeTrigger();closePanel();return}
       if(!trigger){trigger=el('button','uos-user-trigger');trigger.type='button';trigger.style.touchAction='none';
-        trigger.onclick=()=>{if(Date.now()>=suppressClickUntil)openPanel()};enableDrag(trigger);
+        triggerDrag=createPlayerButtonDrag(trigger);trigger.onclick=event=>{if(!triggerDrag?.suppressClick(event))openPanel()};
       }
       try{trigger.dataset.theme=host.localStorage.getItem('uos_player_theme')||'archive'}catch{}
       const label=`◈ 预览开场 · ${snapshot.swipeId+1}/${snapshot.entries.length}`;
       if(trigger.textContent!==label)trigger.textContent=label;
-      if(trigger.nextElementSibling!==first || trigger.parentNode!==first.parentNode){first.before(trigger);applySavedPosition()}
+      if(trigger.dataset.floating!=='true'&&(trigger.nextElementSibling!==first||trigger.parentNode!==first.parentNode)){first.before(trigger);triggerDrag.restore()}
     }finally{updating=false}
   }
   function closePanel(force=false){
@@ -618,12 +577,10 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   }
   const observer=new host.MutationObserver(scan);
   if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
-  const onResize=()=>{if(trigger?.dataset.floating==='true')clampButton(parseFloat(trigger.style.left)||8,parseFloat(trigger.style.top)||8)};
-  host.addEventListener('resize',onResize);
   const timer=host.setInterval(scan,1500);scan();
   const runnerWindow=startDocument.defaultView;
   const onPageHide=()=>{if(doc.__uosPlayer===api)api.close()};
-  const api={version:VERSION,scan,prepareForUpdate:async()=>panelSession?panelSession.prepareForUpdate():true,close:()=>{observer.disconnect();host.removeEventListener('resize',onResize);host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
+  const api={version:VERSION,scan,prepareForUpdate:async()=>panelSession?panelSession.prepareForUpdate():true,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);closePanel(true);removeTrigger();style.remove();if(doc.__uosPlayer===api)delete doc.__uosPlayer}};
   doc.__uosPlayer=api;
   // Tavern Helper runs this script in its own iframe; saving/replacing it closes that frame.
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
