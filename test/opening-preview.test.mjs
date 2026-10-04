@@ -49,6 +49,12 @@ test('missing filtered entries do not open a window or invoke the caller',()=>{
  const {doc,preview,effects}=setup();assert.equal(preview.open(999),false);assert.equal(doc.body.children.length,0);assert.deepEqual(effects,[]);preview.dispose();
 });
 
+test('draw scope overrides the homepage filter only for this preview and keeps original selection IDs',()=>{
+ const {doc,preview,effects,element}=setup(),trigger=element('button'),item={id:13,number:14,title:'手动范围中的隐藏开场',body:'完整隐藏原文'};
+ assert.equal(preview.open(13,trigger),false);assert.equal(preview.open(13,trigger,[item]),true);assert.equal(byClass(doc,'uos-preview-body').textContent,'完整隐藏原文');
+ button(doc,'选择此开场').onclick();assert.deepEqual(effects,[{id:13,windows:0}]);assert.equal(preview.open(13,trigger),false);assert.equal(preview.open(2,trigger),true);preview.dispose();
+});
+
 test('reading changes preserve raw text, navigation, scroll state and show complete information again',()=>{
  const {doc,preview,effects}=setup();preview.open(2);const dialog=doc.body.children[0],content=byClass(doc,'uos-preview-content'),body=byClass(doc,'uos-preview-body');content.scrollTop=137;
  const font=byClass(doc,'uos-preview-font-size'),spacing=byClass(doc,'uos-preview-line-spacing');font.value='large';font.onchange();spacing.value='relaxed';spacing.onchange();

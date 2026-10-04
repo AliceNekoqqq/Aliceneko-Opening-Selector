@@ -3,29 +3,43 @@ import {BLIND_BOX_DIALOG_CSS} from './opening-blind-box-styles.js';
 import {defaultCoverStyles} from './default-covers.js';
 import {applyOpeningCover} from './opening-presentation.js';
 import {createBlindBoxArt} from './blind-box-art.js';
+import {themeDraw} from './themes.js';
+import {createOpeningDrawRange,drawRangePool} from './opening-blind-range.js';
+import {createDrawRangePanel,DRAW_RANGE_CSS} from './opening-blind-range-ui.js';
 
-export function openingBlindBoxButton(el,onOpen){
+export function openingBlindBoxButton(el,onOpen,theme='archive'){
   const button=el('button','uos-blind-trigger');button.type='button';button.setAttribute('aria-label','命运盲盒');
   const art=el('span','uos-blind-trigger-art'),symbol=el('span','uos-blind-trigger-symbol','✦');art.setAttribute('aria-hidden','true');
-  art.append(symbol,createBlindBoxArt(el,'entrance'));
+  art.append(symbol);
   const copy=el('span','uos-blind-trigger-copy');copy.append(el('strong','uos-blind-trigger-title','命运盲盒'),el('small','uos-blind-trigger-hint','让命运，为你挑一个故事'));
   const action=el('span','uos-blind-trigger-action'),count=el('span','uos-blind-trigger-count','开始抽取'),arrow=el('span','uos-blind-trigger-arrow','↗');arrow.setAttribute('aria-hidden','true');action.append(count,arrow);
   // Warm the card texture alongside the entrance, before the animation is opened.
-  const warm=el('span','uos-blind-art-warm');warm.setAttribute('aria-hidden','true');warm.append(createBlindBoxArt(el,'card-back'));
-  button.append(art,copy,action,warm);button.__uosBlindCount=count;
+  button.append(art,copy,action);button.__uosBlindCount=count;
+  button.__uosBlindTheme={el,art,title:copy.children[0],hint:copy.children[1]};setBlindBoxTheme(button,theme);
   if(onOpen)button.onclick=()=>onOpen(button);else button.disabled=true;
   return button;
 }
-export function updateBlindBoxButton(button,items,{readonly=false}={}){
+export function setBlindBoxTheme(button,theme){
+  const state=button.__uosBlindTheme;if(!state||state.theme===theme)return;state.theme=theme;
+  const draw=themeDraw(theme);state.title.textContent=draw.title;state.hint.textContent=draw.hint;button.setAttribute('aria-label',`${draw.title}（命运盲盒）`);
+  state.art.replaceChildren();const symbol=state.el('span','uos-blind-trigger-symbol','✦');state.art.dataset.artReady='false';state.art.append(symbol);
+  for(let i=-1;i<=1;i++){const image=createBlindBoxArt(state.el,'card-back',theme);image.style.setProperty('--fan',i);state.art.append(image)}
+}
+export function openingBlindRangeButton(el,onOpen){const button=el('button','uos-blind-range-trigger','⚙ 抽取范围');button.type='button';button.setAttribute('aria-label','设置抽取范围');if(onOpen)button.onclick=()=>onOpen(button);else button.disabled=true;return button}
+export function updateBlindBoxButton(button,items,{readonly=false,theme,manual=false}={}){
+  if(theme)setBlindBoxTheme(button,theme);
   const count=blindBoxPool(items).length;button.__uosBlindCount.textContent=count?`${count} 个开场`:'暂无候选';button.disabled=readonly||count===0;
-  button.setAttribute('title',count?`从当前筛选结果的 ${count} 个开场中随机抽取，确认进入后才切换`:'当前筛选下没有可抽取的新开场');
+  button.setAttribute('title',count?`从${manual?'手动勾选范围':'当前筛选结果'}的 ${count} 个开场中随机抽取，确认进入后才切换`:'没有可抽取的新开场，可点击「抽取范围」重新勾选');button.dataset.scope=manual?'manual':'filtered';
 }
 
-export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getPalette,isActive=()=>true,onPreview,onChoose,onUnavailable=()=>{},onError=()=>{},random=Math.random}){
+export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllItems=getItems,getPalette,avatar,isActive=()=>true,onPreview,onChoose,onRangeChange=()=>{},onUnavailable=()=>{},onError=()=>{},random=Math.random}){
   let disposed=false,active=null,lastId=null,choosing=false;
-  const clock=host||globalThis,style=doc.createElement('style');style.dataset.uosBlindStyle='';style.textContent=BLIND_BOX_DIALOG_CSS+defaultCoverStyles('.uos-blind-box');(doc.head||doc.documentElement).append(style);
+  const store=createOpeningDrawRange(host,avatar),clock=host||globalThis,style=doc.createElement('style');style.dataset.uosBlindStyle='';style.textContent=BLIND_BOX_DIALOG_CSS+DRAW_RANGE_CSS+defaultCoverStyles('.uos-blind-box');(doc.head||doc.documentElement).append(style);
   const el=(tag,cls='',text)=>{const node=doc.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=String(text);return node};
+  const rangePanel=createDrawRangePanel({doc,el,store,getAllItems,getFilteredItems:getItems,getPalette,isActive,onUnavailable,onApply:result=>onRangeChange(result)});
+  const poolItems=()=>drawRangePool(getAllItems(),getItems(),store.read());
   function close(){
+    rangePanel.close();
     const current=active;if(!current)return;active=null;
     for(const timer of current.timers)clock.clearTimeout(timer);current.timers.clear();
     current.dialog.removeEventListener('keydown',current.onKey);
@@ -34,19 +48,20 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getPale
   }
   function open(trigger){
     if(disposed||choosing||!isActive())return false;
-    const pool=blindBoxPool(getItems()).map(item=>({...item}));if(!pool.length)return false;close();
+    const pool=poolItems().map(item=>({...item}));if(!pool.length)return false;rangePanel.close();close();
     const dialog=el('dialog','uos-blind-box');dialog.setAttribute('aria-label','命运盲盒');dialog.setAttribute('aria-modal','true');
     const palette=getPalette(),computed=palette.ownerDocument.defaultView.getComputedStyle(palette);dialog.dataset.theme=palette.dataset.theme||'archive';
+    const draw=themeDraw(dialog.dataset.theme);dialog.setAttribute('aria-label',`${draw.title}（命运盲盒）`);
     for(const key of ['--bg','--surface','--text','--muted','--accent','--line'])dialog.style.setProperty(key,computed.getPropertyValue(key)||computed.getPropertyValue('--panel'));
     const header=el('div','uos-blind-header'),heading=el('div'),exit=el('button','','关闭盲盒');exit.type='button';exit.onclick=()=>{if(active?.dialog===dialog)close()};
-    heading.append(el('p','uos-blind-kicker','LET FATE CHOOSE'),el('h2','uos-blind-heading','命运盲盒'));header.append(heading,exit);
+    heading.append(el('p','uos-blind-kicker','随机故事 · 命运盲盒'),el('h2','uos-blind-heading',draw.title));header.append(heading,exit);
     const stage=el('div','uos-blind-stage'),aura=el('div','uos-blind-aura'),sparks=el('div','uos-blind-sparks'),deck=el('div','uos-blind-deck'),result=el('div','uos-blind-result');
     for(const node of [aura,sparks,deck])node.setAttribute('aria-hidden','true');
     for(let i=0;i<12;i++){const spark=el('span','uos-blind-spark');spark.style.setProperty('--spark',i);sparks.append(spark)}
-    for(let i=-2;i<=2;i++){const card=el('div','uos-blind-card');card.style.setProperty('--card',i);card.append(createBlindBoxArt(el,'card-back'),el('span','uos-blind-symbol','✦'));deck.append(card)}
+    for(let i=-2;i<=2;i++){const card=el('div','uos-blind-card');card.style.setProperty('--card',i);card.append(createBlindBoxArt(el,'card-back',dialog.dataset.theme),el('span','uos-blind-symbol','✦'));deck.append(card)}
     stage.append(aura,sparks,deck,result);
     const status=el('p','uos-blind-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
-    const footer=el('div','uos-blind-footer'),scope=el('p','uos-blind-scope',`当前筛选 · ${pool.length} 个候选开场${pool.length>1?' · 重抽不连续重复':''}`),actions=el('div','uos-blind-actions');
+    const footer=el('div','uos-blind-footer'),scope=el('p','uos-blind-scope',`${store.read().mode==='manual'?'手动范围':'当前筛选'} · ${pool.length} 个候选开场${pool.length>1?' · 重抽不连续重复':''}`),actions=el('div','uos-blind-actions');
     const reroll=el('button','','再抽一次'),preview=el('button','','预览正文'),choose=el('button','uos-blind-enter','进入此开场');for(const button of [reroll,preview,choose])button.type='button';actions.append(reroll,preview,choose);footer.append(scope,actions);dialog.append(header,stage,status,footer);
     const session={dialog,trigger,timers:new Set(),onKey:null};let selected=null,busy=false;
     function valid(){if(disposed||active!==session)return false;if(!isActive()){close();onUnavailable();return false}return true}
@@ -66,7 +81,7 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getPale
       later(()=>reveal(item),pool.length===1?750:2200);
     }
     reroll.onclick=()=>{if(!reroll.disabled)roll()};
-    preview.onclick=()=>{if(!valid()||busy||!selected||preview.disabled)return;const item=selected;close();onPreview(item,trigger)};
+    preview.onclick=()=>{if(!valid()||busy||!selected||preview.disabled)return;const item=selected;close();onPreview(item,trigger,pool)};
     choose.onclick=()=>{if(!valid()||busy||!selected||choose.disabled)return;const item=selected;choosing=true;close();try{Promise.resolve(onChoose(item)).catch(error=>{if(!disposed&&isActive())onError(error)}).finally(()=>{choosing=false})}catch(error){choosing=false;if(!disposed&&isActive())onError(error)}};
     session.onKey=event=>{
       if(disposed||active!==session)return;
@@ -77,5 +92,5 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getPale
     active=session;dialog.addEventListener('keydown',session.onKey);dialog.addEventListener('cancel',event=>{event.preventDefault();if(active===session)close()});dialog.addEventListener('close',()=>{if(active===session)close()});dialog.addEventListener('click',event=>{if(active===session&&event.target===dialog)close()});
     doc.body.append(dialog);try{dialog.showModal()}catch{dialog.setAttribute('open','');dialog.setAttribute('role','dialog')}exit.focus();roll();return true;
   }
-  return {open,close,dispose(){if(disposed)return;disposed=true;close();style.remove()}};
+  return {open,close,poolItems,rangeMode:()=>store.read().mode,openRange(trigger){if(disposed||choosing||!isActive())return false;close();return rangePanel.open(trigger)},dispose(){if(disposed)return;disposed=true;close();rangePanel.dispose();style.remove()}};
 }

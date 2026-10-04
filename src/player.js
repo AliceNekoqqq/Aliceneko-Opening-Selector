@@ -1,4 +1,4 @@
-import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton} from './opening-blind-box.js';
+import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
 import {BLIND_BOX_CONTROL_CSS} from './opening-blind-box-styles.js';
 import {createOpeningFavorites} from './opening-favorites.js';
 import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
@@ -366,7 +366,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
-    const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
+    const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;setBlindBoxTheme(blindTrigger,select.value);void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
     const settingsLayout=createPlayerSettingsLayout(el);
     const {settings,button:settingsButton}=settingsLayout;
@@ -381,15 +381,17 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     layoutSelect.onchange=()=>{panel.dataset.layout=openingLayout(layoutSelect.value);try{host.localStorage.setItem(layoutKey,panel.dataset.layout)}catch{}};
     const layoutControl=el('label','uos-user-theme-control');layoutControl.append(el('span','uos-user-theme-label','版式'),layoutSelect);tools.insertBefore(layoutControl,settingsButton);
     const authorEntries=Array.isArray(authorConfig.entries)?authorConfig.entries.map((entry,i)=>isLegacyGeneratedEntry(snapshot.entries[i]?.body,entry,i)?{...entry,title:'',description:''}:entry):[];
-    let previewItems=[];const previewActions=new Map();
-    const openingPreview=createOpeningPreview({doc,host,getItems:()=>previewItems,getPalette:()=>panel,onChoose:item=>previewActions.get(item.id)?.()});session.own(()=>openingPreview.dispose());
-    const blindBox=createOpeningBlindBox({doc,host,getItems:()=>previewItems,getPalette:()=>panel,
+    let previewItems=[],allDrawItems=[];
+    const openingPreview=createOpeningPreview({doc,host,getItems:()=>previewItems,getPalette:()=>panel,onChoose:item=>chooseOpening(item)});session.own(()=>openingPreview.dispose());
+    const blindBox=createOpeningBlindBox({doc,host,getItems:()=>previewItems,getAllItems:()=>allDrawItems,avatar:snapshot.avatar,getPalette:()=>panel,
+      onRangeChange:result=>{renderCards();if(!result.persisted)status.textContent='浏览器未能保存，抽取范围暂时只在当前窗口有效。'},
       isActive:()=>{const current=state();return !session.disposed&&panelSession===session&&current?.avatar===snapshot.avatar&&current?.characterId===snapshot.characterId},
-      onPreview:(item,trigger)=>{if(!openingPreview.open(item.id,trigger))status.textContent='筛选结果已变化，请重新抽取。'},
-      onChoose:item=>{const action=previewActions.get(item.id);if(action)return action();status.textContent='筛选结果已变化，请重新抽取。'},
+      onPreview:(item,trigger,pool)=>{if(!openingPreview.open(item.id,trigger,pool))status.textContent='筛选结果已变化，请重新抽取。'},
+      onChoose:item=>chooseOpening(item),
       onUnavailable:()=>{status.textContent='角色或聊天已变化，请重新打开选择器。'},onError:error=>{status.textContent=`进入开场失败：${error?.message||error}`}});
     session.own(()=>blindBox.dispose());
-    const blindTrigger=openingBlindBoxButton(el,button=>blindBox.open(button));
+    const blindTrigger=openingBlindBoxButton(el,button=>blindBox.open(button),panel.dataset.theme);
+    const blindRangeTrigger=openingBlindRangeButton(el,button=>blindBox.openRange(button));
     const authorExcluded=excludedTags(authorConfig.excludedTags);
     const editKey=labelKey(snapshot).replace('_labels_','_edits_');
     let localEdits={};try{const saved=JSON.parse(host.localStorage.getItem(editKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localEdits=saved}catch{}
@@ -529,13 +531,35 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const favoriteUI=createOpeningFavoritesUI({el,store:favoritesStore,onChange:()=>renderCards(),
       isActive:()=>{const current=state();return !session.disposed&&panelSession===session&&current?.avatar===snapshot.avatar&&current?.characterId===snapshot.characterId},
       onUnavailable:()=>{status.textContent='浏览器未能保存，收藏暂时只在当前窗口有效。'}});
-    search.append(favoriteUI.element,blindTrigger);session.own(()=>favoriteUI.dispose());
+    search.append(favoriteUI.element,blindTrigger,blindRangeTrigger);session.own(()=>favoriteUI.dispose());
     const openingGroups=createOpeningGroupRenderer({el,gridClass:'uos-user-list'});
     query.oninput=()=>renderCards();person.onchange=()=>renderCards();
-    function renderCards(){list.replaceChildren();previewItems=[];previewActions.clear();const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
+    async function chooseOpening(entry,button){
+      const index=entry.index??entry.id,choose=button||{disabled:false};
+        let current=state();
+        if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';return}
+        choose.disabled=true;
+        if(!await confirmPlayerChanges()||session.disposed){choose.disabled=false;return}
+        current=state();
+        if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';choose.disabled=false;return}
+        status.textContent='正在切换开场…';
+        try{
+          const presetId=authorEntries[index]?.worldbookPresetId;
+          const preset=Array.isArray(authorConfig.worldbookPresets)?authorConfig.worldbookPresets.find(value=>value.id===presetId):null;
+          if(preset)status.textContent='正在应用此开场的世界书条目预设…';
+          await switchOpeningWithPreset(preset,worldbookPresetManager,async()=>{
+            const current=state();if(session.disposed||!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar)throw Error('角色或聊天已变化，请重新打开选择器');
+            await helper.setChatMessages([{message_id:0,swipe_id:index}],{refresh:'all'});
+            const after=state();if(after?.swipeId!==index)throw Error('消息页未切换');
+          });
+          session.close();scan();
+        }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
+    }
+    function renderCards(){list.replaceChildren();previewItems=[];const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
       const selected=person.value;person.replaceChildren();const any=el('option','','全部人物');any.value='';person.append(any);
       for(const name of new Set(resolved.flatMap(x=>x.names))){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
       const rows=favoriteUI.update(snapshot.entries.map(entry=>({...entry,...resolved[entry.index],...openingMetadata(authorEntries[entry.index]),label:typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label})));categories.update(rows);
+      allDrawItems=rows.map(entry=>({...authorEntries[entry.index],...openingMetadata(entry),id:entry.index,index:entry.index,number:entry.index+1,coverIndex:entry.index,title:entry.title,description:entry.description,label:entry.label,names:entry.names,body:entry.body,titleSource:entry.titleSource,suggestions:entry.nameSuggestions,isCurrent:entry.index===snapshot.swipeId}));
       const categoryValues=categories.values(),filtered=rows.filter(row=>(!favoriteUI.onlyFavorites()||row.favorite)&&matchesOpening(row,{query:query.value,person:person.value,...categoryValues})),visible=filtered.length;
       openingGroups.render(filtered,list,(entry,target)=>{const display=entry;
       const card=el('article','uos-user-card');card.dataset.current=String(entry.index===snapshot.swipeId);card.dataset.number=String(entry.index+1).padStart(2,'0');
@@ -549,29 +573,9 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       previewItems.push({...authorEntries[entry.index],...openingMetadata(entry),id:entry.index,number:entry.index+1,coverIndex:entry.index,title:display.title,description:entry.description,label:entry.label,names:display.names,body:entry.body,titleSource:display.titleSource,suggestions:entry.nameSuggestions,isCurrent:entry.index===snapshot.swipeId});
       const previewButton=el('button','uos-user-preview-button','预览完整正文');previewButton.type='button';decorateOpeningPreviewButton(previewButton,el);previewButton.onclick=()=>openingPreview.open(entry.index,previewButton);const cardActions=el('div','uos-card-actions uos-user-card-actions');cardActions.append(previewButton,favoriteUI.button(entry));card.append(cardActions);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
-      choose.onclick=async()=>{
-        let current=state();
-        if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';return}
-        choose.disabled=true;
-        if(!await confirmPlayerChanges()||session.disposed){choose.disabled=false;return}
-        current=state();
-        if(!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar||entry.index>=current.entries.length){status.textContent='角色或聊天已变化，请重新打开选择器。';choose.disabled=false;return}
-        status.textContent='正在切换开场…';
-        try{
-          const presetId=authorEntries[entry.index]?.worldbookPresetId;
-          const preset=Array.isArray(authorConfig.worldbookPresets)?authorConfig.worldbookPresets.find(value=>value.id===presetId):null;
-          if(preset)status.textContent='正在应用此开场的世界书条目预设…';
-          await switchOpeningWithPreset(preset,worldbookPresetManager,async()=>{
-            const current=state();if(session.disposed||!current||current.characterId!==snapshot.characterId||current.avatar!==snapshot.avatar)throw Error('角色或聊天已变化，请重新打开选择器');
-            await helper.setChatMessages([{message_id:0,swipe_id:entry.index}],{refresh:'all'});
-            const after=state();if(after?.swipeId!==entry.index)throw Error('消息页未切换');
-          });
-          session.close();scan();
-        }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
-      };
-      previewActions.set(entry.index,choose.onclick);
+      choose.onclick=()=>chooseOpening(entry,choose);
       card.append(choose);target.append(card);
-    },rows);updateBlindBoxButton(blindTrigger,previewItems);results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
+    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeMode()==='manual'?'⚙ 抽取范围 · 手动勾选':'⚙ 抽取范围 · 当前筛选';results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);

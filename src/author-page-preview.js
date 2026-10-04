@@ -1,4 +1,4 @@
-import {openingBlindBoxButton,updateBlindBoxButton} from './opening-blind-box.js';
+import {openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
 import {openingFavoritesFilter} from './opening-favorites-ui.js';
 import {buildAuthorHtml} from './author-template.js';
 import {createAuthorOpeningCard} from './author-opening-card.js';
@@ -20,7 +20,7 @@ export function renderAuthorPagePreview({doc,model,host,groups}){
   filters.replaceChildren();const search=el('input'),people=el('select');search.type='search';search.placeholder='搜索标题、人物或正文';search.disabled=true;
   const all=el('option','','全部人物');all.value='';people.append(all);for(const name of new Set(model.items.flatMap(item=>item.names))){const option=el('option','',name);option.value=name;people.append(option)}people.disabled=true;filters.append(search,people,openingFavoritesFilter(el,model.items.filter(item=>item.favorite).length));
   const categories=createOpeningCategoryFilters({el,onChange:()=>{}});categories.update(model.items);filters.append(categories.element);
-  const blindTrigger=openingBlindBoxButton(el);updateBlindBoxButton(blindTrigger,model.items,{readonly:true});filters.append(blindTrigger);
+  const blindTrigger=openingBlindBoxButton(el,null,model.theme);updateBlindBoxButton(blindTrigger,model.items,{readonly:true,theme:model.theme});filters.append(blindTrigger,openingBlindRangeButton(el));
   for(const select of categories.element.querySelectorAll('select'))select.disabled=true;
   let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');filters.after(result)}result.textContent=`${model.items.length} 个开场 · 点击卡片进入`;
   const grid=root.querySelector('[data-grid]');grid.replaceChildren();groups.render(model.items,grid,(entry,target)=>target.append(createAuthorOpeningCard({el,entry,index:entry.id,body:entry.body,host})));

@@ -56,9 +56,9 @@ export function createOpeningPreview({doc,getItems,getPalette,onChoose,host=doc.
     if(current.dialog.open)current.dialog.close();current.dialog.remove();
     try{if(current.trigger?.isConnected)current.trigger.focus()}catch{}
   }
-  function open(id,trigger){
+  function open(id,trigger,scopeItems){
     if(disposed)return false;
-    const items=getItems().slice(),start=items.findIndex(item=>item.id===id);if(start<0)return false;
+    const items=(scopeItems||getItems()).slice(),start=items.findIndex(item=>item.id===id);if(start<0)return false;
     close();
     const dialog=el('dialog','uos-opening-preview');dialog.setAttribute('aria-label','完整开场预览');dialog.setAttribute('aria-modal','true');
     const palette=getPalette(),computed=palette.ownerDocument.defaultView.getComputedStyle(palette);dialog.dataset.theme=palette.dataset.theme||'archive';

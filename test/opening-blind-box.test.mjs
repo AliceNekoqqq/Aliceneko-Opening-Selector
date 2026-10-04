@@ -1,11 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {blindBoxPool,drawOpening} from '../src/opening-blind-draw.js';
-import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton} from '../src/opening-blind-box.js';
+import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,setBlindBoxTheme} from '../src/opening-blind-box.js';
 
 const items=()=>[{id:2,number:3,coverIndex:2,title:'雨夜',description:'<img onerror=alert(1)>',body:'第二条完整原文',coverSlot:4,coverFocus:{x:20,y:70}},{id:7,number:8,title:'重逢',body:'第七条完整原文'},{id:9,number:10,title:'当前',body:'当前正文',isCurrent:true}];
-function fixture({reduced=false,onChoose}={}){
-  const doc={activeElement:null},timers=new Map();let timerId=0,alive=true,pool=items();const effects=[];
+function fixture({reduced=false,onChoose,storage,avatar}={}){
+  const doc={activeElement:null},timers=new Map();let timerId=0,alive=true,pool=items(),allPool=null,previewScope=null;const effects=[];
   function el(tag,cls='',text){
     const listeners=new Map();
     const node={tag,ownerDocument:doc,className:cls,textContent:text,children:[],dataset:{},attrs:{},isConnected:true,open:false,style:{setProperty(key,value){this[key]=value}},classList:{add(){}},
@@ -15,13 +15,13 @@ function fixture({reduced=false,onChoose}={}){
     return node;
   }
   doc.createElement=el;doc.head=el('head');doc.body=el('body');doc.documentElement=el('html');doc.defaultView={getComputedStyle:()=>({getPropertyValue:key=>key})};
-  const host={setTimeout(fn,ms){timers.set(++timerId,{fn,ms});return timerId},clearTimeout:id=>timers.delete(id),matchMedia:()=>({matches:reduced})};
+  const host={localStorage:storage,setTimeout(fn,ms){timers.set(++timerId,{fn,ms});return timerId},clearTimeout:id=>timers.delete(id),matchMedia:()=>({matches:reduced})};
   const palette=el('div');palette.dataset.theme='theatre';const trigger=el('button');
-  const box=createOpeningBlindBox({doc,host,getItems:()=>pool,getPalette:()=>palette,isActive:()=>alive,random:()=>0,
-    onPreview:(item,button)=>effects.push({action:'preview',id:item.id,button,windows:doc.body.children.length}),onChoose:item=>{effects.push({action:'choose',id:item.id,windows:doc.body.children.length});return onChoose?.(item)},onUnavailable:()=>effects.push({action:'unavailable'}),onError:error=>effects.push({action:'error',message:error.message})});
+  const box=createOpeningBlindBox({doc,host,avatar,getItems:()=>pool,getAllItems:()=>allPool||pool,getPalette:()=>palette,isActive:()=>alive,random:()=>0,
+    onRangeChange:result=>effects.push({action:'range',persisted:result.persisted}),onPreview:(item,button,scope)=>{previewScope=scope;effects.push({action:'preview',id:item.id,button,windows:doc.body.children.length})},onChoose:item=>{effects.push({action:'choose',id:item.id,windows:doc.body.children.length});return onChoose?.(item)},onUnavailable:()=>effects.push({action:'unavailable'}),onError:error=>effects.push({action:'error',message:error.message})});
   function run(ms){for(const [id,timer] of [...timers])if(timer.ms<=ms){timers.delete(id);timer.fn()}}
   const all=(node,predicate)=>[...(predicate(node)?[node]:[]),...node.children.flatMap(child=>all(child,predicate))];
-  return {doc,box,trigger,timers,effects,el,run,get dialog(){return doc.body.children[0]},find:cls=>all(doc.body,node=>node.className===cls)[0],button:text=>all(doc.body,node=>node.tag==='button'&&node.textContent===text)[0],setItems:value=>pool=value,deactivate:()=>alive=false};
+  return {doc,box,trigger,timers,effects,el,run,get dialog(){return doc.body.children[0]},get previewScope(){return previewScope},find:cls=>all(doc.body,node=>node.className===cls)[0],all:predicate=>all(doc.body,predicate),button:text=>all(doc.body,node=>node.tag==='button'&&node.textContent===text)[0],setItems:value=>pool=value,setAllItems:value=>allPool=value,deactivate:()=>alive=false};
 }
 
 test('draw pool respects caller filters, original IDs, duplicate IDs, empty bodies and current opening',()=>{
@@ -68,9 +68,9 @@ test('pending entry blocks a second draw, and a failed transaction releases that
 
 test('decorative entrance survives count updates and warms the card art without activating a draw',()=>{
  const f=fixture();let opened=0;const trigger=openingBlindBoxButton(f.el,button=>{assert.equal(button,trigger);opened++});
- const [art,copy,action,warm]=trigger.children,illustration=art.children[1],texture=warm.children[0];
- assert.equal(trigger.attrs['aria-label'],'命运盲盒');assert.equal(copy.children[0].textContent,'命运盲盒');
- assert.ok(illustration.src.endsWith('/assets/blind-box/entrance.webp'));assert.ok(texture.src.endsWith('/assets/blind-box/card-back.webp'));
+ const [art,copy,action]=trigger.children,illustration=art.children[1],texture=art.children[2];
+ assert.equal(trigger.attrs['aria-label'],'未封档案（命运盲盒）');assert.equal(copy.children[0].textContent,'未封档案');
+ assert.ok(illustration.src.endsWith('/assets/blind-box/card-backs/archive.webp'));assert.ok(texture.src.endsWith('/assets/blind-box/card-backs/archive.webp'));
  assert.equal(illustration.loading,'eager');assert.equal(texture.loading,'eager');assert.equal(illustration.alt,'');
  const originalChildren=[...trigger.children];updateBlindBoxButton(trigger,items());updateBlindBoxButton(trigger,[items()[1]]);
  assert.deepEqual(trigger.children,originalChildren);assert.equal(action.children[0].textContent,'1 个开场');assert.equal(opened,0);assert.equal(f.timers.size,0);
@@ -83,5 +83,32 @@ test('art fallback advances through immutable sources, keeps the draw operationa
  image.onerror();assert.match(image.src,/raw\.githubusercontent/);image.onerror();assert.equal(image.dataset.failed,'true');assert.equal(card.dataset.artReady,undefined);
  f.run(2200);assert.equal(f.dialog.dataset.phase,'revealed');assert.equal(f.button('进入此开场').disabled,false);assert.deepEqual(f.effects,[]);
  const trigger=openingBlindBoxButton(f.el),art=trigger.children[0],entrance=art.children[1];entrance.onload();assert.equal(entrance.dataset.ready,'true');assert.equal(art.dataset.artReady,'true');
- const pending=trigger.children[3].children[0],first=pending.src;pending.isConnected=false;pending.onerror();pending.onload();assert.equal(pending.src,first);assert.equal(pending.dataset.ready,undefined);f.box.dispose();
+ const pending=art.children[2],first=pending.src;pending.isConnected=false;pending.onerror();pending.onload();assert.equal(pending.src,first);assert.equal(pending.dataset.ready,undefined);f.box.dispose();
+});
+
+test('theme changes replace only decorative cards and title while count and actions remain intact',()=>{
+ const f=fixture(),trigger=openingBlindBoxButton(f.el);updateBlindBoxButton(trigger,items());const count=trigger.__uosBlindCount;
+ setBlindBoxTheme(trigger,'japan');assert.equal(trigger.attrs['aria-label'],'月下御签（命运盲盒）');assert.equal(count.textContent,'2 个开场');
+ assert.ok(trigger.children[0].children.slice(1).every(image=>image.src.endsWith('/card-backs/japan.webp')));
+ const same=trigger.children[0].children[1];updateBlindBoxButton(trigger,[items()[1]],{theme:'japan'});assert.equal(trigger.children[0].children[1],same);assert.equal(count.textContent,'1 个开场');f.box.dispose();
+});
+
+test('manual range can draw and preview a hidden original opening, persists locally and never performs a greeting write',()=>{
+ const data=new Map(),storage={getItem:key=>data.get(key)||null,setItem:(key,value)=>data.set(key,value)},f=fixture({reduced:true,storage,avatar:'甲.png'});
+ f.setAllItems(items());f.setItems([items()[0]]);f.box.openRange(f.trigger);assert.equal(f.timers.size,0);f.button('全部清空').onclick();
+ const checkbox=f.all(node=>node.tag==='input'&&node.type==='checkbox'&&node.attrs['aria-label'].includes('重逢'))[0];checkbox.checked=true;checkbox.onchange();
+ assert.equal(f.find('uos-blind-range-count').textContent,'手动范围 · 1 个可抽取开场');f.button('应用抽取范围').onclick();
+ assert.equal(f.doc.body.children.length,0);assert.deepEqual(f.effects,[{action:'range',persisted:true}]);assert.deepEqual(f.box.poolItems().map(item=>item.id),[7]);
+ f.box.open(f.trigger);assert.equal(f.find('uos-blind-title').textContent,'重逢');assert.equal(f.find('uos-blind-scope').textContent,'手动范围 · 1 个候选开场');f.button('预览正文').onclick();assert.deepEqual(f.previewScope.map(item=>item.id),[7]);
+ const next=fixture({reduced:true,storage,avatar:'甲.png'});next.setAllItems(items());next.setItems([]);assert.deepEqual(next.box.poolItems().map(item=>item.id),[7]);next.box.dispose();f.box.dispose();
+});
+
+test('empty manual selection disables drawing, current greeting stays ineligible, cancellation and stale controls never save',()=>{
+ const f=fixture({reduced:true});f.box.openRange(f.trigger);const oldSave=f.button('应用抽取范围'),oldNone=f.button('全部清空');
+ const current=f.all(node=>node.tag==='input'&&node.type==='checkbox'&&node.attrs['aria-label'].includes('当前'))[0];assert.equal(current.disabled,true);
+ f.button('全部清空').onclick();f.button('关闭设置').onclick();assert.equal(f.box.rangeMode(),'filtered');assert.equal(f.effects.length,0);
+ f.box.openRange(f.trigger);oldSave.onclick();oldNone.onclick();assert.equal(f.effects.length,0);assert.equal(f.doc.body.children.length,1);
+ f.button('全部清空').onclick();f.button('应用抽取范围').onclick();assert.equal(f.box.open(),false);assert.deepEqual(f.box.poolItems(),[]);
+ f.box.openRange();f.button('仅选当前筛选').onclick();f.button('应用抽取范围').onclick();assert.deepEqual(f.box.poolItems().map(item=>item.id),[2,7]);
+ f.box.openRange();const expired=f.button('应用抽取范围');f.deactivate();expired.onclick();assert.equal(f.doc.body.children.length,0);assert.equal(f.effects.at(-1).action,'unavailable');f.box.dispose();assert.equal(f.doc.head.children.length,0);
 });

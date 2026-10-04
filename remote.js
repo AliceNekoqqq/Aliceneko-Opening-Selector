@@ -1,16 +1,44 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.11" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.12" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
 var THEME_IDS = Object.freeze(THEMES.map(([id]) => id));
 var THEME_CAPTIONS = Object.freeze({ archive: "ARCHIVE Nº 01 · 故事档案", neon: "AFTER DARK · 霓虹叙事", paper: "THE FIRST PAGE · 纸上初章", noir: "FRAME 001 · 光影序幕", meadow: "LETTERS FROM THE WOODS · 林间来信", ancient: "BROCADE LETTER · 锦书古风", starmap: "CELESTIAL ATLAS · 星海航图", rose: "VELVET VOW · 绯色契约", wasteland: "INCIDENT 001 · 末日警报", deepsea: "DEEP SEA ECHO · 深海回响", amber: "AMBER MIRAGE · 琥珀沙海", theatre: "MOONLIT THEATRE · 月光剧场", lasttrain: "LAST TRAIN HOME · 末班列车", aurora: "LIGHTHOUSE UNDER AURORA · 极光灯塔", glasshouse: "GLASSHOUSE IN BLOOM · 琉璃花房", japan: "MOONLIT SHRINE · 月下神社" });
+var THEME_DRAWS = Object.freeze({
+  archive: ["未封档案", "打开一份未知的故事档案"],
+  neon: ["霓虹解码", "解码一段未知的夜间信号"],
+  paper: ["翻页奇遇", "翻开一页尚未读过的故事"],
+  noir: ["随机放映", "让下一帧，揭晓你的故事"],
+  meadow: ["林间来信", "拆开一封来自林间的信"],
+  ancient: ["锦书抽签", "抽一纸锦书，赴一场相逢"],
+  starmap: ["星轨占卜", "让星轨，指引故事的方向"],
+  rose: ["绯色邀约", "赴一场尚未揭晓的邀约"],
+  wasteland: ["未知坐标", "接收一处未知的生存坐标"],
+  deepsea: ["潮汐寻声", "听见一段来自深海的回响"],
+  amber: ["沙海寻迹", "追随风沙，发现新的故事"],
+  theatre: ["今夜开幕", "揭开帷幕，故事即将上演"],
+  lasttrain: ["随机月台", "下一站，会遇见谁"],
+  aurora: ["灯塔寻光", "循着微光，寻找故事入口"],
+  glasshouse: ["花语来笺", "抽一笺花语，赴一场奇遇"],
+  japan: ["月下御签", "抽一支御签，听月下缘起"]
+});
+function themeDraw(theme) {
+  const [title, hint] = THEME_DRAWS[theme] || THEME_DRAWS.archive;
+  return { title, hint };
+}
 
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
-function blindBoxAssetCandidates(kind) {
+var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
+function blindBoxAssetCandidates(kind, theme) {
   if (!["entrance", "card-back"].includes(kind)) throw Error("Invalid blind-box artwork");
+  if (kind === "card-back" && theme) {
+    const id = THEME_IDS.includes(theme) ? theme : "archive", path = `assets/blind-box/card-backs/${id}.webp`;
+    const resource2 = `AliceNekoqqq/Aliceneko-Opening-Selector@${BLIND_BOX_THEME_ASSET_REF}/${path}`;
+    return [`https://cdn.jsdelivr.net/gh/${resource2}`, `https://testingcf.jsdelivr.net/gh/${resource2}`, `https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/${BLIND_BOX_THEME_ASSET_REF}/${path}`];
+  }
   const resource = `AliceNekoqqq/Aliceneko-Opening-Selector@${BLIND_BOX_ASSET_REF}/assets/blind-box/${kind}.webp`;
   return [
     `https://cdn.jsdelivr.net/gh/${resource}`,
@@ -157,7 +185,7 @@ var BLIND_BOX_CONTROL_CSS = `
 :is(.uos,.uos-user-panel) .uos-blind-trigger::before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);border-radius:11px;pointer-events:none;z-index:-1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger::after{content:"";position:absolute;inset:-60% -20%;background:linear-gradient(110deg,transparent 42%,color-mix(in srgb,var(--accent) 13%,transparent) 49%,transparent 56%);transform:translateX(-85%);animation:uos-blind-entrance-sheen 8s ease-in-out infinite;pointer-events:none;z-index:-1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-art{position:relative;flex:none;width:88px;height:74px;display:grid;place-items:center;animation:uos-blind-entrance-float 5s ease-in-out infinite;filter:drop-shadow(0 3px 9px color-mix(in srgb,var(--accent) 20%,transparent));pointer-events:none}
-:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{position:absolute;width:92px;height:92px;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;object-fit:contain;opacity:0;transition:opacity .3s}
+:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{position:absolute;width:43px;height:62px;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:0 3px 7px #0004!important;background:transparent!important;object-fit:cover;border-radius:5px;transform:translateX(calc(var(--fan) * var(--uos-fan-step,19px))) rotate(calc(var(--fan) * 17deg));opacity:0;transition:opacity .3s}
 :is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art[data-ready=true]{opacity:1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-symbol{font-size:34px;line-height:1;color:var(--accent)}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-art[data-art-ready=true] .uos-blind-trigger-symbol{opacity:0}
@@ -166,7 +194,7 @@ var BLIND_BOX_CONTROL_CSS = `
 :is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font:400 12px/1.5 system-ui,sans-serif!important;color:var(--muted)!important;white-space:normal}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-action{display:flex;align-items:center;gap:8px;flex:none;padding:8px 11px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:24px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:19px;transition:transform .25s}
-:is(.uos,.uos-user-panel) .uos-blind-art-warm{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+:is(.uos,.uos-user-panel) .uos-blind-range-trigger{appearance:none!important;min-height:44px;display:block;flex:none;margin:0 0 0 auto!important;padding:7px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--surface)!important;color:var(--muted)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer}:is(.uos,.uos-user-panel) .uos-blind-range-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px}
 @media(hover:hover){:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover{transform:translateY(-2px)!important;border-color:var(--accent)!important;box-shadow:inset 0 0 24px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 22px color-mix(in srgb,var(--accent) 12%,transparent)!important}:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover .uos-blind-trigger-arrow{transform:translate(2px,-2px)}}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):active{transform:scale(.99)!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
@@ -174,8 +202,8 @@ var BLIND_BOX_CONTROL_CSS = `
 :is(.uos,.uos-user-panel) .uos-blind-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
 @keyframes uos-blind-entrance-float{0%,100%{transform:translateY(2px) rotate(-3deg)}50%{transform:translateY(-3px) rotate(1deg)}}
 @keyframes uos-blind-entrance-sheen{0%,62%{transform:translateX(-85%)}90%,100%{transform:translateX(85%)}}
-@media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:74px;height:74px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
-@media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:62px;height:62px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
+@media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px;--uos-fan-step:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:35px;height:52px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
+@media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px;--uos-fan-step:5px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:30px;height:46px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
 @media(prefers-reduced-motion:reduce){:is(.uos,.uos-user-panel) .uos-blind-trigger,:is(.uos,.uos-user-panel) .uos-blind-trigger *,:is(.uos,.uos-user-panel) .uos-blind-trigger::after{animation:none!important;transition:none!important}}
 `;
 var BLIND_BOX_DIALOG_CSS = `
@@ -279,8 +307,8 @@ function applyOpeningCover(cover, entry, identity, index, host, { shade = false 
 }
 
 // src/blind-box-art.js
-function createBlindBoxArt(el, kind) {
-  const image = el("img", "uos-blind-art"), sources = blindBoxAssetCandidates(kind);
+function createBlindBoxArt(el, kind, theme) {
+  const image = el("img", "uos-blind-art"), sources = blindBoxAssetCandidates(kind, theme);
   let source = 0;
   image.alt = "";
   image.draggable = false;
@@ -304,41 +332,356 @@ function createBlindBoxArt(el, kind) {
   return image;
 }
 
+// src/opening-favorites.js
+function openingFavoriteKeys(bodies) {
+  const occurrences = /* @__PURE__ */ new Map();
+  return bodies.map((value) => {
+    const body = String(value || "");
+    if (!body) return null;
+    let a = 2166136261, b = 2654435769;
+    for (let i = 0; i < body.length; i++) {
+      const code = body.charCodeAt(i);
+      a = Math.imul(a ^ code, 16777619);
+      b = Math.imul(b ^ code, 2246822507);
+    }
+    const base = (a >>> 0).toString(16).padStart(8, "0") + (b >>> 0).toString(16).padStart(8, "0") + ":" + body.length;
+    const occurrence = occurrences.get(base) || 0;
+    occurrences.set(base, occurrence + 1);
+    return base + ":" + occurrence;
+  });
+}
+var validKey = (key) => typeof key === "string" && /^[0-9a-f]{16}:\d{1,10}:\d{1,10}$/.test(key);
+function createOpeningFavorites(host, avatar) {
+  const storageKey = avatar ? "uos_favorites_v1_" + encodeURIComponent(String(avatar)) : null;
+  let memory = /* @__PURE__ */ new Set(), lastBodies = [], lastKeys = [];
+  const pending = /* @__PURE__ */ new Map();
+  function snapshot() {
+    try {
+      const raw = storageKey && host?.localStorage?.getItem(storageKey);
+      if (raw != null) {
+        const value = JSON.parse(raw);
+        memory = new Set(value?.version === 1 && Array.isArray(value.keys) ? value.keys.filter(validKey).slice(0, 5e3) : []);
+      }
+    } catch {
+    }
+    for (const [key, selected] of pending) {
+      if (selected) memory.add(key);
+      else memory.delete(key);
+    }
+    return new Set(memory);
+  }
+  return {
+    keys(bodies) {
+      if (bodies.length !== lastBodies.length || bodies.some((body, i) => body !== lastBodies[i])) {
+        lastBodies = bodies.slice();
+        lastKeys = openingFavoriteKeys(bodies);
+      }
+      return lastKeys.slice();
+    },
+    snapshot,
+    toggle(key) {
+      if (!validKey(key)) return { selected: false, persisted: false };
+      const next = snapshot(), selected = !next.has(key);
+      if (selected) next.add(key);
+      else next.delete(key);
+      memory = next;
+      let persisted = false;
+      try {
+        if (storageKey && host?.localStorage) {
+          host.localStorage.setItem(storageKey, JSON.stringify({ version: 1, keys: [...next] }));
+          persisted = true;
+          pending.clear();
+        }
+      } catch {
+      }
+      if (!persisted) pending.set(key, selected);
+      return { selected, persisted };
+    }
+  };
+}
+
+// src/opening-blind-range.js
+var validKey2 = (key) => typeof key === "string" && /^[0-9a-f]{16}:\d{1,10}:\d{1,10}$/.test(key);
+function normalizeDrawRange(value) {
+  return { mode: value?.mode === "manual" ? "manual" : "filtered", keys: Array.isArray(value?.keys) ? [...new Set(value.keys.filter(validKey2))].slice(0, 5e3) : [] };
+}
+function keyedDrawItems(items) {
+  const keys = openingFavoriteKeys(items.map((item) => item.body));
+  return items.map((item, i) => ({ ...item, drawKey: keys[i] }));
+}
+function drawRangePool(all, filtered, prefs) {
+  if (prefs.mode !== "manual") return blindBoxPool(filtered);
+  const selected = new Set(prefs.keys);
+  return blindBoxPool(keyedDrawItems(all).filter((item) => selected.has(item.drawKey)));
+}
+function createOpeningDrawRange(host, avatar) {
+  const key = avatar ? "uos_draw_range_v1_" + encodeURIComponent(avatar) : null;
+  let memory = normalizeDrawRange(), temporary = false;
+  return {
+    read() {
+      if (!temporary) try {
+        const raw = key && host?.localStorage?.getItem(key);
+        if (raw != null) {
+          const value = JSON.parse(raw);
+          memory = normalizeDrawRange(value?.version === 1 ? value : null);
+        }
+      } catch {
+      }
+      return { mode: memory.mode, keys: memory.keys.slice() };
+    },
+    set(value) {
+      memory = normalizeDrawRange(value);
+      let persisted = false;
+      try {
+        if (key && host?.localStorage) {
+          host.localStorage.setItem(key, JSON.stringify({ version: 1, ...memory }));
+          persisted = true;
+        }
+      } catch {
+      }
+      temporary = !persisted;
+      return { persisted, prefs: this.read() };
+    }
+  };
+}
+
+// src/opening-blind-range-ui.js
+var DRAW_RANGE_CSS = `
+.uos-blind-range-body{padding:18px 20px;display:grid;gap:12px}
+.uos-blind-range-body p{margin:0;color:var(--muted);font-size:12px}
+.uos-blind-range-tools{display:flex;flex-wrap:wrap;gap:8px}
+.uos-blind-range-body select,.uos-blind-range-body input[type=search]{appearance:none!important;box-sizing:border-box;width:100%;min-height:44px;margin:0!important;padding:10px 12px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--text)!important;font:14px/1.5 system-ui,sans-serif!important}
+.uos-blind-range-body :is(select,input):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.uos-blind-range-list{max-height:42dvh;overflow:auto;display:grid;gap:7px;padding:2px}
+.uos-blind-range-row{display:flex;align-items:center;gap:11px;min-height:52px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.uos-blind-range-row:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.uos-blind-range-row input[type=checkbox]{appearance:auto!important;flex:none;width:20px!important;height:20px!important;margin:0!important;accent-color:var(--accent);cursor:pointer}
+.uos-blind-range-row span{min-width:0;overflow-wrap:anywhere;font-size:13px}.uos-blind-range-row input:disabled+span{color:var(--muted)}
+.uos-blind-range-save{width:100%!important}.uos-blind-range-count{color:var(--accent)!important}
+`;
+function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, getPalette, isActive, onApply, onUnavailable }) {
+  let disposed = false, active = null;
+  function close() {
+    const current = active;
+    if (!current) return;
+    active = null;
+    current.dialog.removeEventListener("keydown", current.onKey);
+    if (current.dialog.open) current.dialog.close();
+    current.dialog.remove();
+    try {
+      if (current.trigger?.isConnected) current.trigger.focus();
+    } catch {
+    }
+  }
+  function open(trigger) {
+    if (disposed || !isActive()) return false;
+    close();
+    const items = keyedDrawItems(getAllItems()).map((item) => ({ ...item })), prefs = store.read();
+    const eligible = items.filter((item) => item.body && !item.isCurrent), filteredIds = new Set(getFilteredItems().map((item) => item.id));
+    let keys = new Set(prefs.mode === "manual" || prefs.keys.length ? prefs.keys : eligible.map((item) => item.drawKey));
+    const dialog = el("dialog", "uos-blind-box uos-blind-range");
+    dialog.setAttribute("aria-label", "抽取范围");
+    dialog.setAttribute("aria-modal", "true");
+    const palette = getPalette(), computed = palette.ownerDocument.defaultView.getComputedStyle(palette);
+    dialog.dataset.theme = palette.dataset.theme || "archive";
+    for (const key of ["--bg", "--surface", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(key, computed.getPropertyValue(key) || computed.getPropertyValue("--panel"));
+    const header = el("div", "uos-blind-header"), heading = el("h2", "uos-blind-heading", "抽取范围"), exit = el("button", "", "关闭设置");
+    exit.type = "button";
+    header.append(heading, exit);
+    const body = el("div", "uos-blind-range-body"), mode = el("select", "uos-blind-range-mode"), search = el("input", "uos-blind-range-search");
+    mode.setAttribute("aria-label", "抽取范围模式");
+    for (const [value, label] of [["filtered", "沿用首页当前筛选"], ["manual", "只抽手动勾选的开场"]]) {
+      const option = el("option", "", label);
+      option.value = value;
+      mode.append(option);
+    }
+    mode.value = prefs.mode;
+    search.type = "search";
+    search.placeholder = "搜索标题、人物、分组或编号";
+    search.setAttribute("aria-label", "搜索抽取范围");
+    const tools = el("div", "uos-blind-range-tools"), all = el("button", "", "全部勾选"), none = el("button", "", "全部清空"), filtered = el("button", "", "仅选当前筛选");
+    for (const button of [all, none, filtered]) button.type = "button";
+    tools.append(all, none, filtered);
+    const count = el("p", "uos-blind-range-count"), list = el("div", "uos-blind-range-list"), hint = el("p", "", "点选开场会切换到手动范围，独立于首页筛选；只保存在本机。当前开场与空正文不参与抽取。");
+    count.setAttribute("role", "status");
+    const save = el("button", "uos-blind-enter uos-blind-range-save", "应用抽取范围");
+    save.type = "button";
+    body.append(mode, hint, search, tools, count, list, save);
+    dialog.append(header, body);
+    let checkboxes = [];
+    const session = { dialog, trigger, onKey: null };
+    function valid() {
+      if (disposed || active !== session) return false;
+      if (!isActive()) {
+        close();
+        onUnavailable();
+        return false;
+      }
+      return true;
+    }
+    function updateCount() {
+      const n = mode.value === "manual" ? eligible.filter((item) => keys.has(item.drawKey)).length : eligible.filter((item) => filteredIds.has(item.id)).length;
+      count.textContent = `${mode.value === "manual" ? "手动范围" : "当前筛选"} · ${n} 个可抽取开场${n ? "" : " · 请勾选开场或调整筛选"}`;
+    }
+    function render() {
+      list.replaceChildren();
+      checkboxes = [];
+      const query = String(search.value || "").trim().toLocaleLowerCase();
+      for (const item of items) {
+        const text = `${String(item.number ?? item.id + 1).padStart(2, "0")} · ${item.title || "未命名开场"}${item.group ? " · " + item.group : ""}`;
+        if (query && !`${text} ${(item.names || []).join(" ")}`.toLocaleLowerCase().includes(query)) continue;
+        const row = el("label", "uos-blind-range-row"), checkbox = el("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = keys.has(item.drawKey);
+        checkbox.disabled = !item.body || Boolean(item.isCurrent);
+        checkbox.setAttribute("aria-label", text);
+        row.append(checkbox, el("span", "", text + (item.isCurrent ? "（当前开场）" : !item.body ? "（正文为空）" : "")));
+        checkbox.onchange = () => {
+          if (!valid() || checkbox.disabled) return;
+          mode.value = "manual";
+          if (checkbox.checked) keys.add(item.drawKey);
+          else keys.delete(item.drawKey);
+          updateCount();
+        };
+        checkboxes.push(checkbox);
+        list.append(row);
+      }
+      if (!checkboxes.length) list.append(el("p", "", "没有匹配的开场。"));
+      updateCount();
+    }
+    mode.onchange = () => {
+      if (valid()) updateCount();
+    };
+    search.oninput = () => {
+      if (valid()) render();
+    };
+    function select(next) {
+      if (!valid()) return;
+      mode.value = "manual";
+      keys = new Set(next);
+      render();
+    }
+    all.onclick = () => select(eligible.map((item) => item.drawKey));
+    none.onclick = () => select([]);
+    filtered.onclick = () => select(eligible.filter((item) => filteredIds.has(item.id)).map((item) => item.drawKey));
+    exit.onclick = () => {
+      if (active === session) close();
+    };
+    save.onclick = () => {
+      if (!valid()) return;
+      const result = store.set({ mode: mode.value, keys: [...keys] });
+      close();
+      onApply(result);
+    };
+    session.onKey = (event) => {
+      if (active !== session) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close();
+        return;
+      }
+      if (event.key === "Tab") {
+        const controls = [exit, mode, search, all, none, filtered, ...checkboxes, save].filter((node) => !node.disabled), first = controls[0], last = controls.at(-1);
+        if (event.shiftKey && doc.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && doc.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    active = session;
+    dialog.addEventListener("keydown", session.onKey);
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      if (active === session) close();
+    });
+    dialog.addEventListener("close", () => {
+      if (active === session) close();
+    });
+    render();
+    doc.body.append(dialog);
+    try {
+      dialog.showModal();
+    } catch {
+      dialog.setAttribute("open", "");
+      dialog.setAttribute("role", "dialog");
+    }
+    exit.focus();
+    return true;
+  }
+  return { open, close, dispose() {
+    if (disposed) return;
+    disposed = true;
+    close();
+  } };
+}
+
 // src/opening-blind-box.js
-function openingBlindBoxButton(el, onOpen) {
+function openingBlindBoxButton(el, onOpen, theme = "archive") {
   const button = el("button", "uos-blind-trigger");
   button.type = "button";
   button.setAttribute("aria-label", "命运盲盒");
   const art = el("span", "uos-blind-trigger-art"), symbol = el("span", "uos-blind-trigger-symbol", "✦");
   art.setAttribute("aria-hidden", "true");
-  art.append(symbol, createBlindBoxArt(el, "entrance"));
+  art.append(symbol);
   const copy = el("span", "uos-blind-trigger-copy");
   copy.append(el("strong", "uos-blind-trigger-title", "命运盲盒"), el("small", "uos-blind-trigger-hint", "让命运，为你挑一个故事"));
   const action = el("span", "uos-blind-trigger-action"), count = el("span", "uos-blind-trigger-count", "开始抽取"), arrow = el("span", "uos-blind-trigger-arrow", "↗");
   arrow.setAttribute("aria-hidden", "true");
   action.append(count, arrow);
-  const warm = el("span", "uos-blind-art-warm");
-  warm.setAttribute("aria-hidden", "true");
-  warm.append(createBlindBoxArt(el, "card-back"));
-  button.append(art, copy, action, warm);
+  button.append(art, copy, action);
   button.__uosBlindCount = count;
+  button.__uosBlindTheme = { el, art, title: copy.children[0], hint: copy.children[1] };
+  setBlindBoxTheme(button, theme);
   if (onOpen) button.onclick = () => onOpen(button);
   else button.disabled = true;
   return button;
 }
-function updateBlindBoxButton(button, items, { readonly = false } = {}) {
+function setBlindBoxTheme(button, theme) {
+  const state = button.__uosBlindTheme;
+  if (!state || state.theme === theme) return;
+  state.theme = theme;
+  const draw = themeDraw(theme);
+  state.title.textContent = draw.title;
+  state.hint.textContent = draw.hint;
+  button.setAttribute("aria-label", `${draw.title}（命运盲盒）`);
+  state.art.replaceChildren();
+  const symbol = state.el("span", "uos-blind-trigger-symbol", "✦");
+  state.art.dataset.artReady = "false";
+  state.art.append(symbol);
+  for (let i = -1; i <= 1; i++) {
+    const image = createBlindBoxArt(state.el, "card-back", theme);
+    image.style.setProperty("--fan", i);
+    state.art.append(image);
+  }
+}
+function openingBlindRangeButton(el, onOpen) {
+  const button = el("button", "uos-blind-range-trigger", "⚙ 抽取范围");
+  button.type = "button";
+  button.setAttribute("aria-label", "设置抽取范围");
+  if (onOpen) button.onclick = () => onOpen(button);
+  else button.disabled = true;
+  return button;
+}
+function updateBlindBoxButton(button, items, { readonly = false, theme, manual = false } = {}) {
+  if (theme) setBlindBoxTheme(button, theme);
   const count = blindBoxPool(items).length;
   button.__uosBlindCount.textContent = count ? `${count} 个开场` : "暂无候选";
   button.disabled = readonly || count === 0;
-  button.setAttribute("title", count ? `从当前筛选结果的 ${count} 个开场中随机抽取，确认进入后才切换` : "当前筛选下没有可抽取的新开场");
+  button.setAttribute("title", count ? `从${manual ? "手动勾选范围" : "当前筛选结果"}的 ${count} 个开场中随机抽取，确认进入后才切换` : "没有可抽取的新开场，可点击「抽取范围」重新勾选");
+  button.dataset.scope = manual ? "manual" : "filtered";
 }
-function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalette, isActive = () => true, onPreview, onChoose, onUnavailable = () => {
+function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllItems = getItems, getPalette, avatar, isActive = () => true, onPreview, onChoose, onRangeChange = () => {
+}, onUnavailable = () => {
 }, onError = () => {
 }, random = Math.random }) {
   let disposed = false, active = null, lastId = null, choosing = false;
-  const clock = host || globalThis, style = doc.createElement("style");
+  const store = createOpeningDrawRange(host, avatar), clock = host || globalThis, style = doc.createElement("style");
   style.dataset.uosBlindStyle = "";
-  style.textContent = BLIND_BOX_DIALOG_CSS + defaultCoverStyles(".uos-blind-box");
+  style.textContent = BLIND_BOX_DIALOG_CSS + DRAW_RANGE_CSS + defaultCoverStyles(".uos-blind-box");
   (doc.head || doc.documentElement).append(style);
   const el = (tag, cls = "", text) => {
     const node = doc.createElement(tag);
@@ -346,7 +689,10 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalet
     if (text != null) node.textContent = String(text);
     return node;
   };
+  const rangePanel = createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems: getItems, getPalette, isActive, onUnavailable, onApply: (result) => onRangeChange(result) });
+  const poolItems = () => drawRangePool(getAllItems(), getItems(), store.read());
   function close() {
+    rangePanel.close();
     const current = active;
     if (!current) return;
     active = null;
@@ -362,21 +708,24 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalet
   }
   function open(trigger) {
     if (disposed || choosing || !isActive()) return false;
-    const pool = blindBoxPool(getItems()).map((item) => ({ ...item }));
+    const pool = poolItems().map((item) => ({ ...item }));
     if (!pool.length) return false;
+    rangePanel.close();
     close();
     const dialog = el("dialog", "uos-blind-box");
     dialog.setAttribute("aria-label", "命运盲盒");
     dialog.setAttribute("aria-modal", "true");
     const palette = getPalette(), computed = palette.ownerDocument.defaultView.getComputedStyle(palette);
     dialog.dataset.theme = palette.dataset.theme || "archive";
+    const draw = themeDraw(dialog.dataset.theme);
+    dialog.setAttribute("aria-label", `${draw.title}（命运盲盒）`);
     for (const key of ["--bg", "--surface", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(key, computed.getPropertyValue(key) || computed.getPropertyValue("--panel"));
     const header = el("div", "uos-blind-header"), heading = el("div"), exit = el("button", "", "关闭盲盒");
     exit.type = "button";
     exit.onclick = () => {
       if (active?.dialog === dialog) close();
     };
-    heading.append(el("p", "uos-blind-kicker", "LET FATE CHOOSE"), el("h2", "uos-blind-heading", "命运盲盒"));
+    heading.append(el("p", "uos-blind-kicker", "随机故事 · 命运盲盒"), el("h2", "uos-blind-heading", draw.title));
     header.append(heading, exit);
     const stage = el("div", "uos-blind-stage"), aura = el("div", "uos-blind-aura"), sparks = el("div", "uos-blind-sparks"), deck = el("div", "uos-blind-deck"), result = el("div", "uos-blind-result");
     for (const node of [aura, sparks, deck]) node.setAttribute("aria-hidden", "true");
@@ -388,14 +737,14 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalet
     for (let i = -2; i <= 2; i++) {
       const card = el("div", "uos-blind-card");
       card.style.setProperty("--card", i);
-      card.append(createBlindBoxArt(el, "card-back"), el("span", "uos-blind-symbol", "✦"));
+      card.append(createBlindBoxArt(el, "card-back", dialog.dataset.theme), el("span", "uos-blind-symbol", "✦"));
       deck.append(card);
     }
     stage.append(aura, sparks, deck, result);
     const status = el("p", "uos-blind-status");
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
-    const footer = el("div", "uos-blind-footer"), scope = el("p", "uos-blind-scope", `当前筛选 · ${pool.length} 个候选开场${pool.length > 1 ? " · 重抽不连续重复" : ""}`), actions = el("div", "uos-blind-actions");
+    const footer = el("div", "uos-blind-footer"), scope = el("p", "uos-blind-scope", `${store.read().mode === "manual" ? "手动范围" : "当前筛选"} · ${pool.length} 个候选开场${pool.length > 1 ? " · 重抽不连续重复" : ""}`), actions = el("div", "uos-blind-actions");
     const reroll = el("button", "", "再抽一次"), preview = el("button", "", "预览正文"), choose = el("button", "uos-blind-enter", "进入此开场");
     for (const button of [reroll, preview, choose]) button.type = "button";
     actions.append(reroll, preview, choose);
@@ -471,7 +820,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalet
       if (!valid() || busy || !selected || preview.disabled) return;
       const item = selected;
       close();
-      onPreview(item, trigger);
+      onPreview(item, trigger, pool);
     };
     choose.onclick = () => {
       if (!valid() || busy || !selected || choose.disabled) return;
@@ -531,80 +880,17 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalet
     roll();
     return true;
   }
-  return { open, close, dispose() {
+  return { open, close, poolItems, rangeMode: () => store.read().mode, openRange(trigger) {
+    if (disposed || choosing || !isActive()) return false;
+    close();
+    return rangePanel.open(trigger);
+  }, dispose() {
     if (disposed) return;
     disposed = true;
     close();
+    rangePanel.dispose();
     style.remove();
   } };
-}
-
-// src/opening-favorites.js
-function openingFavoriteKeys(bodies) {
-  const occurrences = /* @__PURE__ */ new Map();
-  return bodies.map((value) => {
-    const body = String(value || "");
-    if (!body) return null;
-    let a = 2166136261, b = 2654435769;
-    for (let i = 0; i < body.length; i++) {
-      const code = body.charCodeAt(i);
-      a = Math.imul(a ^ code, 16777619);
-      b = Math.imul(b ^ code, 2246822507);
-    }
-    const base = (a >>> 0).toString(16).padStart(8, "0") + (b >>> 0).toString(16).padStart(8, "0") + ":" + body.length;
-    const occurrence = occurrences.get(base) || 0;
-    occurrences.set(base, occurrence + 1);
-    return base + ":" + occurrence;
-  });
-}
-var validKey = (key) => typeof key === "string" && /^[0-9a-f]{16}:\d{1,10}:\d{1,10}$/.test(key);
-function createOpeningFavorites(host, avatar) {
-  const storageKey = avatar ? "uos_favorites_v1_" + encodeURIComponent(String(avatar)) : null;
-  let memory = /* @__PURE__ */ new Set(), lastBodies = [], lastKeys = [];
-  const pending = /* @__PURE__ */ new Map();
-  function snapshot() {
-    try {
-      const raw = storageKey && host?.localStorage?.getItem(storageKey);
-      if (raw != null) {
-        const value = JSON.parse(raw);
-        memory = new Set(value?.version === 1 && Array.isArray(value.keys) ? value.keys.filter(validKey).slice(0, 5e3) : []);
-      }
-    } catch {
-    }
-    for (const [key, selected] of pending) {
-      if (selected) memory.add(key);
-      else memory.delete(key);
-    }
-    return new Set(memory);
-  }
-  return {
-    keys(bodies) {
-      if (bodies.length !== lastBodies.length || bodies.some((body, i) => body !== lastBodies[i])) {
-        lastBodies = bodies.slice();
-        lastKeys = openingFavoriteKeys(bodies);
-      }
-      return lastKeys.slice();
-    },
-    snapshot,
-    toggle(key) {
-      if (!validKey(key)) return { selected: false, persisted: false };
-      const next = snapshot(), selected = !next.has(key);
-      if (selected) next.add(key);
-      else next.delete(key);
-      memory = next;
-      let persisted = false;
-      try {
-        if (storageKey && host?.localStorage) {
-          host.localStorage.setItem(storageKey, JSON.stringify({ version: 1, keys: [...next] }));
-          persisted = true;
-          pending.clear();
-        }
-      } catch {
-      }
-      if (!persisted) pending.set(key, selected);
-      return { selected, persisted };
-    }
-  };
 }
 
 // src/opening-favorites-ui.js
@@ -1796,9 +2082,9 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
     } catch {
     }
   }
-  function open(id, trigger) {
+  function open(id, trigger, scopeItems) {
     if (disposed) return false;
-    const items = getItems().slice(), start = items.findIndex((item) => item.id === id);
+    const items = (scopeItems || getItems()).slice(), start = items.findIndex((item) => item.id === id);
     if (start < 0) return false;
     close();
     const dialog = el("dialog", "uos-opening-preview");
@@ -2913,6 +3199,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     select.value = panel.dataset.theme;
     select.onchange = () => {
       panel.dataset.theme = select.value;
+      setBlindBoxTheme(blindTrigger, select.value);
       void backgroundControl?.setTheme(select.value);
       kicker.textContent = THEME_CAPTIONS[select.value];
       if (trigger) trigger.dataset.theme = select.value;
@@ -2957,27 +3244,28 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     layoutControl.append(el("span", "uos-user-theme-label", "版式"), layoutSelect);
     tools.insertBefore(layoutControl, settingsButton);
     const authorEntries = Array.isArray(authorConfig.entries) ? authorConfig.entries.map((entry, i) => isLegacyGeneratedEntry(snapshot.entries[i]?.body, entry, i) ? { ...entry, title: "", description: "" } : entry) : [];
-    let previewItems = [];
-    const previewActions = /* @__PURE__ */ new Map();
-    const openingPreview = createOpeningPreview({ doc, host, getItems: () => previewItems, getPalette: () => panel, onChoose: (item) => previewActions.get(item.id)?.() });
+    let previewItems = [], allDrawItems = [];
+    const openingPreview = createOpeningPreview({ doc, host, getItems: () => previewItems, getPalette: () => panel, onChoose: (item) => chooseOpening(item) });
     session.own(() => openingPreview.dispose());
     const blindBox = createOpeningBlindBox({
       doc,
       host,
       getItems: () => previewItems,
+      getAllItems: () => allDrawItems,
+      avatar: snapshot.avatar,
       getPalette: () => panel,
+      onRangeChange: (result) => {
+        renderCards();
+        if (!result.persisted) status.textContent = "浏览器未能保存，抽取范围暂时只在当前窗口有效。";
+      },
       isActive: () => {
         const current = state();
         return !session.disposed && panelSession === session && current?.avatar === snapshot.avatar && current?.characterId === snapshot.characterId;
       },
-      onPreview: (item, trigger2) => {
-        if (!openingPreview.open(item.id, trigger2)) status.textContent = "筛选结果已变化，请重新抽取。";
+      onPreview: (item, trigger2, pool) => {
+        if (!openingPreview.open(item.id, trigger2, pool)) status.textContent = "筛选结果已变化，请重新抽取。";
       },
-      onChoose: (item) => {
-        const action = previewActions.get(item.id);
-        if (action) return action();
-        status.textContent = "筛选结果已变化，请重新抽取。";
-      },
+      onChoose: (item) => chooseOpening(item),
       onUnavailable: () => {
         status.textContent = "角色或聊天已变化，请重新打开选择器。";
       },
@@ -2986,7 +3274,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       }
     });
     session.own(() => blindBox.dispose());
-    const blindTrigger = openingBlindBoxButton(el, (button) => blindBox.open(button));
+    const blindTrigger = openingBlindBoxButton(el, (button) => blindBox.open(button), panel.dataset.theme);
+    const blindRangeTrigger = openingBlindRangeButton(el, (button) => blindBox.openRange(button));
     const authorExcluded = excludedTags(authorConfig.excludedTags);
     const editKey = labelKey(snapshot).replace("_labels_", "_edits_");
     let localEdits = {};
@@ -3374,15 +3663,51 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         status.textContent = "浏览器未能保存，收藏暂时只在当前窗口有效。";
       }
     });
-    search.append(favoriteUI.element, blindTrigger);
+    search.append(favoriteUI.element, blindTrigger, blindRangeTrigger);
     session.own(() => favoriteUI.dispose());
     const openingGroups = createOpeningGroupRenderer({ el, gridClass: "uos-user-list" });
     query.oninput = () => renderCards();
     person.onchange = () => renderCards();
+    async function chooseOpening(entry, button) {
+      const index = entry.index ?? entry.id, choose = button || { disabled: false };
+      let current = state();
+      if (!current || current.characterId !== snapshot.characterId || current.avatar !== snapshot.avatar || index >= current.entries.length) {
+        status.textContent = "角色或聊天已变化，请重新打开选择器。";
+        return;
+      }
+      choose.disabled = true;
+      if (!await confirmPlayerChanges() || session.disposed) {
+        choose.disabled = false;
+        return;
+      }
+      current = state();
+      if (!current || current.characterId !== snapshot.characterId || current.avatar !== snapshot.avatar || index >= current.entries.length) {
+        status.textContent = "角色或聊天已变化，请重新打开选择器。";
+        choose.disabled = false;
+        return;
+      }
+      status.textContent = "正在切换开场…";
+      try {
+        const presetId = authorEntries[index]?.worldbookPresetId;
+        const preset = Array.isArray(authorConfig.worldbookPresets) ? authorConfig.worldbookPresets.find((value) => value.id === presetId) : null;
+        if (preset) status.textContent = "正在应用此开场的世界书条目预设…";
+        await switchOpeningWithPreset(preset, worldbookPresetManager, async () => {
+          const current2 = state();
+          if (session.disposed || !current2 || current2.characterId !== snapshot.characterId || current2.avatar !== snapshot.avatar) throw Error("角色或聊天已变化，请重新打开选择器");
+          await helper.setChatMessages([{ message_id: 0, swipe_id: index }], { refresh: "all" });
+          const after = state();
+          if (after?.swipeId !== index) throw Error("消息页未切换");
+        });
+        session.close();
+        scan();
+      } catch (error) {
+        status.textContent = `切换失败：${error?.message || error}`;
+        choose.disabled = false;
+      }
+    }
     function renderCards() {
       list.replaceChildren();
       previewItems = [];
-      previewActions.clear();
       const resolved = snapshot.entries.map((entry) => resolveDisplayEntry(entry, authorEntries[entry.index], localEdits[entry.index], [...authorExcluded, ...localExcluded]));
       const selected = person.value;
       person.replaceChildren();
@@ -3397,6 +3722,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       person.value = selected;
       const rows = favoriteUI.update(snapshot.entries.map((entry) => ({ ...entry, ...resolved[entry.index], ...openingMetadata(authorEntries[entry.index]), label: typeof customLabels[entry.index] === "string" && customLabels[entry.index] ? customLabels[entry.index] : entry.label })));
       categories.update(rows);
+      allDrawItems = rows.map((entry) => ({ ...authorEntries[entry.index], ...openingMetadata(entry), id: entry.index, index: entry.index, number: entry.index + 1, coverIndex: entry.index, title: entry.title, description: entry.description, label: entry.label, names: entry.names, body: entry.body, titleSource: entry.titleSource, suggestions: entry.nameSuggestions, isCurrent: entry.index === snapshot.swipeId }));
       const categoryValues = categories.values(), filtered = rows.filter((row) => (!favoriteUI.onlyFavorites() || row.favorite) && matchesOpening(row, { query: query.value, person: person.value, ...categoryValues })), visible = filtered.length;
       openingGroups.render(filtered, list, (entry, target) => {
         const display = entry;
@@ -3434,47 +3760,12 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         const choose = el("button", "uos-user-select", entry.index === snapshot.swipeId ? "当前开场" : `进入开场 ${entry.index + 1}`);
         choose.type = "button";
         choose.disabled = entry.index === snapshot.swipeId;
-        choose.onclick = async () => {
-          let current = state();
-          if (!current || current.characterId !== snapshot.characterId || current.avatar !== snapshot.avatar || entry.index >= current.entries.length) {
-            status.textContent = "角色或聊天已变化，请重新打开选择器。";
-            return;
-          }
-          choose.disabled = true;
-          if (!await confirmPlayerChanges() || session.disposed) {
-            choose.disabled = false;
-            return;
-          }
-          current = state();
-          if (!current || current.characterId !== snapshot.characterId || current.avatar !== snapshot.avatar || entry.index >= current.entries.length) {
-            status.textContent = "角色或聊天已变化，请重新打开选择器。";
-            choose.disabled = false;
-            return;
-          }
-          status.textContent = "正在切换开场…";
-          try {
-            const presetId = authorEntries[entry.index]?.worldbookPresetId;
-            const preset = Array.isArray(authorConfig.worldbookPresets) ? authorConfig.worldbookPresets.find((value) => value.id === presetId) : null;
-            if (preset) status.textContent = "正在应用此开场的世界书条目预设…";
-            await switchOpeningWithPreset(preset, worldbookPresetManager, async () => {
-              const current2 = state();
-              if (session.disposed || !current2 || current2.characterId !== snapshot.characterId || current2.avatar !== snapshot.avatar) throw Error("角色或聊天已变化，请重新打开选择器");
-              await helper.setChatMessages([{ message_id: 0, swipe_id: entry.index }], { refresh: "all" });
-              const after = state();
-              if (after?.swipeId !== entry.index) throw Error("消息页未切换");
-            });
-            session.close();
-            scan();
-          } catch (error) {
-            status.textContent = `切换失败：${error?.message || error}`;
-            choose.disabled = false;
-          }
-        };
-        previewActions.set(entry.index, choose.onclick);
+        choose.onclick = () => chooseOpening(entry, choose);
         card.append(choose);
         target.append(card);
       }, rows);
-      updateBlindBoxButton(blindTrigger, previewItems);
+      updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: panel.dataset.theme, manual: blindBox.rangeMode() === "manual" });
+      blindRangeTrigger.textContent = blindBox.rangeMode() === "manual" ? "⚙ 抽取范围 · 手动勾选" : "⚙ 抽取范围 · 当前筛选";
       results.textContent = favoriteUI.onlyFavorites() || query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
       if (!visible) list.append(el("p", "uos-user-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
     }
@@ -4778,7 +5069,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 :is(.uos,.uos-user-panel) .uos-blind-trigger::before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);border-radius:11px;pointer-events:none;z-index:-1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger::after{content:"";position:absolute;inset:-60% -20%;background:linear-gradient(110deg,transparent 42%,color-mix(in srgb,var(--accent) 13%,transparent) 49%,transparent 56%);transform:translateX(-85%);animation:uos-blind-entrance-sheen 8s ease-in-out infinite;pointer-events:none;z-index:-1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-art{position:relative;flex:none;width:88px;height:74px;display:grid;place-items:center;animation:uos-blind-entrance-float 5s ease-in-out infinite;filter:drop-shadow(0 3px 9px color-mix(in srgb,var(--accent) 20%,transparent));pointer-events:none}
-:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{position:absolute;width:92px;height:92px;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;object-fit:contain;opacity:0;transition:opacity .3s}
+:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{position:absolute;width:43px;height:62px;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:0 3px 7px #0004!important;background:transparent!important;object-fit:cover;border-radius:5px;transform:translateX(calc(var(--fan) * var(--uos-fan-step,19px))) rotate(calc(var(--fan) * 17deg));opacity:0;transition:opacity .3s}
 :is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art[data-ready=true]{opacity:1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-symbol{font-size:34px;line-height:1;color:var(--accent)}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-art[data-art-ready=true] .uos-blind-trigger-symbol{opacity:0}
@@ -4787,7 +5078,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 :is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font:400 12px/1.5 system-ui,sans-serif!important;color:var(--muted)!important;white-space:normal}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-action{display:flex;align-items:center;gap:8px;flex:none;padding:8px 11px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:24px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:19px;transition:transform .25s}
-:is(.uos,.uos-user-panel) .uos-blind-art-warm{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+:is(.uos,.uos-user-panel) .uos-blind-range-trigger{appearance:none!important;min-height:44px;display:block;flex:none;margin:0 0 0 auto!important;padding:7px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--surface)!important;color:var(--muted)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer}:is(.uos,.uos-user-panel) .uos-blind-range-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px}
 @media(hover:hover){:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover{transform:translateY(-2px)!important;border-color:var(--accent)!important;box-shadow:inset 0 0 24px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 22px color-mix(in srgb,var(--accent) 12%,transparent)!important}:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover .uos-blind-trigger-arrow{transform:translate(2px,-2px)}}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):active{transform:scale(.99)!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
@@ -4795,8 +5086,8 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 :is(.uos,.uos-user-panel) .uos-blind-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
 @keyframes uos-blind-entrance-float{0%,100%{transform:translateY(2px) rotate(-3deg)}50%{transform:translateY(-3px) rotate(1deg)}}
 @keyframes uos-blind-entrance-sheen{0%,62%{transform:translateX(-85%)}90%,100%{transform:translateX(85%)}}
-@media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:74px;height:74px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
-@media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:62px;height:62px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
+@media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px;--uos-fan-step:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:35px;height:52px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
+@media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px;--uos-fan-step:5px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:30px;height:46px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
 @media(prefers-reduced-motion:reduce){:is(.uos,.uos-user-panel) .uos-blind-trigger,:is(.uos,.uos-user-panel) .uos-blind-trigger *,:is(.uos,.uos-user-panel) .uos-blind-trigger::after{animation:none!important;transition:none!important}}
 `;
 
@@ -4850,9 +5141,9 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
   } });
   categories.update(model.items);
   filters.append(categories.element);
-  const blindTrigger = openingBlindBoxButton(el);
-  updateBlindBoxButton(blindTrigger, model.items, { readonly: true });
-  filters.append(blindTrigger);
+  const blindTrigger = openingBlindBoxButton(el, null, model.theme);
+  updateBlindBoxButton(blindTrigger, model.items, { readonly: true, theme: model.theme });
+  filters.append(blindTrigger, openingBlindRangeButton(el));
   for (const select of categories.element.querySelectorAll("select")) select.disabled = true;
   let result = root.querySelector(".uos-results");
   if (!result) {
@@ -5105,7 +5396,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   root.__uosDispose?.();
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
   let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox;
-  let previewItems = [];
+  let previewItems = [], allDrawItems = [];
   root.__uosDispose = () => {
     blindBox?.dispose();
     favoriteUI?.dispose();
@@ -5226,10 +5517,16 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     doc: host.document,
     host,
     getItems: () => previewItems,
+    getAllItems: () => allDrawItems,
+    avatar: previewAvatar,
     getPalette: () => root,
+    onRangeChange: (result) => {
+      render();
+      if (!result.persisted) status("浏览器未能保存，抽取范围暂时只在当前页面有效。");
+    },
     isActive: () => root.isConnected !== false && character()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
-    onPreview: (item, trigger) => {
-      if (!openingPreview.open(item.id, trigger)) status("筛选结果已变化，请重新抽取。");
+    onPreview: (item, trigger, pool) => {
+      if (!openingPreview.open(item.id, trigger, pool)) status("筛选结果已变化，请重新抽取。");
     },
     onChoose: (item) => choose(item.id),
     onUnavailable: () => status("角色或聊天已变化，请重新打开选择器。"),
@@ -5241,6 +5538,13 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       return;
     }
     blindBox.open(button);
+  }, displayTheme);
+  const blindRangeTrigger = openingBlindRangeButton(el, (button) => {
+    if (activePopup) {
+      status("请先关闭当前主题或设置窗口。");
+      return;
+    }
+    blindBox.openRange(button);
   });
   worldbookEditor = createWorldbookPresetEditor({
     doc,
@@ -5316,6 +5620,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   function setTheme(value, remember = true) {
     displayTheme = value;
     root.dataset.theme = value;
+    setBlindBoxTheme(blindTrigger, value);
     void backgroundControl?.setTheme(value);
     syncDialogTheme();
     pagePreview?.refresh();
@@ -5645,7 +5950,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       filters.append(filters.__uosCategories.element);
     }
     filters.__uosCategories.update(rows);
-    if (!filters.contains(blindTrigger)) filters.append(blindTrigger);
+    if (!filters.contains(blindTrigger)) filters.append(blindTrigger, blindRangeTrigger);
+    allDrawItems = rows.filter((entry) => entry.body).map((entry) => ({ ...entry, id: entry.id + 1, number: entry.id + 1, coverIndex: entry.id }));
     const openingCount = $("[data-opening-count]");
     if (openingCount) openingCount.textContent = `共 ${items.length} 个开场`;
     for (const entry of items) for (const name of String(entry.names || "").split(/[、，,\/]/).map((x) => x.trim()).filter(Boolean)) people.add(name);
@@ -5680,7 +5986,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         }
       }));
     }, rows);
-    updateBlindBoxButton(blindTrigger, previewItems);
+    updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: displayTheme, manual: blindBox.rangeMode() === "manual" });
+    blindRangeTrigger.textContent = blindBox.rangeMode() === "manual" ? "⚙ 抽取范围 · 手动勾选" : "⚙ 抽取范围 · 当前筛选";
     let result = root.querySelector(".uos-results");
     if (!result) {
       result = el("p", "uos-results");
