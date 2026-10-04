@@ -1,3 +1,5 @@
+import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton} from './opening-blind-box.js';
+import {BLIND_BOX_CONTROL_CSS} from './opening-blind-box-styles.js';
 import {createOpeningFavorites} from './opening-favorites.js';
 import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {OPENING_FAVORITES_CSS} from './opening-favorites-styles.js';
@@ -282,7 +284,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
+  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
   let trigger=null,panelSession=null,updating=false,suppressClickUntil=0;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
@@ -381,6 +383,13 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const authorEntries=Array.isArray(authorConfig.entries)?authorConfig.entries.map((entry,i)=>isLegacyGeneratedEntry(snapshot.entries[i]?.body,entry,i)?{...entry,title:'',description:''}:entry):[];
     let previewItems=[];const previewActions=new Map();
     const openingPreview=createOpeningPreview({doc,host,getItems:()=>previewItems,getPalette:()=>panel,onChoose:item=>previewActions.get(item.id)?.()});session.own(()=>openingPreview.dispose());
+    const blindBox=createOpeningBlindBox({doc,host,getItems:()=>previewItems,getPalette:()=>panel,
+      isActive:()=>{const current=state();return !session.disposed&&panelSession===session&&current?.avatar===snapshot.avatar&&current?.characterId===snapshot.characterId},
+      onPreview:(item,trigger)=>{if(!openingPreview.open(item.id,trigger))status.textContent='筛选结果已变化，请重新抽取。'},
+      onChoose:item=>{const action=previewActions.get(item.id);if(action)return action();status.textContent='筛选结果已变化，请重新抽取。'},
+      onUnavailable:()=>{status.textContent='角色或聊天已变化，请重新打开选择器。'},onError:error=>{status.textContent=`进入开场失败：${error?.message||error}`}});
+    session.own(()=>blindBox.dispose());
+    const blindTrigger=openingBlindBoxButton(el,button=>blindBox.open(button));
     const authorExcluded=excludedTags(authorConfig.excludedTags);
     const editKey=labelKey(snapshot).replace('_labels_','_edits_');
     let localEdits={};try{const saved=JSON.parse(host.localStorage.getItem(editKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localEdits=saved}catch{}
@@ -520,7 +529,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const favoriteUI=createOpeningFavoritesUI({el,store:favoritesStore,onChange:()=>renderCards(),
       isActive:()=>{const current=state();return !session.disposed&&panelSession===session&&current?.avatar===snapshot.avatar&&current?.characterId===snapshot.characterId},
       onUnavailable:()=>{status.textContent='浏览器未能保存，收藏暂时只在当前窗口有效。'}});
-    search.append(favoriteUI.element);session.own(()=>favoriteUI.dispose());
+    search.append(favoriteUI.element,blindTrigger);session.own(()=>favoriteUI.dispose());
     const openingGroups=createOpeningGroupRenderer({el,gridClass:'uos-user-list'});
     query.oninput=()=>renderCards();person.onchange=()=>renderCards();
     function renderCards(){list.replaceChildren();previewItems=[];previewActions.clear();const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
@@ -562,7 +571,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       };
       previewActions.set(entry.index,choose.onclick);
       card.append(choose);target.append(card);
-    },rows);results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
+    },rows);updateBlindBoxButton(blindTrigger,previewItems);results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);

@@ -12,6 +12,8 @@
 | src/theme-backgrounds.js | 共享背景预加载、在途去重、缓存、备用源与取消 |
 | src/opening-categories.js | 作者明确填写的分组／标签规范、组合筛选与按原索引分组；不依赖 UI |
 | src/opening-category-ui.js / opening-category-styles.js | 共用分类筛选控件、分组折叠、标签展示与样式 |
+| src/opening-blind-draw.js | 筛选结果候选规范与避免连续重复的随机抽取；不依赖 UI 或存储 |
+| src/opening-blind-box.js / opening-blind-box-styles.js | 共用主题盲盒弹窗、分阶段动画、减少动态效果、取消与过期保护；确认后调用外部预览／选择接口 |
 | src/opening-favorites.js | 原始正文指纹与按角色本机收藏；不依赖 UI，不保存原文 |
 | src/opening-favorites-ui.js / opening-favorites-styles.js | 收藏按钮、组合筛选开关、焦点恢复及过期事件保护；不调用选择事务 |
 | src/opening-action-styles.js | 作者／玩家阅读入口装饰及防宿主覆盖的共用按钮样式 |

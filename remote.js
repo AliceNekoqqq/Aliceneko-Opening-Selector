@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.9" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.10" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
@@ -123,6 +123,347 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
       if (ownsService) service.close();
     }
   };
+}
+
+// src/opening-blind-draw.js
+function blindBoxPool(items) {
+  const seen = /* @__PURE__ */ new Set();
+  return items.filter((item) => {
+    if (!item || !Number.isInteger(item.id) || !item.body || item.isCurrent || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+function drawOpening(pool, lastId, random = Math.random) {
+  if (!pool.length) return null;
+  const candidates = pool.length > 1 ? pool.filter((item) => item.id !== lastId) : pool;
+  const value = random(), unit = Number.isFinite(value) ? Math.max(0, Math.min(1 - Number.EPSILON, value)) : 0;
+  return candidates[Math.floor(unit * candidates.length)];
+}
+
+// src/opening-blind-box-styles.js
+var BLIND_BOX_CONTROL_CSS = `
+:is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;flex:none;display:flex!important;align-items:center;justify-content:center;gap:8px;min-height:44px;margin:0!important;padding:8px 14px!important;border:1px solid var(--accent)!important;border-radius:9px!important;background:linear-gradient(125deg,var(--surface),var(--bg))!important;color:var(--accent)!important;font:700 12px/1.5 system-ui,sans-serif!important;cursor:pointer;box-shadow:inset 0 0 16px color-mix(in srgb,var(--accent) 8%,transparent)!important;white-space:nowrap}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+`;
+var BLIND_BOX_DIALOG_CSS = `
+.uos-blind-box{--bg:#19131e;--surface:#2c2231;--text:#f1e7ee;--muted:#baa8b6;--accent:#d8b782;--line:#6c5264;color-scheme:dark;box-sizing:border-box;width:min(540px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;padding:0!important;margin:auto;border:1px solid var(--line)!important;border-radius:22px!important;background:var(--bg)!important;color:var(--text)!important;box-shadow:0 28px 100px #0008;overflow:auto;font:14px/1.6 system-ui,sans-serif}
+.uos-blind-box::backdrop{background:#090711bd;backdrop-filter:blur(8px)}
+.uos-blind-box *{box-sizing:border-box}
+.uos-blind-box [hidden]{display:none!important}
+.uos-blind-box button{appearance:none!important;margin:0!important;width:auto!important;min-width:0!important;min-height:44px!important;padding:10px 14px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--text)!important;font:600 13px/1.5 system-ui,sans-serif!important;box-shadow:none!important;cursor:pointer}
+.uos-blind-box button:disabled{opacity:.45;cursor:default}
+.uos-blind-box button:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+.uos-blind-box .uos-blind-enter{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--bg)!important}
+.uos-blind-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.uos-blind-heading{margin:0;font-size:19px!important;letter-spacing:.12em;color:var(--accent)!important}
+.uos-blind-kicker{margin:0;color:var(--muted);font-size:11px;letter-spacing:.16em}
+.uos-blind-stage{position:relative;display:grid;place-items:center;min-height:405px;padding:26px 20px;isolation:isolate;overflow:hidden;perspective:1000px;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--accent) 16%,transparent),transparent 68%)}
+.uos-blind-aura{position:absolute;inset:22px 15%;border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:50%;transform:rotate(-24deg);pointer-events:none}
+.uos-blind-aura::before,.uos-blind-aura::after{content:"";position:absolute;inset:17px -26px;border:1px dashed color-mix(in srgb,var(--accent) 25%,transparent);border-radius:50%;transform:rotate(60deg)}
+.uos-blind-aura::after{inset:46px -46px;transform:rotate(-60deg)}
+.uos-blind-sparks{position:absolute;inset:0;pointer-events:none}
+.uos-blind-spark{position:absolute;left:50%;top:50%;width:3px;height:3px;border-radius:50%;background:var(--accent);opacity:0;box-shadow:0 0 9px var(--accent)}
+.uos-blind-spark:nth-child(3n){width:5px;height:5px}
+.uos-blind-deck{position:relative;width:190px;height:250px;transform-style:preserve-3d;z-index:1}
+.uos-blind-card{position:absolute;inset:0;display:grid;place-items:center;border:1px solid var(--accent);border-radius:15px;background:linear-gradient(145deg,var(--surface),var(--bg));box-shadow:0 8px 25px #0004,inset 0 0 35px color-mix(in srgb,var(--accent) 9%,transparent);backface-visibility:hidden;transform:translateX(calc(var(--card) * 16px)) rotate(calc(var(--card) * 8deg));color:var(--accent);font-size:48px}
+.uos-blind-card::before{content:"";position:absolute;inset:10px;border:1px solid var(--line);border-radius:10px}
+.uos-blind-card::after{content:"";position:absolute;width:85px;height:85px;border:1px solid var(--accent);border-radius:50%;box-shadow:0 0 0 12px color-mix(in srgb,var(--accent) 6%,transparent),0 0 0 28px color-mix(in srgb,var(--accent) 4%,transparent)}
+.uos-blind-symbol{z-index:1;text-shadow:0 0 18px color-mix(in srgb,var(--accent) 40%,transparent)}
+.uos-blind-result{position:relative;width:100%;z-index:2;text-align:center}
+.uos-blind-cover{height:220px;width:min(100%,380px);margin:0 auto 16px;border:1px solid var(--accent);border-radius:14px;background-size:cover;background-position:center;box-shadow:0 16px 42px #0004}
+.uos-blind-title{margin:0!important;color:var(--text)!important;font-size:24px!important;line-height:1.4!important;overflow-wrap:anywhere}
+.uos-blind-number{margin:7px 0 0;color:var(--accent);font-size:12px}
+.uos-blind-description{margin:12px auto 0;max-width:390px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.uos-blind-status{margin:0!important;padding:0 20px 14px;text-align:center;min-height:40px;color:var(--accent)}
+.uos-blind-footer{padding:16px 20px 20px;border-top:1px solid var(--line)}
+.uos-blind-scope{margin:0 0 12px;color:var(--muted);font-size:12px;text-align:center}
+.uos-blind-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.uos-blind-box[data-phase=shuffle] .uos-blind-card{animation:uos-blind-orbit 650ms cubic-bezier(.45,0,.55,1) infinite;animation-delay:calc(var(--card) * -130ms)}
+.uos-blind-box[data-phase=shuffle] .uos-blind-aura{animation:uos-blind-ring 3s linear infinite}
+.uos-blind-box[data-phase=shuffle] .uos-blind-spark{animation:uos-blind-spark 1.2s ease-out infinite;animation-delay:calc(var(--spark) * -100ms)}
+.uos-blind-box[data-phase=locking] .uos-blind-card{animation:uos-blind-lock 650ms cubic-bezier(.15,.8,.2,1) both}
+.uos-blind-box[data-phase=revealed] .uos-blind-spark{animation:uos-blind-burst 900ms ease-out both;animation-delay:calc(var(--spark) * 18ms)}
+.uos-blind-box[data-phase=revealed] .uos-blind-result{animation:uos-blind-reveal 700ms cubic-bezier(.16,1,.3,1) both}
+.uos-blind-box[data-phase=revealed] .uos-blind-aura{opacity:.4;transform:scale(1.4) rotate(-24deg);transition:transform 700ms,opacity 700ms}
+@keyframes uos-blind-orbit{0%,100%{transform:translate3d(calc(var(--card) * 30px),0,calc(var(--card) * -12px)) rotateY(-25deg) rotate(calc(var(--card) * 7deg))}50%{transform:translate3d(calc(var(--card) * -32px),-16px,90px) rotateY(30deg) rotate(calc(var(--card) * -9deg))}}
+@keyframes uos-blind-lock{from{transform:var(--lock-from,translate3d(0,0,0))}to{transform:translate3d(0,0,50px) rotateY(0) rotate(0)}}
+@keyframes uos-blind-reveal{from{opacity:0;transform:perspective(1000px) rotateY(-75deg) scale(.83)}to{opacity:1;transform:perspective(1000px) rotateY(0) scale(1)}}
+@keyframes uos-blind-burst{0%{opacity:0;transform:rotate(calc(var(--spark) * 30deg)) translateX(45px) scale(.5)}20%{opacity:.8}100%{opacity:0;transform:rotate(calc(var(--spark) * 30deg)) translateX(230px) scale(1.3)}}
+@keyframes uos-blind-ring{to{transform:rotate(336deg)}}
+@keyframes uos-blind-spark{from{opacity:.8;transform:rotate(calc(var(--spark) * 30deg)) translateX(55px) scale(.5)}to{opacity:0;transform:rotate(calc(var(--spark) * 30deg)) translateX(210px) scale(1)}}
+@media(max-width:480px){.uos-blind-header{padding:14px}.uos-blind-stage{min-height:350px;padding:22px 14px}.uos-blind-cover{height:180px}.uos-blind-footer{padding:14px}.uos-blind-title{font-size:21px!important}.uos-blind-actions{grid-template-columns:1fr 1fr}.uos-blind-actions .uos-blind-enter{grid-column:1/-1}}
+@media(prefers-reduced-motion:reduce){.uos-blind-box *{animation:none!important;transition:none!important}}
+`;
+
+// src/default-covers.js
+var DEFAULT_COVER_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
+var temporaryCoverSeed;
+function defaultCoverSlot(identity, index, host) {
+  let seed;
+  try {
+    const storage = host?.localStorage;
+    seed = storage?.getItem("uos_default_cover_seed_v1");
+    if (!seed) {
+      seed = storage ? String(Math.random()) : temporaryCoverSeed || (temporaryCoverSeed = String(Math.random()));
+      storage?.setItem("uos_default_cover_seed_v1", seed);
+    }
+  } catch {
+    seed = temporaryCoverSeed || (temporaryCoverSeed = seed || String(Math.random()));
+  }
+  seed || (seed = temporaryCoverSeed || (temporaryCoverSeed = String(Math.random())));
+  let hash = 2166136261;
+  for (const character of `${seed}|${identity}|${index}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  return (hash >>> 0) % 5 + 1;
+}
+function defaultCoverStyles(selector) {
+  const base = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${DEFAULT_COVER_REF}/assets/default-covers`;
+  return THEME_IDS.map((theme) => `${selector}[data-theme="${theme}"]{${Array.from({ length: 5 }, (_, i) => `--uos-default-cover-${i + 1}:url("${base}/${theme}-${i + 1}.webp")`).join(";")}}`).join("\n");
+}
+
+// src/opening-presentation.js
+var OPENING_LAYOUTS = [["classic", "原有卡片"], ["gallery", "画廊"], ["catalog", "故事目录"], ["dossier", "档案"]];
+function openingLayout(value) {
+  return OPENING_LAYOUTS.some(([id]) => id === value) ? value : "classic";
+}
+function coverPresentation(entry = {}) {
+  entry = entry && typeof entry === "object" ? entry : {};
+  const point = (value) => typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 50;
+  return {
+    coverSlot: Number.isInteger(entry.coverSlot) && entry.coverSlot >= 1 && entry.coverSlot <= 5 ? entry.coverSlot : 0,
+    coverFocus: { x: point(entry.coverFocus?.x), y: point(entry.coverFocus?.y) }
+  };
+}
+function applyOpeningCover(cover, entry, identity, index, host, { shade = false } = {}) {
+  const { coverSlot, coverFocus } = coverPresentation(entry);
+  const custom = /^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry?.image || "");
+  const image = custom ? `url("${entry.image.replace(/["\\\r\n]/g, "")}")` : `var(--uos-default-cover-${coverSlot || defaultCoverSlot(identity, index, host)})`;
+  cover.classList.add("has-image");
+  cover.style.backgroundImage = (shade ? "linear-gradient(0deg,#0005,transparent)," : "") + image;
+  cover.style.backgroundPosition = `${coverFocus.x}% ${coverFocus.y}%`;
+}
+
+// src/opening-blind-box.js
+function openingBlindBoxButton(el, onOpen) {
+  const button = el("button", "uos-blind-trigger", "✦ 命运盲盒");
+  button.type = "button";
+  button.setAttribute("aria-label", "命运盲盒");
+  if (onOpen) button.onclick = () => onOpen(button);
+  else button.disabled = true;
+  return button;
+}
+function updateBlindBoxButton(button, items, { readonly = false } = {}) {
+  const count = blindBoxPool(items).length;
+  button.textContent = `✦ 命运盲盒 · ${count}`;
+  button.disabled = readonly || count === 0;
+  button.setAttribute("title", count ? `从当前筛选结果的 ${count} 个开场中随机抽取，确认进入后才切换` : "当前筛选下没有可抽取的新开场");
+}
+function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getPalette, isActive = () => true, onPreview, onChoose, onUnavailable = () => {
+}, onError = () => {
+}, random = Math.random }) {
+  let disposed = false, active = null, lastId = null, choosing = false;
+  const clock = host || globalThis, style = doc.createElement("style");
+  style.dataset.uosBlindStyle = "";
+  style.textContent = BLIND_BOX_DIALOG_CSS + defaultCoverStyles(".uos-blind-box");
+  (doc.head || doc.documentElement).append(style);
+  const el = (tag, cls = "", text) => {
+    const node = doc.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = String(text);
+    return node;
+  };
+  function close() {
+    const current = active;
+    if (!current) return;
+    active = null;
+    for (const timer of current.timers) clock.clearTimeout(timer);
+    current.timers.clear();
+    current.dialog.removeEventListener("keydown", current.onKey);
+    if (current.dialog.open) current.dialog.close();
+    current.dialog.remove();
+    try {
+      if (current.trigger?.isConnected) current.trigger.focus();
+    } catch {
+    }
+  }
+  function open(trigger) {
+    if (disposed || choosing || !isActive()) return false;
+    const pool = blindBoxPool(getItems()).map((item) => ({ ...item }));
+    if (!pool.length) return false;
+    close();
+    const dialog = el("dialog", "uos-blind-box");
+    dialog.setAttribute("aria-label", "命运盲盒");
+    dialog.setAttribute("aria-modal", "true");
+    const palette = getPalette(), computed = palette.ownerDocument.defaultView.getComputedStyle(palette);
+    dialog.dataset.theme = palette.dataset.theme || "archive";
+    for (const key of ["--bg", "--surface", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(key, computed.getPropertyValue(key) || computed.getPropertyValue("--panel"));
+    const header = el("div", "uos-blind-header"), heading = el("div"), exit = el("button", "", "关闭盲盒");
+    exit.type = "button";
+    exit.onclick = () => {
+      if (active?.dialog === dialog) close();
+    };
+    heading.append(el("p", "uos-blind-kicker", "LET FATE CHOOSE"), el("h2", "uos-blind-heading", "命运盲盒"));
+    header.append(heading, exit);
+    const stage = el("div", "uos-blind-stage"), aura = el("div", "uos-blind-aura"), sparks = el("div", "uos-blind-sparks"), deck = el("div", "uos-blind-deck"), result = el("div", "uos-blind-result");
+    for (const node of [aura, sparks, deck]) node.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 12; i++) {
+      const spark = el("span", "uos-blind-spark");
+      spark.style.setProperty("--spark", i);
+      sparks.append(spark);
+    }
+    for (let i = -2; i <= 2; i++) {
+      const card = el("div", "uos-blind-card");
+      card.style.setProperty("--card", i);
+      card.append(el("span", "uos-blind-symbol", "✦"));
+      deck.append(card);
+    }
+    stage.append(aura, sparks, deck, result);
+    const status = el("p", "uos-blind-status");
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    const footer = el("div", "uos-blind-footer"), scope = el("p", "uos-blind-scope", `当前筛选 · ${pool.length} 个候选开场${pool.length > 1 ? " · 重抽不连续重复" : ""}`), actions = el("div", "uos-blind-actions");
+    const reroll = el("button", "", "再抽一次"), preview = el("button", "", "预览正文"), choose = el("button", "uos-blind-enter", "进入此开场");
+    for (const button of [reroll, preview, choose]) button.type = "button";
+    actions.append(reroll, preview, choose);
+    footer.append(scope, actions);
+    dialog.append(header, stage, status, footer);
+    const session = { dialog, trigger, timers: /* @__PURE__ */ new Set(), onKey: null };
+    let selected = null, busy = false;
+    function valid() {
+      if (disposed || active !== session) return false;
+      if (!isActive()) {
+        close();
+        onUnavailable();
+        return false;
+      }
+      return true;
+    }
+    function later(fn, delay) {
+      const timer = clock.setTimeout(() => {
+        session.timers.delete(timer);
+        if (valid()) fn();
+      }, delay);
+      session.timers.add(timer);
+    }
+    function reveal(item) {
+      selected = item;
+      lastId = item.id;
+      busy = false;
+      deck.hidden = true;
+      result.replaceChildren();
+      const cover = el("div", "uos-blind-cover");
+      cover.setAttribute("aria-hidden", "true");
+      applyOpeningCover(cover, item, item.body, item.coverIndex ?? item.id, host);
+      result.append(cover, el("h3", "uos-blind-title", item.title), el("p", "uos-blind-number", `开场 ${String(item.number ?? item.id + 1).padStart(2, "0")}${item.label ? " · " + item.label : ""}`), el("p", "uos-blind-description", item.description || "这段故事，等待你亲自揭晓。"));
+      result.hidden = false;
+      dialog.dataset.phase = "revealed";
+      status.textContent = "命运已揭晓，故事由你决定。";
+      reroll.disabled = pool.length < 2;
+      preview.disabled = false;
+      choose.disabled = false;
+      if (doc.activeElement === reroll || doc.activeElement === dialog) preview.focus();
+    }
+    function roll() {
+      if (!valid() || busy) return;
+      busy = true;
+      selected = null;
+      result.hidden = true;
+      result.replaceChildren();
+      deck.hidden = false;
+      dialog.dataset.phase = "shuffle";
+      status.textContent = pool.length === 1 ? "只有一个候选，即将揭晓…" : "正在洗牌，寻找你的故事…";
+      reroll.disabled = preview.disabled = choose.disabled = true;
+      const item = drawOpening(pool, lastId, random);
+      let reduced = false;
+      try {
+        reduced = Boolean(clock.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+      } catch {
+      }
+      if (reduced) {
+        reveal(item);
+        return;
+      }
+      later(() => {
+        for (const card of deck.children) card.style.setProperty("--lock-from", doc.defaultView.getComputedStyle(card).transform || "translate3d(0,0,0)");
+        dialog.dataset.phase = "locking";
+        status.textContent = "命运正在落定…";
+      }, pool.length === 1 ? 100 : 1500);
+      later(() => reveal(item), pool.length === 1 ? 750 : 2200);
+    }
+    reroll.onclick = () => {
+      if (!reroll.disabled) roll();
+    };
+    preview.onclick = () => {
+      if (!valid() || busy || !selected || preview.disabled) return;
+      const item = selected;
+      close();
+      onPreview(item, trigger);
+    };
+    choose.onclick = () => {
+      if (!valid() || busy || !selected || choose.disabled) return;
+      const item = selected;
+      choosing = true;
+      close();
+      try {
+        Promise.resolve(onChoose(item)).catch((error) => {
+          if (!disposed && isActive()) onError(error);
+        }).finally(() => {
+          choosing = false;
+        });
+      } catch (error) {
+        choosing = false;
+        if (!disposed && isActive()) onError(error);
+      }
+    };
+    session.onKey = (event) => {
+      if (disposed || active !== session) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close();
+        return;
+      }
+      if (event.key === "Tab") {
+        const controls = [exit, reroll, preview, choose].filter((button) => !button.disabled), first = controls[0], last = controls.at(-1);
+        if (event.shiftKey && doc.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && doc.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    active = session;
+    dialog.addEventListener("keydown", session.onKey);
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      if (active === session) close();
+    });
+    dialog.addEventListener("close", () => {
+      if (active === session) close();
+    });
+    dialog.addEventListener("click", (event) => {
+      if (active === session && event.target === dialog) close();
+    });
+    doc.body.append(dialog);
+    try {
+      dialog.showModal();
+    } catch {
+      dialog.setAttribute("open", "");
+      dialog.setAttribute("role", "dialog");
+    }
+    exit.focus();
+    roll();
+    return true;
+  }
+  return { open, close, dispose() {
+    if (disposed) return;
+    disposed = true;
+    close();
+    style.remove();
+  } };
 }
 
 // src/opening-favorites.js
@@ -1191,53 +1532,6 @@ function isLegacyGeneratedEntry(body, entry, index) {
   if (!entry || typeof entry !== "object") return false;
   const plain = clean(body), title = plain.slice(0, 20) || `开场 ${index + 1}`;
   return entry.title === title && (entry.description || "") === plain.slice(20, 88);
-}
-
-// src/default-covers.js
-var DEFAULT_COVER_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
-var temporaryCoverSeed;
-function defaultCoverSlot(identity, index, host) {
-  let seed;
-  try {
-    const storage = host?.localStorage;
-    seed = storage?.getItem("uos_default_cover_seed_v1");
-    if (!seed) {
-      seed = storage ? String(Math.random()) : temporaryCoverSeed || (temporaryCoverSeed = String(Math.random()));
-      storage?.setItem("uos_default_cover_seed_v1", seed);
-    }
-  } catch {
-    seed = temporaryCoverSeed || (temporaryCoverSeed = seed || String(Math.random()));
-  }
-  seed || (seed = temporaryCoverSeed || (temporaryCoverSeed = String(Math.random())));
-  let hash = 2166136261;
-  for (const character of `${seed}|${identity}|${index}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
-  return (hash >>> 0) % 5 + 1;
-}
-function defaultCoverStyles(selector) {
-  const base = `https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@${DEFAULT_COVER_REF}/assets/default-covers`;
-  return THEME_IDS.map((theme) => `${selector}[data-theme="${theme}"]{${Array.from({ length: 5 }, (_, i) => `--uos-default-cover-${i + 1}:url("${base}/${theme}-${i + 1}.webp")`).join(";")}}`).join("\n");
-}
-
-// src/opening-presentation.js
-var OPENING_LAYOUTS = [["classic", "原有卡片"], ["gallery", "画廊"], ["catalog", "故事目录"], ["dossier", "档案"]];
-function openingLayout(value) {
-  return OPENING_LAYOUTS.some(([id]) => id === value) ? value : "classic";
-}
-function coverPresentation(entry = {}) {
-  entry = entry && typeof entry === "object" ? entry : {};
-  const point = (value) => typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 50;
-  return {
-    coverSlot: Number.isInteger(entry.coverSlot) && entry.coverSlot >= 1 && entry.coverSlot <= 5 ? entry.coverSlot : 0,
-    coverFocus: { x: point(entry.coverFocus?.x), y: point(entry.coverFocus?.y) }
-  };
-}
-function applyOpeningCover(cover, entry, identity, index, host, { shade = false } = {}) {
-  const { coverSlot, coverFocus } = coverPresentation(entry);
-  const custom = /^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry?.image || "");
-  const image = custom ? `url("${entry.image.replace(/["\\\r\n]/g, "")}")` : `var(--uos-default-cover-${coverSlot || defaultCoverSlot(identity, index, host)})`;
-  cover.classList.add("has-image");
-  cover.style.backgroundImage = (shade ? "linear-gradient(0deg,#0005,transparent)," : "") + image;
-  cover.style.backgroundPosition = `${coverFocus.x}% ${coverFocus.y}%`;
 }
 
 // src/opening-layout-styles.js
@@ -2360,7 +2654,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
   let trigger = null, panelSession = null, updating = false, suppressClickUntil = 0;
   const positionKey = "uos_player_button_position";
@@ -2594,6 +2888,32 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const previewActions = /* @__PURE__ */ new Map();
     const openingPreview = createOpeningPreview({ doc, host, getItems: () => previewItems, getPalette: () => panel, onChoose: (item) => previewActions.get(item.id)?.() });
     session.own(() => openingPreview.dispose());
+    const blindBox = createOpeningBlindBox({
+      doc,
+      host,
+      getItems: () => previewItems,
+      getPalette: () => panel,
+      isActive: () => {
+        const current = state();
+        return !session.disposed && panelSession === session && current?.avatar === snapshot.avatar && current?.characterId === snapshot.characterId;
+      },
+      onPreview: (item, trigger2) => {
+        if (!openingPreview.open(item.id, trigger2)) status.textContent = "筛选结果已变化，请重新抽取。";
+      },
+      onChoose: (item) => {
+        const action = previewActions.get(item.id);
+        if (action) return action();
+        status.textContent = "筛选结果已变化，请重新抽取。";
+      },
+      onUnavailable: () => {
+        status.textContent = "角色或聊天已变化，请重新打开选择器。";
+      },
+      onError: (error) => {
+        status.textContent = `进入开场失败：${error?.message || error}`;
+      }
+    });
+    session.own(() => blindBox.dispose());
+    const blindTrigger = openingBlindBoxButton(el, (button) => blindBox.open(button));
     const authorExcluded = excludedTags(authorConfig.excludedTags);
     const editKey = labelKey(snapshot).replace("_labels_", "_edits_");
     let localEdits = {};
@@ -2981,7 +3301,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         status.textContent = "浏览器未能保存，收藏暂时只在当前窗口有效。";
       }
     });
-    search.append(favoriteUI.element);
+    search.append(favoriteUI.element, blindTrigger);
     session.own(() => favoriteUI.dispose());
     const openingGroups = createOpeningGroupRenderer({ el, gridClass: "uos-user-list" });
     query.oninput = () => renderCards();
@@ -3081,6 +3401,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         card.append(choose);
         target.append(card);
       }, rows);
+      updateBlindBoxButton(blindTrigger, previewItems);
       results.textContent = favoriteUI.onlyFavorites() || query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
       if (!visible) list.append(el("p", "uos-user-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
     }
@@ -4378,6 +4699,11 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-user-panel[data-layout=catalog] .uos-user-card>.uos-user-card-actions{grid-column:1/-1}
 .uos-user-panel .uos-user-search{flex-wrap:wrap}
 @media(max-width:600px){.uos:not([data-layout=catalog]) .uos-card-actions .uos-card-preview-button{gap:0;padding:8px!important;font-size:12px!important}.uos:not([data-layout=catalog]) .uos-card-actions :is(.uos-reading-icon,.uos-reading-arrow){display:none}}
+
+
+:is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;flex:none;display:flex!important;align-items:center;justify-content:center;gap:8px;min-height:44px;margin:0!important;padding:8px 14px!important;border:1px solid var(--accent)!important;border-radius:9px!important;background:linear-gradient(125deg,var(--surface),var(--bg))!important;color:var(--accent)!important;font:700 12px/1.5 system-ui,sans-serif!important;cursor:pointer;box-shadow:inset 0 0 16px color-mix(in srgb,var(--accent) 8%,transparent)!important;white-space:nowrap}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
+:is(.uos,.uos-user-panel) .uos-blind-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
 `;
 
 // src/author-template.js
@@ -4430,6 +4756,9 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
   } });
   categories.update(model.items);
   filters.append(categories.element);
+  const blindTrigger = openingBlindBoxButton(el);
+  updateBlindBoxButton(blindTrigger, model.items, { readonly: true });
+  filters.append(blindTrigger);
   for (const select of categories.element.querySelectorAll("select")) select.disabled = true;
   let result = root.querySelector(".uos-results");
   if (!result) {
@@ -4681,9 +5010,10 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   }
   root.__uosDispose?.();
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
-  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI;
+  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox;
   let previewItems = [];
   root.__uosDispose = () => {
+    blindBox?.dispose();
     favoriteUI?.dispose();
     pagePreview?.dispose();
     openingPreview?.dispose();
@@ -4797,6 +5127,26 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       }
       await choose(item.id);
     }
+  });
+  blindBox = createOpeningBlindBox({
+    doc: host.document,
+    host,
+    getItems: () => previewItems,
+    getPalette: () => root,
+    isActive: () => root.isConnected !== false && character()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
+    onPreview: (item, trigger) => {
+      if (!openingPreview.open(item.id, trigger)) status("筛选结果已变化，请重新抽取。");
+    },
+    onChoose: (item) => choose(item.id),
+    onUnavailable: () => status("角色或聊天已变化，请重新打开选择器。"),
+    onError: (error) => status(`进入开场失败：${error?.message || error}`)
+  });
+  const blindTrigger = openingBlindBoxButton(el, (button) => {
+    if (activePopup) {
+      status("请先关闭当前主题或设置窗口。");
+      return;
+    }
+    blindBox.open(button);
   });
   worldbookEditor = createWorldbookPresetEditor({
     doc,
@@ -5201,6 +5551,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       filters.append(filters.__uosCategories.element);
     }
     filters.__uosCategories.update(rows);
+    if (!filters.contains(blindTrigger)) filters.append(blindTrigger);
     const openingCount = $("[data-opening-count]");
     if (openingCount) openingCount.textContent = `共 ${items.length} 个开场`;
     for (const entry of items) for (const name of String(entry.names || "").split(/[、，,\/]/).map((x) => x.trim()).filter(Boolean)) people.add(name);
@@ -5235,6 +5586,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         }
       }));
     }, rows);
+    updateBlindBoxButton(blindTrigger, previewItems);
     let result = root.querySelector(".uos-results");
     if (!result) {
       result = el("p", "uos-results");
