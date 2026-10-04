@@ -15,6 +15,7 @@
 | src/opening-action-styles.js | 作者／玩家阅读入口装饰及防宿主覆盖的共用按钮样式 |
 | src/author-opening-card.js | 作者实际页与草稿预览共用卡片渲染；不持有草稿或选择事务 |
 | src/author-page-preview.js | 设置草稿整页只读展示、固定手机／桌面视口与资源清理；不挂载业务运行时 |
+| src/reading-preferences.js | 本机阅读字号／行距／专注偏好规范与容错存储；不依赖 UI 或角色卡 |
 | src/opening-preview.js | 作者／玩家共用只读预览窗口；筛选结果导航、完整内容、原事务选择与清理 |
 | src/opening-presentation.js | 共用版式值、封面编号与取景焦点规范；自定义图优先的封面渲染 |
 | src/opening-layout-styles.js | 作者与玩家共用的画廊／故事目录／档案版式样式 |

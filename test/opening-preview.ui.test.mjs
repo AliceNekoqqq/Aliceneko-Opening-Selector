@@ -28,11 +28,17 @@ try{
  await player.getByRole('button',{name:'预览完整正文',exact:true}).first().click();const preview=page.locator('.uos-opening-preview');
  assert.equal(await preview.locator('.uos-preview-cast span').count(),4);assert.match(await preview.locator('.uos-preview-description').textContent(),/第二行/);
  assert.equal(await preview.locator('.uos-preview-cover').evaluate(el=>el.style.backgroundPosition),'20% 75%');
+ await preview.locator('.uos-preview-reading>summary').click();await preview.getByLabel('正文字号',{exact:true}).selectOption('large');await preview.getByLabel('正文行距',{exact:true}).selectOption('relaxed');
+ const typography=await preview.locator('.uos-preview-body').evaluate(el=>{const css=getComputedStyle(el);return {font:css.fontSize,line:css.lineHeight}});assert.deepEqual(typography,{font:'18px',line:'36px'});
+ await preview.getByRole('button',{name:'专注正文',exact:true}).click();assert.equal(await preview.locator('.uos-preview-cover').isVisible(),false);assert.equal(await preview.locator('.uos-preview-cast').isVisible(),false);assert.equal(await preview.locator('.uos-preview-title').isVisible(),true);
  assert.equal(await preview.getByRole('button',{name:'上一条',exact:true}).isDisabled(),true);
  await preview.getByRole('button',{name:'下一条',exact:true}).click();assert.equal(await preview.locator('.uos-preview-title').textContent(),'支线清晨');assert.match(await preview.locator('.uos-preview-body').textContent(),/第三条/);
  assert.equal(await page.evaluate(()=>__state.writes),0,'navigation never switches greetings');
  for(const width of [320,768]){await page.setViewportSize({width,height:760});assert.equal(await preview.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);const bounds=await preview.boundingBox();assert.ok(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=width+1&&bounds.y+bounds.height<=761)}
  await preview.getByRole('button',{name:'关闭预览',exact:true}).click();assert.equal(await player.locator('.uos-user-card').count(),2);assert.equal(await player.getByRole('searchbox').inputValue(),'支线');
+ // Reopen from the same filtered list: local typography and focus preferences survive.
+ await player.getByRole('button',{name:'预览完整正文',exact:true}).first().click();await preview.locator('.uos-preview-reading>summary').click();assert.equal(await preview.getByLabel('正文字号',{exact:true}).inputValue(),'large');assert.equal(await preview.getByLabel('正文行距',{exact:true}).inputValue(),'relaxed');assert.equal(await preview.locator('.uos-preview-cover').isVisible(),false);
+ await preview.getByRole('button',{name:'专注正文',exact:true}).click();assert.equal(await preview.locator('.uos-preview-cover').isVisible(),true);assert.equal(await preview.locator('.uos-preview-cast span').count(),4);await preview.getByRole('button',{name:'关闭预览',exact:true}).click();
  // A preview selection must keep the existing player draft decision in control.
  await player.getByRole('button',{name:'设置',exact:true}).click();const edits=player.locator('details').filter({has:player.getByText('修正标题和登场人物',{exact:true})});await edits.locator('summary').first().click();
  await edits.locator('input').first().fill('未保存的修正');

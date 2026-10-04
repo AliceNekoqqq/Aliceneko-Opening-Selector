@@ -48,3 +48,28 @@ test('current opening and stale replaced windows cannot start a selection',()=>{
 test('missing filtered entries do not open a window or invoke the caller',()=>{
  const {doc,preview,effects}=setup();assert.equal(preview.open(999),false);assert.equal(doc.body.children.length,0);assert.deepEqual(effects,[]);preview.dispose();
 });
+
+test('reading changes preserve raw text, navigation, scroll state and show complete information again',()=>{
+ const {doc,preview,effects}=setup();preview.open(2);const dialog=doc.body.children[0],content=byClass(doc,'uos-preview-content'),body=byClass(doc,'uos-preview-body');content.scrollTop=137;
+ const font=byClass(doc,'uos-preview-font-size'),spacing=byClass(doc,'uos-preview-line-spacing');font.value='large';font.onchange();spacing.value='relaxed';spacing.onchange();
+ assert.equal(dialog.style['--uos-reading-font-size'],'18px');assert.equal(dialog.style['--uos-reading-line-height'],'2');assert.equal(content.scrollTop,137);assert.equal(byClass(doc,'uos-preview-body'),body);assert.equal(body.textContent,'<content>完整原文 & 不执行标签</content>');
+ button(doc,'专注正文').onclick();assert.equal(button(doc,'专注正文').attrs['aria-pressed'],'true');for(const cls of ['uos-preview-cover','uos-preview-label','uos-preview-description','uos-preview-cast'])assert.equal(byClass(doc,cls).hidden,true);assert.equal(byClass(doc,'uos-preview-title').textContent,'第一条');
+ button(doc,'下一条').onclick();assert.equal(byClass(doc,'uos-preview-cover').hidden,true);assert.equal(byClass(doc,'uos-preview-body').textContent,'另一条原文');assert.equal(dialog.style['--uos-reading-font-size'],'18px');assert.deepEqual(effects,[]);
+ button(doc,'上一条').onclick();button(doc,'专注正文').onclick();assert.equal(byClass(doc,'uos-preview-cover').hidden,false);assert.equal(byClass(doc,'uos-preview-cast').hidden,false);assert.equal(byClass(doc,'uos-preview-cast').children.length,5);preview.dispose();
+});
+
+test('reopening restores preferences and old reading controls cannot change a replacement dialog',()=>{
+ const fixture=documentFixture(),data=new Map(),host={localStorage:{getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value)}},items=[{id:4,number:5,title:'原开场',body:'原文'}];
+ const preview=createOpeningPreview({...fixture,host,getItems:()=>items,getPalette:()=>fixture.palette,onChoose:()=>{throw Error('reading cannot choose')}});preview.open(4);
+ const oldFont=byClass(fixture.doc,'uos-preview-font-size'),oldFocus=button(fixture.doc,'专注正文');oldFont.value='large';oldFont.onchange();oldFocus.onclick();preview.close();preview.open(4);
+ assert.equal(byClass(fixture.doc,'uos-preview-font-size').value,'large');assert.equal(byClass(fixture.doc,'uos-preview-cover').hidden,true);const saved=[...data.values()][0];oldFont.value='small';oldFont.onchange();oldFocus.onclick();assert.equal([...data.values()][0],saved);assert.equal(byClass(fixture.doc,'uos-preview-font-size').value,'large');
+ preview.dispose();oldFont.onchange();assert.equal([...data.values()][0],saved);
+});
+
+test('keyboard users can reach reading controls when the only opening is already current',()=>{
+ const {doc,preview,setItems}=setup();setItems([{id:0,number:1,title:'当前',body:'正文',isCurrent:true}]);preview.open(0);
+ const dialog=doc.body.children[0],exit=button(doc,'关闭预览'),reading=byClass(doc,'uos-preview-reading'),summary=reading.children[0];let prevented=0;
+ const tab=shiftKey=>dialog.dispatch('keydown',{key:'Tab',shiftKey,preventDefault(){prevented++}});
+ exit.focus();tab(false);assert.equal(prevented,0);summary.focus();tab(false);assert.equal(doc.activeElement,exit);assert.equal(prevented,1);
+ reading.open=true;exit.focus();tab(true);assert.equal(doc.activeElement,button(doc,'专注正文'));assert.equal(prevented,2);preview.dispose();
+});
