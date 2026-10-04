@@ -8,7 +8,9 @@ import {THEME_BACKGROUND_IMAGES,createThemeBackgroundController} from './theme-b
 import {THEMES,THEME_CAPTIONS} from './themes.js';
 import {clean,excludedTags,narrativeStart,greetingTitle,personAliases,detectGreetingPeople,greetingNames,detectGreetingCollection,isLegacyGeneratedEntry} from './greeting-analysis.js';
 export {clean,excludedTags,narrativeStart,greetingTitle,personAliases,detectGreetingPeople,greetingNames,detectGreetingCollection,isLegacyGeneratedEntry} from './greeting-analysis.js';
-import {defaultCoverSlot,defaultCoverStyles} from './default-covers.js';
+import {defaultCoverStyles} from './default-covers.js';
+import {OPENING_LAYOUTS,openingLayout,applyOpeningCover} from './opening-presentation.js';
+import {OPENING_LAYOUT_CSS} from './opening-layout-styles.js';
 import {bindUpdateControl} from './update-control.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 import {createWorldbookPresetManager} from './worldbook-presets.js';
@@ -271,7 +273,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
+  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
   let trigger=null,panelSession=null,updating=false,suppressClickUntil=0;
   const positionKey='uos_player_button_position';
   function clampButton(left,top){
@@ -360,6 +362,13 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     tools.append(settingsButton);session.own(()=>settingsLayout.close());
     const character=host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
     const authorConfig=(character?.data||character)?.extensions?.[KEY]||{};
+    const layoutKey=`uos_player_layout_${snapshot.avatar}`;let layout=authorConfig.layout;
+    try{layout=host.localStorage.getItem(layoutKey)||layout}catch{}
+    panel.dataset.layout=openingLayout(layout);
+    const layoutSelect=el('select');layoutSelect.setAttribute('aria-label','选择版式');
+    for(const [id,name] of OPENING_LAYOUTS){const option=el('option','',name);option.value=id;layoutSelect.append(option)}layoutSelect.value=panel.dataset.layout;
+    layoutSelect.onchange=()=>{panel.dataset.layout=openingLayout(layoutSelect.value);try{host.localStorage.setItem(layoutKey,panel.dataset.layout)}catch{}};
+    const layoutControl=el('label','uos-user-theme-control');layoutControl.append(el('span','uos-user-theme-label','版式'),layoutSelect);tools.insertBefore(layoutControl,settingsButton);
     const authorEntries=Array.isArray(authorConfig.entries)?authorConfig.entries.map((entry,i)=>isLegacyGeneratedEntry(snapshot.entries[i]?.body,entry,i)?{...entry,title:'',description:''}:entry):[];
     const authorExcluded=excludedTags(authorConfig.excludedTags);
     const editKey=labelKey(snapshot).replace('_labels_','_edits_');
@@ -502,11 +511,12 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       let visible=0;for(const entry of snapshot.entries){const display=resolved[entry.index],term=query.value.trim().toLocaleLowerCase();
       if((person.value&&!display.names.includes(person.value))||(term&&![display.title,...display.names,entry.body].some(x=>x.toLocaleLowerCase().includes(term))))continue;visible++;
       const card=el('article','uos-user-card');card.dataset.current=String(entry.index===snapshot.swipeId);card.dataset.number=String(entry.index+1).padStart(2,'0');
-      const illustration=el('div','uos-user-default-cover');illustration.setAttribute('aria-hidden','true');const customCover=authorEntries[entry.index]?.image;const validCover=/^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(customCover||'');illustration.style.backgroundImage=validCover?`url("${customCover.replace(/["\\]/g,'')}")`:`var(--uos-default-cover-${defaultCoverSlot(entry.body,entry.index,host)})`;card.append(illustration);
+      const illustration=el('div','uos-user-default-cover');illustration.setAttribute('aria-hidden','true');applyOpeningCover(illustration,authorEntries[entry.index],entry.body,entry.index,host);card.append(illustration);
+      const cardBody=el('div','uos-user-card-body');card.append(cardBody);
       const labelText=el('p','uos-user-description',typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label);
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
-      labelTexts[entry.index]=labelText;card.append(el('h3','',display.title));if(labelText.textContent)card.append(labelText);
-      if(display.names.length){const cast=el('p','uos-user-names');cast.append(el('span','uos-cast-label','人物'));for(const name of display.names.slice(0,3))cast.append(el('span','uos-name-chip',name));if(display.names.length>3)cast.append(el('span','uos-name-chip',`+${display.names.length-3}`));card.append(cast)}
+      labelTexts[entry.index]=labelText;cardBody.append(el('h3','',display.title));if(labelText.textContent)cardBody.append(labelText);
+      if(display.names.length){const cast=el('p','uos-user-names');cast.append(el('span','uos-cast-label','人物'));for(const name of display.names.slice(0,3))cast.append(el('span','uos-name-chip',name));if(display.names.length>3)cast.append(el('span','uos-name-chip',`+${display.names.length-3}`));cardBody.append(cast)}
       const details=el('details','');details.append(el('summary','','预览完整正文'));if(labelText.textContent)details.append(el('p','',labelText.textContent));if(display.names.length>3)details.append(el('p','',`全部人物：${display.names.join('、')}`));const diagnostics=el('details','uos-user-diagnostics');diagnostics.append(el('summary','','识别信息'),el('small','uos-user-source',`标题：${display.titleSource}`));if(entry.nameSuggestions?.length)diagnostics.append(el('p','uos-user-candidates',`待确认：${entry.nameSuggestions.join('、')} · 可在设置中修正`));details.append(el('pre','',entry.body),diagnostics);card.append(details);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{

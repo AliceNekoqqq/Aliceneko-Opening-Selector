@@ -10,6 +10,9 @@
 | src/asset-source.js | 已发布的固定资源 SHA 与 CDN／备用地址 |
 | src/theme-art.js | 图标、页眉角饰、设置插画的显式资源接口 |
 | src/theme-backgrounds.js | 共享背景预加载、在途去重、缓存、备用源与取消 |
+| src/opening-presentation.js | 共用版式值、封面编号与取景焦点规范；自定义图优先的封面渲染 |
+| src/opening-layout-styles.js | 作者与玩家共用的画廊／故事目录／档案版式样式 |
+| src/cover-settings.js | 只编辑传入作者草稿的封面选择、随机与取景控件 |
 | src/greeting-analysis.js | 标题、正文、人物与别名分析；不依赖 UI 或存储 |
 | src/worldbook-people.js / src/worldbook-presets.js | 绑定世界书身份词表与预设事务 |
 | src/media-files.js | 媒体文件读取、歌词文本读取与封面转换；不持有草稿 |
