@@ -96,7 +96,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   openingPreview=createOpeningPreview({doc:host.document,host,getItems:()=>previewItems,getPalette:()=>root,
     onChoose:async item=>{if(context()?.characterId!==previewCharacterId||character()?.avatar!==previewAvatar||root.isConnected===false){status('角色或聊天已变化，请重新打开选择器。');return}await choose(item.id)}});
   blindBox=createOpeningBlindBox({doc:host.document,host,getItems:()=>previewItems,getAllItems:()=>allDrawItems,avatar:previewAvatar,getPalette:()=>root,
-    onRangeChange:result=>{render();if(!result.persisted)status('浏览器未能保存，抽取范围暂时只在当前页面有效。')},
+    onRangeChange:result=>{render();if(!result.persisted)status('浏览器未能保存，抽卡设置暂时只在当前页面有效。')},
     isActive:()=>root.isConnected!==false&&character()?.avatar===previewAvatar&&context()?.characterId===previewCharacterId,
     onPreview:(item,trigger,pool)=>{if(!openingPreview.open(item.id,trigger,pool))status('筛选结果已变化，请重新抽取。')},
     onChoose:item=>choose(item.id),onUnavailable:()=>status('角色或聊天已变化，请重新打开选择器。'),
@@ -286,7 +286,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       target.append(createAuthorOpeningCard({el,entry,index:i,body:source,host,onChoose:choose,favoriteButton:favoriteUI.button(entry),
         onPreview:(id,button)=>{if(activePopup){status('请先关闭当前主题或设置窗口。');return}openingPreview.open(id,button)}}));
     },rows);
-    updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:displayTheme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeMode()==='manual'?'⚙ 抽取范围 · 手动勾选':'⚙ 抽取范围 · 当前筛选';
+    updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:displayTheme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();
     let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=favoriteUI.onlyFavorites()||query||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
     if(!visible)grid.append(el('p','uos-search-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'));
     renderMusic(config.music);

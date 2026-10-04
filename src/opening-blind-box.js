@@ -4,8 +4,9 @@ import {defaultCoverStyles} from './default-covers.js';
 import {applyOpeningCover} from './opening-presentation.js';
 import {createBlindBoxArt} from './blind-box-art.js';
 import {themeDraw} from './themes.js';
-import {createOpeningDrawRange,drawRangePool} from './opening-blind-range.js';
+import {createOpeningDrawRange,drawRangePool,drawRangeLabel} from './opening-blind-range.js';
 import {createDrawRangePanel,DRAW_RANGE_CSS} from './opening-blind-range-ui.js';
+import {createBlindPerformance,BLIND_PERFORMANCE_CSS} from './opening-blind-performance.js';
 
 export function openingBlindBoxButton(el,onOpen,theme='archive'){
   const button=el('button','uos-blind-trigger');button.type='button';button.setAttribute('aria-label','命运盲盒');
@@ -25,7 +26,7 @@ export function setBlindBoxTheme(button,theme){
   state.art.replaceChildren();const symbol=state.el('span','uos-blind-trigger-symbol','✦');state.art.dataset.artReady='false';state.art.append(symbol);
   for(let i=-1;i<=1;i++){const image=createBlindBoxArt(state.el,'card-back',theme);image.style.setProperty('--fan',i);state.art.append(image)}
 }
-export function openingBlindRangeButton(el,onOpen){const button=el('button','uos-blind-range-trigger','⚙ 抽取范围');button.type='button';button.setAttribute('aria-label','设置抽取范围');if(onOpen)button.onclick=()=>onOpen(button);else button.disabled=true;return button}
+export function openingBlindRangeButton(el,onOpen){const button=el('button','uos-blind-range-trigger','⚙ 卡池与抽卡设置');button.type='button';button.setAttribute('aria-label','设置抽取范围');if(onOpen)button.onclick=()=>onOpen(button);else button.disabled=true;return button}
 export function updateBlindBoxButton(button,items,{readonly=false,theme,manual=false}={}){
   if(theme)setBlindBoxTheme(button,theme);
   const count=blindBoxPool(items).length;button.__uosBlindCount.textContent=count?`${count} 个开场`:'暂无候选';button.disabled=readonly||count===0;
@@ -34,7 +35,7 @@ export function updateBlindBoxButton(button,items,{readonly=false,theme,manual=f
 
 export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllItems=getItems,getPalette,avatar,isActive=()=>true,onPreview,onChoose,onRangeChange=()=>{},onUnavailable=()=>{},onError=()=>{},random=Math.random}){
   let disposed=false,active=null,lastId=null,choosing=false;
-  const store=createOpeningDrawRange(host,avatar),clock=host||globalThis,style=doc.createElement('style');style.dataset.uosBlindStyle='';style.textContent=BLIND_BOX_DIALOG_CSS+DRAW_RANGE_CSS+defaultCoverStyles('.uos-blind-box');(doc.head||doc.documentElement).append(style);
+  const store=createOpeningDrawRange(host,avatar),clock=host||globalThis,style=doc.createElement('style');style.dataset.uosBlindStyle='';style.textContent=BLIND_BOX_DIALOG_CSS+BLIND_PERFORMANCE_CSS+DRAW_RANGE_CSS+defaultCoverStyles('.uos-blind-box');(doc.head||doc.documentElement).append(style);
   const el=(tag,cls='',text)=>{const node=doc.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=String(text);return node};
   const rangePanel=createDrawRangePanel({doc,el,store,getAllItems,getFilteredItems:getItems,getPalette,isActive,onUnavailable,onApply:result=>onRangeChange(result)});
   const poolItems=()=>drawRangePool(getAllItems(),getItems(),store.read());
@@ -48,19 +49,17 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
   }
   function open(trigger){
     if(disposed||choosing||!isActive())return false;
-    const pool=poolItems().map(item=>({...item}));if(!pool.length)return false;rangePanel.close();close();
+    const prefs=store.read(),pool=drawRangePool(getAllItems(),getItems(),prefs).map(item=>({...item}));if(!pool.length)return false;rangePanel.close();close();
     const dialog=el('dialog','uos-blind-box');dialog.setAttribute('aria-label','命运盲盒');dialog.setAttribute('aria-modal','true');
     const palette=getPalette(),computed=palette.ownerDocument.defaultView.getComputedStyle(palette);dialog.dataset.theme=palette.dataset.theme||'archive';
     const draw=themeDraw(dialog.dataset.theme);dialog.setAttribute('aria-label',`${draw.title}（命运盲盒）`);
     for(const key of ['--bg','--surface','--text','--muted','--accent','--line'])dialog.style.setProperty(key,computed.getPropertyValue(key)||computed.getPropertyValue('--panel'));
     const header=el('div','uos-blind-header'),heading=el('div'),exit=el('button','','关闭盲盒');exit.type='button';exit.onclick=()=>{if(active?.dialog===dialog)close()};
     heading.append(el('p','uos-blind-kicker','随机故事 · 命运盲盒'),el('h2','uos-blind-heading',draw.title));header.append(heading,exit);
-    const stage=el('div','uos-blind-stage'),aura=el('div','uos-blind-aura'),sparks=el('div','uos-blind-sparks'),deck=el('div','uos-blind-deck'),result=el('div','uos-blind-result');
-    for(const node of [aura,sparks])node.setAttribute('aria-hidden','true');
-    for(let i=0;i<12;i++){const spark=el('span','uos-blind-spark');spark.style.setProperty('--spark',i);sparks.append(spark)}
-    stage.append(aura,sparks,deck);
+    const stage=el('div','uos-blind-stage'),deck=el('div','uos-blind-deck'),result=el('div','uos-blind-result');dialog.dataset.show=prefs.performances&&!reducedMotion()?'on':'off';
+    stage.append(createBlindPerformance(el,dialog.dataset.theme,dialog.dataset.show==='on'),deck);
     const status=el('p','uos-blind-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
-    const footer=el('div','uos-blind-footer'),scope=el('p','uos-blind-scope',`${store.read().mode==='manual'?'手动范围':'当前筛选'} · ${pool.length} 个候选开场${pool.length>1?' · 重抽不连续重复':''}`),actions=el('div','uos-blind-actions');
+    const footer=el('div','uos-blind-footer'),scope=el('p','uos-blind-scope',`${drawRangeLabel(prefs)} · ${pool.length} 个候选开场${pool.length>1?' · 重抽不连续重复':''}`),actions=el('div','uos-blind-actions');
     const reroll=el('button','','再抽一次'),preview=el('button','','预览正文'),choose=el('button','uos-blind-enter','进入此开场');for(const button of [reroll,preview,choose])button.type='button';actions.append(reroll,preview,choose);footer.append(scope,actions);dialog.append(header,stage,result,status,footer);
     const session={dialog,trigger,timers:new Set(),onKey:null};let selected=null,busy=false,round=0,cards=[];
     function valid(){if(disposed||active!==session)return false;if(!isActive()){close();onUnavailable();return false}return true}
@@ -84,15 +83,16 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
     }
     function roll(){
       if(!valid()||busy)return;round++;const token=round;busy=true;selected=null;result.hidden=true;result.replaceChildren();deck.replaceChildren();deck.setAttribute('aria-hidden','true');dialog.dataset.phase='shuffle';reroll.disabled=preview.disabled=choose.disabled=true;
-      const hand=drawOpeningHand(pool,lastId,random);
+      const hand=drawOpeningHand(pool,lastId,random,prefs.handSize);deck.dataset.count=String(hand.length);
       cards=hand.map((item,i)=>{
         const card=el('button','uos-blind-card'),turn=el('span','uos-blind-turn'),back=el('span','uos-blind-back'),face=el('span','uos-blind-face');
         card.type='button';card.disabled=true;card.style.setProperty('--card',i-(hand.length-1)/2);card.style.setProperty('--shuffle-side',i%2?1:-1);card.style.setProperty('--shuffle-delay',`${i*35}ms`);card.setAttribute('aria-label',`抽取第 ${i+1} 张卡`);card.setAttribute('aria-pressed','false');
+        const firstRow=Math.ceil(hand.length/2),row=i<firstRow?0:1;card.style.setProperty('--mobile-card',row===0?i-(firstRow-1)/2:i-firstRow-(hand.length-firstRow-1)/2);card.style.setProperty('--mobile-row',row===0?'-60px':'60px');
         turn.setAttribute('aria-hidden','true');back.append(createBlindBoxArt(el,'card-back',dialog.dataset.theme),el('span','uos-blind-symbol','✦'));turn.append(back,face);card.append(turn);card.onclick=()=>pick(card,item,token);deck.append(card);return card;
       });
       status.textContent=`正在洗 ${hand.length} 张卡，请稍候…`;
-      const ready=()=>{busy=false;dialog.dataset.phase='ready';deck.setAttribute('aria-hidden','false');cards.forEach(card=>card.disabled=false);reroll.disabled=pool.length<2;status.textContent=hand.length===1?'只有一张候选卡，点击翻开。':`选择一张卡，翻开你的故事。${hand.length<3&&lastId!==null?' 上次结果已避开。':''}`;if(doc.activeElement===reroll)cards[0].focus()};
-      if(reducedMotion()){ready();return}later(ready,hand.length===1?500:1800);
+      const ready=()=>{busy=false;dialog.dataset.phase='ready';deck.setAttribute('aria-hidden','false');cards.forEach(card=>card.disabled=false);reroll.disabled=pool.length<2;status.textContent=hand.length===1?'只有一张候选卡，点击翻开。':`选择一张卡，翻开你的故事。${hand.length<prefs.handSize&&lastId!==null?' 上次结果已避开。':''}`;if(doc.activeElement===reroll)cards[0].focus()};
+      if(reducedMotion()){ready();return}later(ready,hand.length===1?500:hand.length>3?1900:1800);
     }
     reroll.onclick=()=>{if(!reroll.disabled)roll()};
     preview.onclick=()=>{if(!valid()||busy||!selected||preview.disabled)return;const item=selected;close();onPreview(item,trigger,pool)};
@@ -106,5 +106,5 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
     active=session;dialog.addEventListener('keydown',session.onKey);dialog.addEventListener('cancel',event=>{event.preventDefault();if(active===session)close()});dialog.addEventListener('close',()=>{if(active===session)close()});dialog.addEventListener('click',event=>{if(active===session&&event.target===dialog)close()});
     doc.body.append(dialog);try{dialog.showModal()}catch{dialog.setAttribute('open','');dialog.setAttribute('role','dialog')}exit.focus();roll();return true;
   }
-  return {open,close,poolItems,rangeMode:()=>store.read().mode,openRange(trigger){if(disposed||choosing||!isActive())return false;close();return rangePanel.open(trigger)},dispose(){if(disposed)return;disposed=true;close();rangePanel.dispose();style.remove()}};
+  return {open,close,poolItems,rangeMode:()=>store.read().mode,rangeSummary(){const prefs=store.read();return `⚙ 卡池与抽卡 · ${drawRangeLabel(prefs)} · ${prefs.handSize===5?'五张':'三张'}`},openRange(trigger){if(disposed||choosing||!isActive())return false;close();return rangePanel.open(trigger)},dispose(){if(disposed)return;disposed=true;close();rangePanel.dispose();style.remove()}};
 }

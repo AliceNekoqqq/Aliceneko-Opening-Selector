@@ -384,7 +384,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     let previewItems=[],allDrawItems=[];
     const openingPreview=createOpeningPreview({doc,host,getItems:()=>previewItems,getPalette:()=>panel,onChoose:item=>chooseOpening(item)});session.own(()=>openingPreview.dispose());
     const blindBox=createOpeningBlindBox({doc,host,getItems:()=>previewItems,getAllItems:()=>allDrawItems,avatar:snapshot.avatar,getPalette:()=>panel,
-      onRangeChange:result=>{renderCards();if(!result.persisted)status.textContent='浏览器未能保存，抽取范围暂时只在当前窗口有效。'},
+      onRangeChange:result=>{renderCards();if(!result.persisted)status.textContent='浏览器未能保存，抽卡设置暂时只在当前窗口有效。'},
       isActive:()=>{const current=state();return !session.disposed&&panelSession===session&&current?.avatar===snapshot.avatar&&current?.characterId===snapshot.characterId},
       onPreview:(item,trigger,pool)=>{if(!openingPreview.open(item.id,trigger,pool))status.textContent='筛选结果已变化，请重新抽取。'},
       onChoose:item=>chooseOpening(item),
@@ -575,7 +575,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=()=>chooseOpening(entry,choose);
       card.append(choose);target.append(card);
-    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeMode()==='manual'?'⚙ 抽取范围 · 手动勾选':'⚙ 抽取范围 · 当前筛选';results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
+    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);

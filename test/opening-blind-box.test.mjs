@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {blindBoxPool,drawOpening,drawOpeningHand} from '../src/opening-blind-draw.js';
+import {THEME_IDS,themeDraw} from '../src/themes.js';
 import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,setBlindBoxTheme} from '../src/opening-blind-box.js';
 
 const items=()=>[{id:2,number:3,coverIndex:2,title:'雨夜',description:'<img onerror=alert(1)>',body:'第二条完整原文',coverSlot:4,coverFocus:{x:20,y:70}},{id:7,number:8,title:'重逢',body:'第七条完整原文'},{id:9,number:10,title:'当前',body:'当前正文',isCurrent:true}];
@@ -21,7 +22,7 @@ function fixture({reduced=false,onChoose,storage,avatar}={}){
     onRangeChange:result=>effects.push({action:'range',persisted:result.persisted}),onPreview:(item,button,scope)=>{previewScope=scope;effects.push({action:'preview',id:item.id,button,windows:doc.body.children.length})},onChoose:item=>{effects.push({action:'choose',id:item.id,windows:doc.body.children.length});return onChoose?.(item)},onUnavailable:()=>effects.push({action:'unavailable'}),onError:error=>effects.push({action:'error',message:error.message})});
   function run(ms){for(const [id,timer] of [...timers])if(timer.ms<=ms){timers.delete(id);timer.fn()}}
   const all=(node,predicate)=>[...(predicate(node)?[node]:[]),...node.children.flatMap(child=>all(child,predicate))];
-  return {doc,box,trigger,timers,effects,el,run,get dialog(){return doc.body.children[0]},get previewScope(){return previewScope},find:cls=>all(doc.body,node=>node.className===cls)[0],all:predicate=>all(doc.body,predicate),pick:(index=0)=>{const card=all(doc.body,node=>node.className==='uos-blind-card')[index];card.focus();card.onclick()},button:text=>all(doc.body,node=>node.tag==='button'&&node.textContent===text)[0],setItems:value=>pool=value,setAllItems:value=>allPool=value,deactivate:()=>alive=false};
+  return {doc,box,trigger,timers,effects,el,run,get dialog(){return doc.body.children[0]},get previewScope(){return previewScope},find:cls=>all(doc.body,node=>node.className===cls)[0],all:predicate=>all(doc.body,predicate),pick:(index=0)=>{const card=all(doc.body,node=>node.className==='uos-blind-card')[index];card.focus();card.onclick()},button:text=>all(doc.body,node=>node.tag==='button'&&node.textContent===text)[0],setTheme:value=>palette.dataset.theme=value,setItems:value=>pool=value,setAllItems:value=>allPool=value,deactivate:()=>alive=false};
 }
 
 test('draw pool respects caller filters, original IDs, duplicate IDs, empty bodies and current opening',()=>{
@@ -122,18 +123,43 @@ test('manual range can draw and preview a hidden original opening, persists loca
  const data=new Map(),storage={getItem:key=>data.get(key)||null,setItem:(key,value)=>data.set(key,value)},f=fixture({reduced:true,storage,avatar:'甲.png'});
  f.setAllItems(items());f.setItems([items()[0]]);f.box.openRange(f.trigger);assert.equal(f.timers.size,0);f.button('全部清空').onclick();
  const checkbox=f.all(node=>node.tag==='input'&&node.type==='checkbox'&&node.attrs['aria-label'].includes('重逢'))[0];checkbox.checked=true;checkbox.onchange();
- assert.equal(f.find('uos-blind-range-count').textContent,'手动范围 · 1 个可抽取开场');f.button('应用抽取范围').onclick();
+ assert.equal(f.find('uos-blind-range-count').textContent,'手动范围 · 1 个可抽取开场');f.button('应用抽卡设置').onclick();
  assert.equal(f.doc.body.children.length,0);assert.deepEqual(f.effects,[{action:'range',persisted:true}]);assert.deepEqual(f.box.poolItems().map(item=>item.id),[7]);
  f.box.open(f.trigger);f.pick();assert.equal(f.find('uos-blind-title').textContent,'重逢');assert.equal(f.find('uos-blind-scope').textContent,'手动范围 · 1 个候选开场');f.button('预览正文').onclick();assert.deepEqual(f.previewScope.map(item=>item.id),[7]);
  const next=fixture({reduced:true,storage,avatar:'甲.png'});next.setAllItems(items());next.setItems([]);assert.deepEqual(next.box.poolItems().map(item=>item.id),[7]);next.box.dispose();f.box.dispose();
 });
 
 test('empty manual selection disables drawing, current greeting stays ineligible, cancellation and stale controls never save',()=>{
- const f=fixture({reduced:true});f.box.openRange(f.trigger);const oldSave=f.button('应用抽取范围'),oldNone=f.button('全部清空');
+ const f=fixture({reduced:true});f.box.openRange(f.trigger);const oldSave=f.button('应用抽卡设置'),oldNone=f.button('全部清空');
  const current=f.all(node=>node.tag==='input'&&node.type==='checkbox'&&node.attrs['aria-label'].includes('当前'))[0];assert.equal(current.disabled,true);
  f.button('全部清空').onclick();f.button('关闭设置').onclick();assert.equal(f.box.rangeMode(),'filtered');assert.equal(f.effects.length,0);
  f.box.openRange(f.trigger);oldSave.onclick();oldNone.onclick();assert.equal(f.effects.length,0);assert.equal(f.doc.body.children.length,1);
- f.button('全部清空').onclick();f.button('应用抽取范围').onclick();assert.equal(f.box.open(),false);assert.deepEqual(f.box.poolItems(),[]);
- f.box.openRange();f.button('仅选当前筛选').onclick();f.button('应用抽取范围').onclick();assert.deepEqual(f.box.poolItems().map(item=>item.id),[2,7]);
- f.box.openRange();const expired=f.button('应用抽取范围');f.deactivate();expired.onclick();assert.equal(f.doc.body.children.length,0);assert.equal(f.effects.at(-1).action,'unavailable');f.box.dispose();assert.equal(f.doc.head.children.length,0);
+ f.button('全部清空').onclick();f.button('应用抽卡设置').onclick();assert.equal(f.box.open(),false);assert.deepEqual(f.box.poolItems(),[]);
+ f.box.openRange();f.button('仅选当前筛选').onclick();f.button('应用抽卡设置').onclick();assert.deepEqual(f.box.poolItems().map(item=>item.id),[2,7]);
+ f.box.openRange();const expired=f.button('应用抽卡设置');f.deactivate();expired.onclick();assert.equal(f.doc.body.children.length,0);assert.equal(f.effects.at(-1).action,'unavailable');f.box.dispose();assert.equal(f.doc.head.children.length,0);
+});
+
+test('named pool creation, switching, update, rename and deletion apply together with draw settings',()=>{
+ const f=fixture({reduced:true});f.setItems([items()[0]]);f.setAllItems(items());
+ f.box.openRange();f.find('uos-blind-pool-name').value='主线';f.button('保存为新卡池').onclick();f.find('uos-blind-hand-size').value='5';f.find('uos-blind-show-setting').value='simple';f.button('关闭设置').onclick();assert.equal(f.box.rangeMode(),'filtered');assert.match(f.box.rangeSummary(),/三张$/);
+ f.box.openRange();assert.equal(f.find('uos-blind-pool-select').children.length,1);f.find('uos-blind-pool-name').value='主线';f.button('保存为新卡池').onclick();f.find('uos-blind-hand-size').value='5';f.find('uos-blind-show-setting').value='simple';f.button('应用抽卡设置').onclick();assert.match(f.box.rangeSummary(),/主线 · 五张$/);assert.deepEqual(f.box.poolItems().map(item=>item.id),[2]);
+ f.box.openRange();f.button('全部清空').onclick();const checkbox=f.all(node=>node.tag==='input'&&node.type==='checkbox'&&node.attrs['aria-label'].includes('重逢'))[0];checkbox.checked=true;checkbox.onchange();f.button('更新卡池内容').onclick();f.find('uos-blind-pool-name').value='番外';f.button('重命名').onclick();f.button('应用抽卡设置').onclick();assert.match(f.box.rangeSummary(),/番外/);assert.deepEqual(f.box.poolItems().map(item=>item.id),[7]);
+ f.box.openRange();f.button('全部勾选').onclick();f.find('uos-blind-pool-name').value='全部故事';f.button('保存为新卡池').onclick();const select=f.find('uos-blind-pool-select');assert.equal(select.children.length,3);select.value='pool-1';select.onchange();f.button('应用抽卡设置').onclick();assert.deepEqual(f.box.poolItems().map(item=>item.id),[7]);
+ f.box.open();assert.equal(f.find('uos-blind-performance').hidden,true);f.pick();f.button('预览正文').onclick();assert.equal(f.effects.at(-1).id,7);
+ f.box.openRange();f.button('删除卡池').onclick();f.button('应用抽卡设置').onclick();assert.match(f.box.rangeSummary(),/手动范围/);assert.deepEqual(f.box.poolItems().map(item=>item.id),[7]);f.box.openRange();assert.equal(f.find('uos-blind-pool-select').children.length,2);f.box.dispose();
+});
+test('pool name validation, empty saved pools and stale controls cannot broaden or overwrite a new scope',()=>{
+ const f=fixture({reduced:true});f.box.openRange();f.button('保存为新卡池').onclick();assert.equal(f.find('uos-blind-pool-select').children.length,1);
+ f.find('uos-blind-pool-name').value='空池';f.button('全部清空').onclick();f.button('保存为新卡池').onclick();const old=f.button('保存为新卡池');old.onclick();assert.equal(f.find('uos-blind-pool-select').children.length,2);f.button('应用抽卡设置').onclick();assert.deepEqual(f.box.poolItems(),[]);assert.equal(f.box.open(),false);
+ f.box.openRange();old.onclick();assert.equal(f.find('uos-blind-pool-select').children.length,2);f.button('全部勾选').onclick();const oldCheckbox=f.all(node=>node.tag==='input'&&node.type==='checkbox')[0];const select=f.find('uos-blind-pool-select');select.value='pool-1';select.onchange();oldCheckbox.checked=true;oldCheckbox.onchange();f.button('应用抽卡设置').onclick();assert.deepEqual(f.box.poolItems(),[]);f.box.dispose();
+});
+test('five-card setting creates five different backs, keeps mobile positions and respects limited candidates',()=>{
+ const pool=Array.from({length:7},(_,i)=>({id:i*3,title:`故事 ${i}`,body:`原文 ${i}`})),f=fixture();f.setItems(pool);f.box.openRange();f.find('uos-blind-hand-size').value='5';f.find('uos-blind-show-setting').value='simple';f.button('应用抽卡设置').onclick();
+ f.box.open();assert.equal(f.find('uos-blind-performance').hidden,true);assert.equal(f.find('uos-blind-deck').dataset.count,'5');const cards=f.all(node=>node.className==='uos-blind-card');assert.equal(cards.length,5);assert.equal(cards[4].style['--mobile-card'],.5);assert.equal(cards[4].style['--mobile-row'],'60px');f.run(1900);f.pick(4);f.run(1180);assert.equal(f.find('uos-blind-title').textContent,'故事 4');f.button('再抽一次').onclick();f.run(1900);f.pick(4);f.run(1180);assert.notEqual(f.find('uos-blind-title').textContent,'故事 4');f.box.close();
+ f.setItems(pool.slice(0,2));f.box.open();assert.equal(f.all(node=>node.className==='uos-blind-card').length,2);f.box.dispose();
+});
+test('all theme scenes follow the draw lifecycle while reduced motion suppresses decorative performance',()=>{
+ assert.equal(new Set(THEME_IDS.map(id=>themeDraw(id).scene)).size,16);
+ for(const id of THEME_IDS){const f=fixture();f.setTheme(id);f.box.open();assert.equal(f.find('uos-blind-performance').dataset.theme,id);assert.equal(f.find('uos-blind-performance-caption').textContent,themeDraw(id).scene);assert.equal(f.dialog.dataset.show,'on');f.run(1800);f.pick();assert.equal(f.dialog.dataset.phase,'flipping');f.box.dispose();assert.equal(f.timers.size,0)}
+ const reduced=fixture({reduced:true});reduced.box.open();assert.equal(reduced.find('uos-blind-performance').hidden,true);assert.equal(reduced.dialog.dataset.phase,'ready');assert.equal(reduced.timers.size,0);reduced.pick();assert.equal(reduced.dialog.dataset.phase,'revealed');reduced.box.dispose();
 });

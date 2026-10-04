@@ -1,31 +1,31 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.15-beta.13" : "development";
+var RUNTIME_VERSION = true ? "1.0.15-beta.14" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"]].map((theme) => Object.freeze(theme)));
 var THEME_IDS = Object.freeze(THEMES.map(([id]) => id));
 var THEME_CAPTIONS = Object.freeze({ archive: "ARCHIVE Nº 01 · 故事档案", neon: "AFTER DARK · 霓虹叙事", paper: "THE FIRST PAGE · 纸上初章", noir: "FRAME 001 · 光影序幕", meadow: "LETTERS FROM THE WOODS · 林间来信", ancient: "BROCADE LETTER · 锦书古风", starmap: "CELESTIAL ATLAS · 星海航图", rose: "VELVET VOW · 绯色契约", wasteland: "INCIDENT 001 · 末日警报", deepsea: "DEEP SEA ECHO · 深海回响", amber: "AMBER MIRAGE · 琥珀沙海", theatre: "MOONLIT THEATRE · 月光剧场", lasttrain: "LAST TRAIN HOME · 末班列车", aurora: "LIGHTHOUSE UNDER AURORA · 极光灯塔", glasshouse: "GLASSHOUSE IN BLOOM · 琉璃花房", japan: "MOONLIT SHRINE · 月下神社" });
 var THEME_DRAWS = Object.freeze({
-  archive: ["未封档案", "打开一份未知的故事档案"],
-  neon: ["霓虹解码", "解码一段未知的夜间信号"],
-  paper: ["翻页奇遇", "翻开一页尚未读过的故事"],
-  noir: ["随机放映", "让下一帧，揭晓你的故事"],
-  meadow: ["林间来信", "拆开一封来自林间的信"],
-  ancient: ["锦书抽签", "抽一纸锦书，赴一场相逢"],
-  starmap: ["星轨占卜", "让星轨，指引故事的方向"],
-  rose: ["绯色邀约", "赴一场尚未揭晓的邀约"],
-  wasteland: ["未知坐标", "接收一处未知的生存坐标"],
-  deepsea: ["潮汐寻声", "听见一段来自深海的回响"],
-  amber: ["沙海寻迹", "追随风沙，发现新的故事"],
-  theatre: ["今夜开幕", "揭开帷幕，故事即将上演"],
-  lasttrain: ["随机月台", "下一站，会遇见谁"],
-  aurora: ["灯塔寻光", "循着微光，寻找故事入口"],
-  glasshouse: ["花语来笺", "抽一笺花语，赴一场奇遇"],
-  japan: ["月下御签", "抽一支御签，听月下缘起"]
+  archive: ["未封档案", "打开一份未知的故事档案", "封缄开启"],
+  neon: ["霓虹解码", "解码一段未知的夜间信号", "信号解码"],
+  paper: ["翻页奇遇", "翻开一页尚未读过的故事", "纸页流转"],
+  noir: ["随机放映", "让下一帧，揭晓你的故事", "胶片放映"],
+  meadow: ["林间来信", "拆开一封来自林间的信", "叶影寄信"],
+  ancient: ["锦书抽签", "抽一纸锦书，赴一场相逢", "锦卷舒展"],
+  starmap: ["星轨占卜", "让星轨，指引故事的方向", "星图连线"],
+  rose: ["绯色邀约", "赴一场尚未揭晓的邀约", "花瓣赴约"],
+  wasteland: ["未知坐标", "接收一处未知的生存坐标", "坐标扫描"],
+  deepsea: ["潮汐寻声", "听见一段来自深海的回响", "潮汐上涌"],
+  amber: ["沙海寻迹", "追随风沙，发现新的故事", "流沙寻迹"],
+  theatre: ["今夜开幕", "揭开帷幕，故事即将上演", "月下启幕"],
+  lasttrain: ["随机月台", "下一站，会遇见谁", "车窗掠光"],
+  aurora: ["灯塔寻光", "循着微光，寻找故事入口", "极光引航"],
+  glasshouse: ["花语来笺", "抽一笺花语，赴一场奇遇", "琉璃绽放"],
+  japan: ["月下御签", "抽一支御签，听月下缘起", "御签祈愿"]
 });
 function themeDraw(theme) {
-  const [title, hint] = THEME_DRAWS[theme] || THEME_DRAWS.archive;
-  return { title, hint };
+  const [title, hint, scene] = THEME_DRAWS[theme] || THEME_DRAWS.archive;
+  return { title, hint, scene };
 }
 
 // src/asset-source.js
@@ -172,9 +172,10 @@ function blindBoxPool(items) {
     return true;
   });
 }
-function drawOpeningHand(pool, lastId, random = Math.random) {
+function drawOpeningHand(pool, lastId, random = Math.random, count = 3) {
   const candidates = (pool.length > 1 ? pool.filter((item) => item.id !== lastId) : pool).slice(), hand = [];
-  while (candidates.length && hand.length < 3) {
+  const limit = Number(count) === 5 ? 5 : 3;
+  while (candidates.length && hand.length < limit) {
     const value = random(), unit = Number.isFinite(value) ? Math.max(0, Math.min(1 - Number.EPSILON, value)) : 0;
     hand.push(candidates.splice(Math.floor(unit * candidates.length), 1)[0]);
   }
@@ -196,7 +197,7 @@ var BLIND_BOX_CONTROL_CSS = `
 :is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font:400 12px/1.5 system-ui,sans-serif!important;color:var(--muted)!important;white-space:normal}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-action{display:flex;align-items:center;gap:8px;flex:none;padding:8px 11px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:24px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:19px;transition:transform .25s}
-:is(.uos,.uos-user-panel) .uos-blind-range-trigger{appearance:none!important;min-height:44px;display:block;flex:none;margin:0 0 0 auto!important;padding:7px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--surface)!important;color:var(--muted)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer}:is(.uos,.uos-user-panel) .uos-blind-range-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px}
+:is(.uos,.uos-user-panel) .uos-blind-range-trigger{appearance:none!important;min-height:44px;display:block;flex:none;max-width:100%;overflow-wrap:anywhere;white-space:normal;text-align:left;margin:0 0 0 auto!important;padding:7px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--surface)!important;color:var(--muted)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer}:is(.uos,.uos-user-panel) .uos-blind-range-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px}
 @media(hover:hover){:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover{transform:translateY(-2px)!important;border-color:var(--accent)!important;box-shadow:inset 0 0 24px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 22px color-mix(in srgb,var(--accent) 12%,transparent)!important}:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover .uos-blind-trigger-arrow{transform:translate(2px,-2px)}}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):active{transform:scale(.99)!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
@@ -221,17 +222,12 @@ var BLIND_BOX_DIALOG_CSS = `
 .uos-blind-heading{margin:0;font-size:19px!important;letter-spacing:.12em;color:var(--accent)!important}
 .uos-blind-kicker{margin:0;color:var(--muted);font-size:11px;letter-spacing:.16em}
 .uos-blind-stage{position:relative;display:grid;place-items:center;min-height:320px;padding:16px 20px;isolation:isolate;overflow:hidden;perspective:1000px;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--accent) 16%,transparent),transparent 68%)}
-.uos-blind-aura{position:absolute;inset:22px 15%;border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:50%;transform:rotate(-24deg);pointer-events:none}
-.uos-blind-aura::before,.uos-blind-aura::after{content:"";position:absolute;inset:17px -26px;border:1px dashed color-mix(in srgb,var(--accent) 25%,transparent);border-radius:50%;transform:rotate(60deg)}
-.uos-blind-aura::after{inset:46px -46px;transform:rotate(-60deg)}
-.uos-blind-sparks{position:absolute;inset:0;pointer-events:none}
-.uos-blind-spark{position:absolute;left:50%;top:50%;width:3px;height:3px;border-radius:50%;background:var(--accent);opacity:0;box-shadow:0 0 9px var(--accent)}
-.uos-blind-spark:nth-child(3n){width:5px;height:5px}
-.uos-blind-deck{position:relative;width:100%;height:280px;z-index:1}
-.uos-blind-box .uos-blind-card{position:absolute;left:50%;top:50%;width:27%!important;max-width:144px!important;aspect-ratio:3/4;min-height:0!important;padding:0!important;border:0!important;border-radius:12px!important;background:transparent!important;box-shadow:none!important;opacity:1!important;transform:translate(calc(-50% + var(--card) * 112%),-50%) rotate(calc(var(--card) * 5deg));transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .4s,filter .4s;perspective:1000px;touch-action:manipulation}
-.uos-blind-box[data-phase=ready] .uos-blind-card:hover{transform:translate(calc(-50% + var(--card) * 112%),calc(-50% - 10px)) rotate(calc(var(--card) * 5deg))}
-.uos-blind-box .uos-blind-card[data-picked=true]{z-index:3;transform:translate(-50%,-50%) scale(1.35)}
-.uos-blind-box:is([data-phase=flipping],[data-phase=revealed]) .uos-blind-card:not([data-picked=true]){opacity:.12!important;filter:blur(2px);transform:translate(calc(-50% + var(--card) * 125%),calc(-50% + 16px)) scale(.85)}
+.uos-blind-deck{position:relative;width:100%;height:280px;z-index:1;--card-width:27%}
+.uos-blind-deck:is([data-count="4"],[data-count="5"]){--card-width:16%}
+.uos-blind-box .uos-blind-card{position:absolute;left:50%;top:50%;width:var(--card-width)!important;max-width:144px!important;aspect-ratio:3/4;min-height:0!important;padding:0!important;border:0!important;border-radius:12px!important;background:transparent!important;box-shadow:none!important;opacity:1!important;transform:translate(calc(-50% + var(--spread,var(--card)) * 112%),calc(-50% + var(--row,0px))) rotate(calc(var(--card) * 5deg));transition:transform .45s cubic-bezier(.2,.8,.2,1),width .45s,opacity .4s,filter .4s;perspective:1000px;touch-action:manipulation}
+.uos-blind-box[data-phase=ready] .uos-blind-card:hover{transform:translate(calc(-50% + var(--spread,var(--card)) * 112%),calc(-50% + var(--row,0px) - 10px)) rotate(calc(var(--card) * 5deg))}
+.uos-blind-box .uos-blind-card[data-picked=true]{z-index:3;width:34%!important;max-width:160px!important;transform:translate(-50%,-50%) scale(1.35)}
+.uos-blind-box:is([data-phase=flipping],[data-phase=revealed]) .uos-blind-card:not([data-picked=true]){opacity:.12!important;filter:blur(2px);transform:translate(calc(-50% + var(--spread,var(--card)) * 125%),calc(-50% + var(--row,0px) + 16px)) scale(.85)}
 .uos-blind-turn{position:absolute;inset:0;display:block;transform-style:preserve-3d;transition:transform .7s cubic-bezier(.25,.8,.25,1)}
 .uos-blind-card[data-opened=true] .uos-blind-turn{transform:rotateY(180deg)}
 .uos-blind-back,.uos-blind-face{position:absolute;inset:0;display:grid;place-items:center;border:1px solid var(--accent);border-radius:12px;background:linear-gradient(145deg,var(--surface),var(--bg));box-shadow:0 8px 25px #0004;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;color:var(--accent);font-size:36px}
@@ -253,17 +249,12 @@ var BLIND_BOX_DIALOG_CSS = `
 .uos-blind-scope{margin:0 0 12px;color:var(--muted);font-size:12px;text-align:center}
 .uos-blind-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .uos-blind-box[data-phase=shuffle] .uos-blind-card{animation:uos-blind-shuffle 1700ms cubic-bezier(.35,0,.2,1) both;animation-delay:var(--shuffle-delay)}
-.uos-blind-box[data-phase=shuffle] .uos-blind-aura{animation:uos-blind-ring 3s linear infinite}
-.uos-blind-box[data-phase=shuffle] .uos-blind-spark{animation:uos-blind-spark 1.2s ease-out infinite;animation-delay:calc(var(--spark) * -100ms)}
-.uos-blind-box[data-phase=revealed] .uos-blind-spark{animation:uos-blind-burst 900ms ease-out both;animation-delay:calc(var(--spark) * 18ms)}
+.uos-blind-box[data-phase=shuffle] .uos-blind-deck[data-count="1"] .uos-blind-card{animation-duration:450ms}
 .uos-blind-box[data-phase=revealed] .uos-blind-result{animation:uos-blind-reveal 700ms cubic-bezier(.16,1,.3,1) both}
-.uos-blind-box[data-phase=revealed] .uos-blind-aura{opacity:.4;transform:scale(1.4) rotate(-24deg);transition:transform 700ms,opacity 700ms}
-@keyframes uos-blind-shuffle{0%{transform:translate(calc(-50% + var(--card) * 13%),-50%) rotate(calc(var(--card) * 8deg))}22%{transform:translate(calc(-50% + var(--shuffle-side) * 116%),calc(-50% - 12px)) rotateY(calc(var(--shuffle-side) * 24deg)) rotate(calc(var(--shuffle-side) * 15deg))}48%{transform:translate(calc(-50% - var(--shuffle-side) * 100%),calc(-50% - 16px)) rotateY(calc(var(--shuffle-side) * -22deg)) rotate(calc(var(--shuffle-side) * -15deg))}72%{transform:translate(calc(-50% + var(--card) * 14%),-50%) rotate(calc(var(--card) * 7deg))}100%{transform:translate(calc(-50% + var(--card) * 112%),-50%) rotate(calc(var(--card) * 5deg))}}
+@keyframes uos-blind-shuffle{0%{transform:translate(calc(-50% + var(--card) * 13%),-50%) rotate(calc(var(--card) * 8deg))}22%{transform:translate(calc(-50% + var(--shuffle-side) * 116%),calc(-50% - 12px)) rotateY(calc(var(--shuffle-side) * 24deg)) rotate(calc(var(--shuffle-side) * 15deg))}48%{transform:translate(calc(-50% - var(--shuffle-side) * 100%),calc(-50% - 16px)) rotateY(calc(var(--shuffle-side) * -22deg)) rotate(calc(var(--shuffle-side) * -15deg))}72%{transform:translate(calc(-50% + var(--card) * 14%),-50%) rotate(calc(var(--card) * 7deg))}100%{transform:translate(calc(-50% + var(--spread,var(--card)) * 112%),calc(-50% + var(--row,0px))) rotate(calc(var(--card) * 5deg))}}
 @keyframes uos-blind-reveal{from{opacity:0;transform:perspective(1000px) rotateY(-75deg) scale(.83)}to{opacity:1;transform:perspective(1000px) rotateY(0) scale(1)}}
-@keyframes uos-blind-burst{0%{opacity:0;transform:rotate(calc(var(--spark) * 30deg)) translateX(45px) scale(.5)}20%{opacity:.8}100%{opacity:0;transform:rotate(calc(var(--spark) * 30deg)) translateX(230px) scale(1.3)}}
-@keyframes uos-blind-ring{to{transform:rotate(336deg)}}
-@keyframes uos-blind-spark{from{opacity:.8;transform:rotate(calc(var(--spark) * 30deg)) translateX(55px) scale(.5)}to{opacity:0;transform:rotate(calc(var(--spark) * 30deg)) translateX(210px) scale(1)}}
 @media(max-width:480px){.uos-blind-header{padding:14px}.uos-blind-stage{min-height:250px;padding:10px 14px}.uos-blind-deck{height:230px}.uos-blind-result{padding:0 14px 16px}.uos-blind-footer{padding:14px}.uos-blind-title{font-size:21px!important}.uos-blind-actions{grid-template-columns:1fr 1fr}.uos-blind-actions .uos-blind-enter{grid-column:1/-1}}
+@media(max-width:480px){.uos-blind-deck:is([data-count="4"],[data-count="5"]){height:320px;--card-width:27%}.uos-blind-deck:is([data-count="4"],[data-count="5"]) .uos-blind-card{--spread:var(--mobile-card);--row:var(--mobile-row)}}
 @media(prefers-reduced-motion:reduce){.uos-blind-box *{animation:none!important;transition:none!important}}
 `;
 
@@ -410,8 +401,23 @@ function createOpeningFavorites(host, avatar) {
 
 // src/opening-blind-range.js
 var validKey2 = (key) => typeof key === "string" && /^[0-9a-f]{16}:\d{1,10}:\d{1,10}$/.test(key);
+var cleanKeys = (value) => Array.isArray(value) ? [...new Set(value.filter(validKey2))].slice(0, 5e3) : [];
+var DRAW_POOL_LIMIT = 30;
+var drawPoolName = (value) => typeof value === "string" ? value.trim().slice(0, 40) : "";
+function drawRangeLabel(prefs) {
+  return prefs.mode === "manual" ? prefs.pools?.find((pool) => pool.id === prefs.activePoolId)?.name || "手动范围" : "当前筛选";
+}
 function normalizeDrawRange(value) {
-  return { mode: value?.mode === "manual" ? "manual" : "filtered", keys: Array.isArray(value?.keys) ? [...new Set(value.keys.filter(validKey2))].slice(0, 5e3) : [] };
+  const pools = [], seen = /* @__PURE__ */ new Set();
+  for (const pool of Array.isArray(value?.pools) ? value.pools : []) {
+    if (typeof pool?.id !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(pool.id) || seen.has(pool.id) || !drawPoolName(pool.name)) continue;
+    pools.push({ id: pool.id, name: drawPoolName(pool.name), keys: cleanKeys(pool.keys) });
+    seen.add(pool.id);
+    if (pools.length === DRAW_POOL_LIMIT) break;
+  }
+  const keys = cleanKeys(value?.keys), mode = value?.mode === "manual" ? "manual" : "filtered", selected = pools.find((pool) => pool.id === value?.activePoolId);
+  const keySet = new Set(keys), matches = selected && selected.keys.length === keys.length && selected.keys.every((key) => keySet.has(key));
+  return { mode, keys, handSize: Number(value?.handSize) === 5 ? 5 : 3, performances: value?.performances !== false, pools, activePoolId: mode === "manual" && matches ? selected.id : null };
 }
 function keyedDrawItems(items) {
   const keys = openingFavoriteKeys(items.map((item) => item.body));
@@ -435,7 +441,7 @@ function createOpeningDrawRange(host, avatar) {
         }
       } catch {
       }
-      return { mode: memory.mode, keys: memory.keys.slice() };
+      return normalizeDrawRange(memory);
     },
     set(value) {
       memory = normalizeDrawRange(value);
@@ -458,14 +464,21 @@ var DRAW_RANGE_CSS = `
 .uos-blind-range-body{padding:18px 20px;display:grid;gap:12px}
 .uos-blind-range-body p{margin:0;color:var(--muted);font-size:12px}
 .uos-blind-range-tools{display:flex;flex-wrap:wrap;gap:8px}
-.uos-blind-range-body select,.uos-blind-range-body input[type=search]{appearance:none!important;box-sizing:border-box;width:100%;min-height:44px;margin:0!important;padding:10px 12px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--text)!important;font:14px/1.5 system-ui,sans-serif!important}
+.uos-blind-range-body select,.uos-blind-range-body input:is([type=search],[type=text]){appearance:none!important;box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0!important;padding:10px 12px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--text)!important;font:14px/1.5 system-ui,sans-serif!important}
+.uos-blind-range-section{min-width:0;margin:0;padding:14px;border:1px solid var(--line);border-radius:12px;display:grid;gap:10px}
+.uos-blind-range-section legend{padding:0 6px;font:700 13px/1.5 system-ui,sans-serif;color:var(--accent)}
+.uos-blind-range-field{min-width:0;display:grid;gap:5px;font:600 12px/1.5 system-ui,sans-serif;color:var(--muted)}
+.uos-blind-range-experience,.uos-blind-range-pool-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.uos-blind-range-pool-actions button{width:100%!important;padding:9px 8px!important;white-space:normal!important;overflow-wrap:anywhere}
+.uos-blind-range-message{min-height:19px;color:var(--accent)!important}
 .uos-blind-range-body :is(select,input):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .uos-blind-range-list{max-height:42dvh;overflow:auto;display:grid;gap:7px;padding:2px}
 .uos-blind-range-row{display:flex;align-items:center;gap:11px;min-height:52px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
 .uos-blind-range-row:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
 .uos-blind-range-row input[type=checkbox]{appearance:auto!important;flex:none;width:20px!important;height:20px!important;margin:0!important;accent-color:var(--accent);cursor:pointer}
 .uos-blind-range-row span{min-width:0;overflow-wrap:anywhere;font-size:13px}.uos-blind-range-row input:disabled+span{color:var(--muted)}
-.uos-blind-range-save{width:100%!important}.uos-blind-range-count{color:var(--accent)!important}
+.uos-blind-box .uos-blind-range-save{width:100%!important;position:sticky;bottom:0;z-index:1;box-shadow:0 -8px 18px var(--bg)!important}.uos-blind-range-count{color:var(--accent)!important}
+@media(max-width:380px){.uos-blind-range-body{padding:14px}.uos-blind-range-section{padding:10px}}
 `;
 function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, getPalette, isActive, onApply, onUnavailable }) {
   let disposed = false, active = null;
@@ -486,17 +499,55 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     close();
     const items = keyedDrawItems(getAllItems()).map((item) => ({ ...item })), prefs = store.read();
     const eligible = items.filter((item) => item.body && !item.isCurrent), filteredIds = new Set(getFilteredItems().map((item) => item.id));
-    let keys = new Set(prefs.mode === "manual" || prefs.keys.length ? prefs.keys : eligible.map((item) => item.drawKey));
+    let keys = new Set(prefs.mode === "manual" || prefs.keys.length ? prefs.keys : eligible.map((item) => item.drawKey)), pools = prefs.pools.map((pool) => ({ ...pool, keys: pool.keys.slice() })), editingId = prefs.activePoolId;
     const dialog = el("dialog", "uos-blind-box uos-blind-range");
     dialog.setAttribute("aria-label", "抽取范围");
     dialog.setAttribute("aria-modal", "true");
     const palette = getPalette(), computed = palette.ownerDocument.defaultView.getComputedStyle(palette);
     dialog.dataset.theme = palette.dataset.theme || "archive";
     for (const key of ["--bg", "--surface", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(key, computed.getPropertyValue(key) || computed.getPropertyValue("--panel"));
-    const header = el("div", "uos-blind-header"), heading = el("h2", "uos-blind-heading", "抽取范围"), exit = el("button", "", "关闭设置");
+    const header = el("div", "uos-blind-header"), heading = el("h2", "uos-blind-heading", "卡池与抽卡设置"), exit = el("button", "", "关闭设置");
     exit.type = "button";
     header.append(heading, exit);
     const body = el("div", "uos-blind-range-body"), mode = el("select", "uos-blind-range-mode"), search = el("input", "uos-blind-range-search");
+    const section = (title) => {
+      const node = el("fieldset", "uos-blind-range-section");
+      node.append(el("legend", "", title));
+      return node;
+    };
+    const field = (text, control) => {
+      const label = el("label", "uos-blind-range-field");
+      label.append(el("span", "", text), control);
+      control.setAttribute("aria-label", text);
+      return label;
+    };
+    const experience = section("抽卡体验"), experienceFields = el("div", "uos-blind-range-experience"), hand = el("select", "uos-blind-hand-size"), show = el("select", "uos-blind-show-setting");
+    for (const [value, label] of [[3, "三张卡"], [5, "五张卡"]]) {
+      const option = el("option", "", label);
+      option.value = String(value);
+      hand.append(option);
+    }
+    hand.value = String(prefs.handSize);
+    for (const [value, label] of [["theme", "主题专属演出"], ["simple", "简洁卡牌"]]) {
+      const option = el("option", "", label);
+      option.value = value;
+      show.append(option);
+    }
+    show.value = prefs.performances ? "theme" : "simple";
+    experienceFields.append(field("每轮摆出", hand), field("演出效果", show));
+    experience.append(experienceFields, el("p", "", "每轮只选一张。候选不足时按实际数量摆出；手机五张卡分两排。"));
+    const poolSection = section("命名卡池"), poolSelect = el("select", "uos-blind-pool-select"), name = el("input", "uos-blind-pool-name"), poolActions = el("div", "uos-blind-range-pool-actions");
+    name.type = "text";
+    name.maxLength = 40;
+    name.placeholder = "例如：主线、番外、今晚想看";
+    name.value = pools.find((pool) => pool.id === editingId)?.name || "";
+    const addPool = el("button", "", "保存为新卡池"), updatePool = el("button", "", "更新卡池内容"), renamePool = el("button", "", "重命名"), deletePool = el("button", "", "删除卡池");
+    for (const button of [addPool, updatePool, renamePool, deletePool]) button.type = "button";
+    poolActions.append(addPool, updatePool, renamePool, deletePool);
+    const message = el("p", "uos-blind-range-message", "卡池保存在本机；关闭设置会放弃本次修改。");
+    message.setAttribute("role", "status");
+    poolSection.append(field("切换卡池", poolSelect), field("卡池名称", name), poolActions, message);
+    const rangeSection = section("抽取范围");
     mode.setAttribute("aria-label", "抽取范围模式");
     for (const [value, label] of [["filtered", "沿用首页当前筛选"], ["manual", "只抽手动勾选的开场"]]) {
       const option = el("option", "", label);
@@ -512,11 +563,12 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     tools.append(all, none, filtered);
     const count = el("p", "uos-blind-range-count"), list = el("div", "uos-blind-range-list"), hint = el("p", "", "点选开场会切换到手动范围，独立于首页筛选；只保存在本机。当前开场与空正文不参与抽取。");
     count.setAttribute("role", "status");
-    const save = el("button", "uos-blind-enter uos-blind-range-save", "应用抽取范围");
+    const save = el("button", "uos-blind-enter uos-blind-range-save", "应用抽卡设置");
     save.type = "button";
-    body.append(mode, hint, search, tools, count, list, save);
+    rangeSection.append(mode, hint, search, tools, count, list);
+    body.append(experience, poolSection, rangeSection, save);
     dialog.append(header, body);
-    let checkboxes = [];
+    let checkboxes = [], renderVersion = 0;
     const session = { dialog, trigger, onKey: null };
     function valid() {
       if (disposed || active !== session) return false;
@@ -531,7 +583,96 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
       const n = mode.value === "manual" ? eligible.filter((item) => keys.has(item.drawKey)).length : eligible.filter((item) => filteredIds.has(item.id)).length;
       count.textContent = `${mode.value === "manual" ? "手动范围" : "当前筛选"} · ${n} 个可抽取开场${n ? "" : " · 请勾选开场或调整筛选"}`;
     }
+    function renderPools() {
+      poolSelect.replaceChildren();
+      const option = el("option", "", "未使用命名卡池");
+      option.value = "";
+      poolSelect.append(option);
+      for (const pool of pools) {
+        const members = new Set(pool.keys), n = eligible.filter((item) => members.has(item.drawKey)).length, option2 = el("option", "", `${pool.name} · ${n} 条`);
+        option2.value = pool.id;
+        poolSelect.append(option2);
+      }
+      poolSelect.value = editingId || "";
+      for (const button of [updatePool, renamePool, deletePool]) button.disabled = !editingId;
+      addPool.disabled = pools.length >= DRAW_POOL_LIMIT;
+    }
+    function currentKeys() {
+      return mode.value === "manual" ? [...keys] : eligible.filter((item) => filteredIds.has(item.id)).map((item) => item.drawKey);
+    }
+    function validName(exceptId) {
+      const value = drawPoolName(name.value);
+      if (!value) {
+        message.textContent = "请先填写卡池名称。";
+        name.focus();
+        return null;
+      }
+      if (pools.some((pool) => pool.id !== exceptId && pool.name === value)) {
+        message.textContent = "已有同名卡池，请改名或选择它并更新内容。";
+        return null;
+      }
+      return value;
+    }
+    function poolMessage(text) {
+      message.textContent = text + "；点击底部「应用抽卡设置」生效。";
+    }
+    poolSelect.onchange = () => {
+      if (!valid()) return;
+      editingId = poolSelect.value || null;
+      const pool = pools.find((pool2) => pool2.id === editingId);
+      if (pool) {
+        keys = new Set(pool.keys);
+        mode.value = "manual";
+        name.value = pool.name;
+      } else name.value = "";
+      renderPools();
+      render();
+    };
+    addPool.onclick = () => {
+      if (!valid() || addPool.disabled) return;
+      const value = validName();
+      if (!value) return;
+      let serial = 1;
+      while (pools.some((pool) => pool.id === `pool-${serial}`)) serial++;
+      editingId = `pool-${serial}`;
+      keys = new Set(currentKeys());
+      mode.value = "manual";
+      pools.push({ id: editingId, name: value, keys: [...keys] });
+      name.value = value;
+      renderPools();
+      render();
+      poolMessage("新卡池已暂存");
+    };
+    updatePool.onclick = () => {
+      if (!valid() || updatePool.disabled) return;
+      const pool = pools.find((pool2) => pool2.id === editingId);
+      if (!pool) return;
+      keys = new Set(currentKeys());
+      mode.value = "manual";
+      pool.keys = [...keys];
+      renderPools();
+      render();
+      poolMessage("卡池内容已暂存");
+    };
+    renamePool.onclick = () => {
+      if (!valid() || renamePool.disabled) return;
+      const value = validName(editingId), pool = pools.find((pool2) => pool2.id === editingId);
+      if (!value || !pool) return;
+      pool.name = value;
+      name.value = value;
+      renderPools();
+      poolMessage("新名称已暂存");
+    };
+    deletePool.onclick = () => {
+      if (!valid() || deletePool.disabled) return;
+      pools = pools.filter((pool) => pool.id !== editingId);
+      editingId = null;
+      name.value = "";
+      renderPools();
+      poolMessage("删除已暂存，当前勾选范围保留");
+    };
     function render() {
+      const version = ++renderVersion;
       list.replaceChildren();
       checkboxes = [];
       const query = String(search.value || "").trim().toLocaleLowerCase();
@@ -545,7 +686,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
         checkbox.setAttribute("aria-label", text);
         row.append(checkbox, el("span", "", text + (item.isCurrent ? "（当前开场）" : !item.body ? "（正文为空）" : "")));
         checkbox.onchange = () => {
-          if (!valid() || checkbox.disabled) return;
+          if (!valid() || version !== renderVersion || checkbox.disabled) return;
           mode.value = "manual";
           if (checkbox.checked) keys.add(item.drawKey);
           else keys.delete(item.drawKey);
@@ -577,7 +718,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     };
     save.onclick = () => {
       if (!valid()) return;
-      const result = store.set({ mode: mode.value, keys: [...keys] });
+      const result = store.set({ mode: mode.value, keys: [...keys], handSize: hand.value, performances: show.value === "theme", pools, activePoolId: editingId });
       close();
       onApply(result);
     };
@@ -590,7 +731,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
         return;
       }
       if (event.key === "Tab") {
-        const controls = [exit, mode, search, all, none, filtered, ...checkboxes, save].filter((node) => !node.disabled), first = controls[0], last = controls.at(-1);
+        const controls = [exit, hand, show, poolSelect, name, addPool, updatePool, renamePool, deletePool, mode, search, all, none, filtered, ...checkboxes, save].filter((node) => !node.disabled), first = controls[0], last = controls.at(-1);
         if (event.shiftKey && doc.activeElement === first) {
           event.preventDefault();
           last.focus();
@@ -609,6 +750,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     dialog.addEventListener("close", () => {
       if (active === session) close();
     });
+    renderPools();
     render();
     doc.body.append(dialog);
     try {
@@ -626,6 +768,109 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     close();
   } };
 }
+
+// src/opening-blind-performance.js
+function createBlindPerformance(el, theme, enabled) {
+  const id = THEME_IDS.includes(theme) ? theme : "archive", scene = el("div", "uos-blind-performance");
+  scene.dataset.theme = id;
+  scene.hidden = !enabled;
+  scene.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < 8; i++) {
+    const piece = el("span", "uos-blind-performance-piece");
+    piece.style.setProperty("--piece", i);
+    scene.append(piece);
+  }
+  scene.append(el("span", "uos-blind-performance-caption", themeDraw(id).scene));
+  return scene;
+}
+var BLIND_PERFORMANCE_CSS = `
+.uos-blind-performance{position:absolute;inset:0;pointer-events:none;overflow:hidden;color:var(--accent);z-index:0;opacity:.65;transition:opacity .8s}
+.uos-blind-performance::before,.uos-blind-performance::after{content:"";position:absolute;pointer-events:none;transition:transform 1s,opacity 1s}
+.uos-blind-performance-piece{position:absolute;display:block;transition:transform 1.1s,opacity 1.1s;opacity:.4}
+.uos-blind-performance-caption{position:absolute;bottom:7px;left:0;width:100%;text-align:center;letter-spacing:.3em;font:500 10px/1.5 system-ui,sans-serif;opacity:.65}
+.uos-blind-box:is([data-phase=flipping],[data-phase=revealed]) .uos-blind-performance{opacity:1}
+/* Archive: stacked file sheets and an opening seal. */
+.uos-blind-performance[data-theme=archive] .uos-blind-performance-piece{left:calc(18% + var(--piece) * 7%);top:20%;width:27%;height:61%;border:1px solid currentColor;border-radius:3px;background:linear-gradient(135deg,var(--surface),transparent);transform:rotate(calc(var(--piece) * 2deg - 8deg))}
+.uos-blind-performance[data-theme=archive]::after{width:70px;height:70px;border:3px double currentColor;border-radius:50%;left:calc(50% - 35px);top:calc(50% - 35px)}
+.uos-blind-box[data-phase=flipping] .uos-blind-performance[data-theme=archive]::after{transform:scale(2.7) rotate(-35deg);opacity:0}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=archive] .uos-blind-performance-piece{transform:translateX(calc((var(--piece) - 3.5) * 24px)) rotate(calc(var(--piece) * 6deg - 20deg));opacity:.15}
+/* Neon: a traveling scan and staggered signal bars. */
+.uos-blind-performance[data-theme=neon]::before{inset:8%;border:1px solid currentColor;clip-path:polygon(0 0,20% 0,20% 1%,1% 1%,1% 20%,0 20%,0 0,100% 0,100% 100%,80% 100%,80% 99%,99% 99%,99% 80%,100% 80%,100% 0);opacity:.5}
+.uos-blind-performance[data-theme=neon]::after{left:0;right:0;height:2px;top:0;background:currentColor;box-shadow:0 0 22px currentColor;animation:uos-show-scan 3s ease-in-out infinite}
+.uos-blind-performance[data-theme=neon] .uos-blind-performance-piece{left:calc(10% + var(--piece) * 11%);bottom:20%;width:4%;height:calc(15% + var(--piece) * 3%);border-top:2px solid currentColor;background:linear-gradient(0deg,transparent,currentColor);animation:uos-show-signal 2s ease-in-out infinite;animation-delay:calc(var(--piece) * -170ms)}
+/* Paper: pages sweep outward, leaving faint ink rules. */
+.uos-blind-performance[data-theme=paper]::before{inset:14%;background:repeating-linear-gradient(0deg,transparent 0 24px,currentColor 25px 26px);opacity:.14}
+.uos-blind-performance[data-theme=paper] .uos-blind-performance-piece{left:calc(12% + var(--piece) * 9%);top:16%;width:24%;height:66%;border:1px solid currentColor;transform:rotate(-9deg);background:linear-gradient(100deg,transparent,var(--surface));transform-origin:left center}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=paper] .uos-blind-performance-piece{transform:translateX(calc(var(--piece) * 18px - 65px)) rotateY(-65deg);opacity:.18}
+/* Noir: perforated film edges and a softly moving projector shutter. */
+.uos-blind-performance[data-theme=noir]::before,.uos-blind-performance[data-theme=noir]::after{top:0;bottom:0;width:20px;border-inline:1px solid currentColor;background:repeating-linear-gradient(0deg,transparent 0 14px,currentColor 15px 23px,transparent 24px 36px);opacity:.3;animation:uos-show-film 4s linear infinite}
+.uos-blind-performance[data-theme=noir]::before{left:7%}.uos-blind-performance[data-theme=noir]::after{right:7%}
+.uos-blind-performance[data-theme=noir] .uos-blind-performance-piece{left:0;right:0;top:calc(var(--piece) * 12.5%);height:12.5%;background:var(--surface);opacity:.18;transform:scaleY(.1)}
+.uos-blind-box[data-phase=flipping] .uos-blind-performance[data-theme=noir] .uos-blind-performance-piece{animation:uos-show-shutter .9s ease-out both;animation-delay:calc(var(--piece) * 25ms)}
+/* Meadow: leaves drift across the letter. */
+.uos-blind-performance[data-theme=meadow] .uos-blind-performance-piece{left:calc(5% + var(--piece) * 13%);top:12%;width:18px;height:32px;border:1px solid currentColor;border-radius:0 85% 0 85%;animation:uos-show-leaf 5s ease-in-out infinite;animation-delay:calc(var(--piece) * -600ms)}
+.uos-blind-performance[data-theme=meadow]::before{inset:25% 18%;border:1px solid currentColor;transform:rotate(-6deg);opacity:.3}
+/* Ancient: horizontal rollers reveal a ruled silk scroll. */
+.uos-blind-performance[data-theme=ancient]::before{inset:24% 12%;border-block:4px double currentColor;background:repeating-linear-gradient(90deg,transparent 0 26px,color-mix(in srgb,currentColor 15%,transparent) 27px 28px);transform:scaleY(.2)}
+.uos-blind-performance[data-theme=ancient]::after{width:34px;height:34px;border:2px solid currentColor;right:15%;bottom:24%;transform:rotate(6deg);opacity:.25}
+.uos-blind-box:is([data-phase=flipping],[data-phase=revealed]) .uos-blind-performance[data-theme=ancient]::before{transform:scaleY(1.5)}
+.uos-blind-performance[data-theme=ancient] .uos-blind-performance-piece{width:2px;height:36%;left:calc(17% + var(--piece) * 9%);top:32%;background:currentColor;opacity:.12}
+/* Starmap: orbiting stars join a constellation. */
+.uos-blind-performance[data-theme=starmap]::before{inset:11% 18%;border:1px dashed currentColor;border-radius:50%;animation:uos-show-orbit 24s linear infinite}
+.uos-blind-performance[data-theme=starmap]::after{inset:22% 25%;border:1px solid currentColor;clip-path:polygon(0 0,100% 20%,70% 100%,0 0);transform:scale(.65);opacity:.2}
+.uos-blind-performance[data-theme=starmap] .uos-blind-performance-piece{left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor;transform:rotate(calc(var(--piece) * 45deg)) translateX(115px);animation:uos-show-star 3s ease-in-out infinite;animation-delay:calc(var(--piece) * -350ms)}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=starmap]::after{transform:scale(1.5);opacity:.7}
+/* Rose: a ring of petals opens around the contract. */
+.uos-blind-performance[data-theme=rose] .uos-blind-performance-piece{left:50%;top:50%;width:31px;height:48px;border-radius:70% 15% 70% 15%;border:1px solid currentColor;background:color-mix(in srgb,currentColor 12%,transparent);transform:rotate(calc(var(--piece) * 45deg)) translateY(-85px)}
+.uos-blind-box:is([data-phase=flipping],[data-phase=revealed]) .uos-blind-performance[data-theme=rose] .uos-blind-performance-piece{transform:rotate(calc(var(--piece) * 45deg + 25deg)) translateY(-160px);opacity:.3}
+/* Wasteland: a quiet radar locks a coordinate, without flashing alarms. */
+.uos-blind-performance[data-theme=wasteland]::before{inset:12% 20%;border:1px solid currentColor;border-radius:50%;background:linear-gradient(90deg,transparent 49.6%,currentColor 50%,transparent 50.4%),linear-gradient(0deg,transparent 49.6%,currentColor 50%,transparent 50.4%);opacity:.35}
+.uos-blind-performance[data-theme=wasteland]::after{left:50%;top:50%;width:38%;height:2px;transform-origin:left center;background:linear-gradient(90deg,currentColor,transparent);animation:uos-show-orbit 4s linear infinite}
+.uos-blind-performance[data-theme=wasteland] .uos-blind-performance-piece{left:calc(8% + var(--piece) * 12%);bottom:16%;width:12px;height:5px;background:currentColor;transform:skew(-25deg)}
+/* Deep sea: layered waves rise as bubbles pass. */
+.uos-blind-performance[data-theme=deepsea]::before,.uos-blind-performance[data-theme=deepsea]::after{left:-15%;width:130%;height:70%;top:65%;border:1px solid currentColor;border-radius:45% 50% 0 0;background:linear-gradient(0deg,transparent,color-mix(in srgb,currentColor 12%,transparent));transition:top 1.3s,transform 1.3s}
+.uos-blind-performance[data-theme=deepsea]::after{transform:rotate(-8deg);top:73%}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=deepsea]::before{top:40%;transform:rotate(8deg)}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=deepsea]::after{top:48%}
+.uos-blind-performance[data-theme=deepsea] .uos-blind-performance-piece{left:calc(10% + var(--piece) * 11%);bottom:0;width:calc(5px + var(--piece) * 2px);aspect-ratio:1;border:1px solid currentColor;border-radius:50%;animation:uos-show-bubble 5s ease-out infinite;animation-delay:calc(var(--piece) * -550ms)}
+/* Amber: drifting sand over two dunes. */
+.uos-blind-performance[data-theme=amber]::before,.uos-blind-performance[data-theme=amber]::after{left:-10%;width:120%;height:50%;bottom:-10%;border-top:1px solid currentColor;border-radius:50% 80% 0 0;transform:rotate(-12deg);background:linear-gradient(180deg,color-mix(in srgb,currentColor 12%,transparent),transparent)}
+.uos-blind-performance[data-theme=amber]::after{bottom:-20%;transform:rotate(16deg)}
+.uos-blind-performance[data-theme=amber] .uos-blind-performance-piece{left:-5%;top:calc(20% + var(--piece) * 7%);width:24%;height:1px;background:linear-gradient(90deg,transparent,currentColor,transparent);animation:uos-show-sand 4s ease-in-out infinite;animation-delay:calc(var(--piece) * -440ms)}
+/* Theatre: fabric curtains part and a spotlight widens. */
+.uos-blind-performance[data-theme=theatre]::before,.uos-blind-performance[data-theme=theatre]::after{top:0;bottom:0;width:36%;border:1px solid color-mix(in srgb,currentColor 35%,transparent);background:repeating-linear-gradient(90deg,var(--surface) 0 10px,color-mix(in srgb,var(--surface) 80%,currentColor) 18px,var(--surface) 28px);border-radius:0 0 45% 0}
+.uos-blind-performance[data-theme=theatre]::before{left:-8%}.uos-blind-performance[data-theme=theatre]::after{right:-8%;border-radius:0 0 0 45%}
+.uos-blind-box:is([data-phase=flipping],[data-phase=revealed]) .uos-blind-performance[data-theme=theatre]::before{transform:translateX(-65%)}
+.uos-blind-box:is([data-phase=flipping],[data-phase=revealed]) .uos-blind-performance[data-theme=theatre]::after{transform:translateX(65%)}
+.uos-blind-performance[data-theme=theatre] .uos-blind-performance-piece{left:50%;top:-8%;width:2px;height:110%;background:linear-gradient(currentColor,transparent);transform-origin:top;transform:rotate(calc(var(--piece) * 7deg - 25deg));opacity:.1}
+/* Last train: window dividers and station lights pass horizontally. */
+.uos-blind-performance[data-theme=lasttrain]::before{inset:17% 8%;border:1px solid currentColor;border-radius:18px;background:linear-gradient(90deg,transparent 32%,currentColor 32.3%,transparent 32.6%,transparent 66%,currentColor 66.3%,transparent 66.6%);opacity:.25}
+.uos-blind-performance[data-theme=lasttrain] .uos-blind-performance-piece{left:-20%;top:calc(22% + var(--piece) * 7%);height:3px;width:22%;border-radius:50%;background:linear-gradient(90deg,transparent,currentColor,transparent);animation:uos-show-train 2.5s linear infinite;animation-delay:calc(var(--piece) * -320ms)}
+/* Aurora: colored ribbons drift behind a sweeping lighthouse beam. */
+.uos-blind-performance[data-theme=aurora]::before{inset:-20% 0 10%;background:linear-gradient(110deg,transparent 25%,color-mix(in srgb,currentColor 22%,transparent) 40%,transparent 50%,color-mix(in srgb,var(--text) 14%,transparent) 65%,transparent 76%);filter:blur(12px);animation:uos-show-aurora 7s ease-in-out infinite}
+.uos-blind-performance[data-theme=aurora]::after{left:50%;bottom:0;width:100%;height:160%;background:linear-gradient(90deg,transparent,color-mix(in srgb,currentColor 13%,transparent),transparent);clip-path:polygon(0 100%,5% 0,45% 0);transform-origin:bottom left;animation:uos-show-beam 8s ease-in-out infinite}
+/* Glasshouse: transparent facets unfold like petals. */
+.uos-blind-performance[data-theme=glasshouse] .uos-blind-performance-piece{left:50%;top:50%;width:75px;height:105px;border:1px solid currentColor;background:linear-gradient(130deg,color-mix(in srgb,var(--text) 9%,transparent),transparent);clip-path:polygon(50% 0,100% 40%,70% 100%,30% 100%,0 40%);transform-origin:bottom center;transform:translate(-50%,-100%) rotate(calc(var(--piece) * 45deg)) scale(.85)}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=glasshouse] .uos-blind-performance-piece{transform:translate(-50%,-100%) rotate(calc(var(--piece) * 45deg + 15deg)) scale(1.45);opacity:.25}
+/* Japan: prayer slips sway beneath a moon and rise with the chosen fortune. */
+.uos-blind-performance[data-theme=japan]::before{left:calc(50% - 45px);top:5%;width:90px;height:90px;border-radius:50%;border:1px solid currentColor;box-shadow:inset -18px 0 0 color-mix(in srgb,currentColor 15%,transparent)}
+.uos-blind-performance[data-theme=japan] .uos-blind-performance-piece{left:calc(6% + var(--piece) * 12%);top:15%;width:14px;height:58px;border:1px solid currentColor;background:repeating-linear-gradient(0deg,transparent 0 12px,color-mix(in srgb,currentColor 20%,transparent) 13px 14px);transform-origin:top center;animation:uos-show-fortune 4s ease-in-out infinite;animation-delay:calc(var(--piece) * -430ms)}
+.uos-blind-box[data-phase=revealed] .uos-blind-performance[data-theme=japan]::before{transform:scale(1.3) translateY(-12px)}
+@keyframes uos-show-scan{0%,100%{transform:translateY(0);opacity:0}25%,75%{opacity:.45}50%{transform:translateY(280px)}}
+@keyframes uos-show-signal{0%,100%{transform:scaleY(.65);opacity:.2}50%{transform:scaleY(1.15);opacity:.45}}
+@keyframes uos-show-film{to{background-position:0 36px}}
+@keyframes uos-show-shutter{0%,100%{transform:scaleY(.1);opacity:.1}40%{transform:scaleY(1);opacity:.35}}
+@keyframes uos-show-leaf{0%,100%{transform:translate(0,0) rotate(-20deg);opacity:.2}50%{transform:translate(18px,140px) rotate(40deg);opacity:.5}}
+@keyframes uos-show-orbit{to{transform:rotate(360deg)}}
+@keyframes uos-show-star{0%,100%{opacity:.2}50%{opacity:.9}}
+@keyframes uos-show-bubble{from{transform:translateY(0);opacity:0}25%{opacity:.5}to{transform:translateY(-260px);opacity:0}}
+@keyframes uos-show-sand{0%{transform:translateX(0);opacity:0}40%{opacity:.4}100%{transform:translateX(500px) translateY(-30px);opacity:0}}
+@keyframes uos-show-train{0%{transform:translateX(0);opacity:0}20%,75%{opacity:.4}100%{transform:translateX(650px);opacity:0}}
+@keyframes uos-show-aurora{0%,100%{transform:translateX(-7%) skew(-9deg)}50%{transform:translateX(7%) skew(9deg)}}
+@keyframes uos-show-beam{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(45deg)}}
+@keyframes uos-show-fortune{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(9deg)}}
+@media(prefers-reduced-motion:reduce){.uos-blind-performance{display:none!important}}
+`;
 
 // src/opening-blind-box.js
 function openingBlindBoxButton(el, onOpen, theme = "archive") {
@@ -667,7 +912,7 @@ function setBlindBoxTheme(button, theme) {
   }
 }
 function openingBlindRangeButton(el, onOpen) {
-  const button = el("button", "uos-blind-range-trigger", "⚙ 抽取范围");
+  const button = el("button", "uos-blind-range-trigger", "⚙ 卡池与抽卡设置");
   button.type = "button";
   button.setAttribute("aria-label", "设置抽取范围");
   if (onOpen) button.onclick = () => onOpen(button);
@@ -689,7 +934,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
   let disposed = false, active = null, lastId = null, choosing = false;
   const store = createOpeningDrawRange(host, avatar), clock = host || globalThis, style = doc.createElement("style");
   style.dataset.uosBlindStyle = "";
-  style.textContent = BLIND_BOX_DIALOG_CSS + DRAW_RANGE_CSS + defaultCoverStyles(".uos-blind-box");
+  style.textContent = BLIND_BOX_DIALOG_CSS + BLIND_PERFORMANCE_CSS + DRAW_RANGE_CSS + defaultCoverStyles(".uos-blind-box");
   (doc.head || doc.documentElement).append(style);
   const el = (tag, cls = "", text) => {
     const node = doc.createElement(tag);
@@ -716,7 +961,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
   }
   function open(trigger) {
     if (disposed || choosing || !isActive()) return false;
-    const pool = poolItems().map((item) => ({ ...item }));
+    const prefs = store.read(), pool = drawRangePool(getAllItems(), getItems(), prefs).map((item) => ({ ...item }));
     if (!pool.length) return false;
     rangePanel.close();
     close();
@@ -735,18 +980,13 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
     };
     heading.append(el("p", "uos-blind-kicker", "随机故事 · 命运盲盒"), el("h2", "uos-blind-heading", draw.title));
     header.append(heading, exit);
-    const stage = el("div", "uos-blind-stage"), aura = el("div", "uos-blind-aura"), sparks = el("div", "uos-blind-sparks"), deck = el("div", "uos-blind-deck"), result = el("div", "uos-blind-result");
-    for (const node of [aura, sparks]) node.setAttribute("aria-hidden", "true");
-    for (let i = 0; i < 12; i++) {
-      const spark = el("span", "uos-blind-spark");
-      spark.style.setProperty("--spark", i);
-      sparks.append(spark);
-    }
-    stage.append(aura, sparks, deck);
+    const stage = el("div", "uos-blind-stage"), deck = el("div", "uos-blind-deck"), result = el("div", "uos-blind-result");
+    dialog.dataset.show = prefs.performances && !reducedMotion() ? "on" : "off";
+    stage.append(createBlindPerformance(el, dialog.dataset.theme, dialog.dataset.show === "on"), deck);
     const status = el("p", "uos-blind-status");
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
-    const footer = el("div", "uos-blind-footer"), scope = el("p", "uos-blind-scope", `${store.read().mode === "manual" ? "手动范围" : "当前筛选"} · ${pool.length} 个候选开场${pool.length > 1 ? " · 重抽不连续重复" : ""}`), actions = el("div", "uos-blind-actions");
+    const footer = el("div", "uos-blind-footer"), scope = el("p", "uos-blind-scope", `${drawRangeLabel(prefs)} · ${pool.length} 个候选开场${pool.length > 1 ? " · 重抽不连续重复" : ""}`), actions = el("div", "uos-blind-actions");
     const reroll = el("button", "", "再抽一次"), preview = el("button", "", "预览正文"), choose = el("button", "uos-blind-enter", "进入此开场");
     for (const button of [reroll, preview, choose]) button.type = "button";
     actions.append(reroll, preview, choose);
@@ -825,7 +1065,8 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
       deck.setAttribute("aria-hidden", "true");
       dialog.dataset.phase = "shuffle";
       reroll.disabled = preview.disabled = choose.disabled = true;
-      const hand = drawOpeningHand(pool, lastId, random);
+      const hand = drawOpeningHand(pool, lastId, random, prefs.handSize);
+      deck.dataset.count = String(hand.length);
       cards = hand.map((item, i) => {
         const card = el("button", "uos-blind-card"), turn = el("span", "uos-blind-turn"), back = el("span", "uos-blind-back"), face = el("span", "uos-blind-face");
         card.type = "button";
@@ -835,6 +1076,9 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
         card.style.setProperty("--shuffle-delay", `${i * 35}ms`);
         card.setAttribute("aria-label", `抽取第 ${i + 1} 张卡`);
         card.setAttribute("aria-pressed", "false");
+        const firstRow = Math.ceil(hand.length / 2), row = i < firstRow ? 0 : 1;
+        card.style.setProperty("--mobile-card", row === 0 ? i - (firstRow - 1) / 2 : i - firstRow - (hand.length - firstRow - 1) / 2);
+        card.style.setProperty("--mobile-row", row === 0 ? "-60px" : "60px");
         turn.setAttribute("aria-hidden", "true");
         back.append(createBlindBoxArt(el, "card-back", dialog.dataset.theme), el("span", "uos-blind-symbol", "✦"));
         turn.append(back, face);
@@ -850,14 +1094,14 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
         deck.setAttribute("aria-hidden", "false");
         cards.forEach((card) => card.disabled = false);
         reroll.disabled = pool.length < 2;
-        status.textContent = hand.length === 1 ? "只有一张候选卡，点击翻开。" : `选择一张卡，翻开你的故事。${hand.length < 3 && lastId !== null ? " 上次结果已避开。" : ""}`;
+        status.textContent = hand.length === 1 ? "只有一张候选卡，点击翻开。" : `选择一张卡，翻开你的故事。${hand.length < prefs.handSize && lastId !== null ? " 上次结果已避开。" : ""}`;
         if (doc.activeElement === reroll) cards[0].focus();
       };
       if (reducedMotion()) {
         ready();
         return;
       }
-      later(ready, hand.length === 1 ? 500 : 1800);
+      later(ready, hand.length === 1 ? 500 : hand.length > 3 ? 1900 : 1800);
     }
     reroll.onclick = () => {
       if (!reroll.disabled) roll();
@@ -926,7 +1170,10 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
     roll();
     return true;
   }
-  return { open, close, poolItems, rangeMode: () => store.read().mode, openRange(trigger) {
+  return { open, close, poolItems, rangeMode: () => store.read().mode, rangeSummary() {
+    const prefs = store.read();
+    return `⚙ 卡池与抽卡 · ${drawRangeLabel(prefs)} · ${prefs.handSize === 5 ? "五张" : "三张"}`;
+  }, openRange(trigger) {
     if (disposed || choosing || !isActive()) return false;
     close();
     return rangePanel.open(trigger);
@@ -3302,7 +3549,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       getPalette: () => panel,
       onRangeChange: (result) => {
         renderCards();
-        if (!result.persisted) status.textContent = "浏览器未能保存，抽取范围暂时只在当前窗口有效。";
+        if (!result.persisted) status.textContent = "浏览器未能保存，抽卡设置暂时只在当前窗口有效。";
       },
       isActive: () => {
         const current = state();
@@ -3811,7 +4058,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         target.append(card);
       }, rows);
       updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: panel.dataset.theme, manual: blindBox.rangeMode() === "manual" });
-      blindRangeTrigger.textContent = blindBox.rangeMode() === "manual" ? "⚙ 抽取范围 · 手动勾选" : "⚙ 抽取范围 · 当前筛选";
+      blindRangeTrigger.textContent = blindBox.rangeSummary();
       results.textContent = favoriteUI.onlyFavorites() || query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
       if (!visible) list.append(el("p", "uos-user-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
     }
@@ -5124,7 +5371,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 :is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font:400 12px/1.5 system-ui,sans-serif!important;color:var(--muted)!important;white-space:normal}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-action{display:flex;align-items:center;gap:8px;flex:none;padding:8px 11px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:24px;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
 :is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:19px;transition:transform .25s}
-:is(.uos,.uos-user-panel) .uos-blind-range-trigger{appearance:none!important;min-height:44px;display:block;flex:none;margin:0 0 0 auto!important;padding:7px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--surface)!important;color:var(--muted)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer}:is(.uos,.uos-user-panel) .uos-blind-range-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px}
+:is(.uos,.uos-user-panel) .uos-blind-range-trigger{appearance:none!important;min-height:44px;display:block;flex:none;max-width:100%;overflow-wrap:anywhere;white-space:normal;text-align:left;margin:0 0 0 auto!important;padding:7px 12px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:var(--surface)!important;color:var(--muted)!important;font:600 12px/1.5 system-ui,sans-serif!important;cursor:pointer}:is(.uos,.uos-user-panel) .uos-blind-range-trigger:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px}
 @media(hover:hover){:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover{transform:translateY(-2px)!important;border-color:var(--accent)!important;box-shadow:inset 0 0 24px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 22px color-mix(in srgb,var(--accent) 12%,transparent)!important}:is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):hover .uos-blind-trigger-arrow{transform:translate(2px,-2px)}}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:not(:disabled):active{transform:scale(.99)!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger:disabled{opacity:.5;cursor:default}
@@ -5568,7 +5815,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     getPalette: () => root,
     onRangeChange: (result) => {
       render();
-      if (!result.persisted) status("浏览器未能保存，抽取范围暂时只在当前页面有效。");
+      if (!result.persisted) status("浏览器未能保存，抽卡设置暂时只在当前页面有效。");
     },
     isActive: () => root.isConnected !== false && character()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
     onPreview: (item, trigger, pool) => {
@@ -6033,7 +6280,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       }));
     }, rows);
     updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: displayTheme, manual: blindBox.rangeMode() === "manual" });
-    blindRangeTrigger.textContent = blindBox.rangeMode() === "manual" ? "⚙ 抽取范围 · 手动勾选" : "⚙ 抽取范围 · 当前筛选";
+    blindRangeTrigger.textContent = blindBox.rangeSummary();
     let result = root.querySelector(".uos-results");
     if (!result) {
       result = el("p", "uos-results");

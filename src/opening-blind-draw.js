@@ -14,9 +14,10 @@ export function drawOpening(pool,lastId,random=Math.random){
 }
 // Sample without replacement: choosing any concealed position remains uniform.
 // Keep the previous result out of the next hand when alternatives exist.
-export function drawOpeningHand(pool,lastId,random=Math.random){
+export function drawOpeningHand(pool,lastId,random=Math.random,count=3){
   const candidates=(pool.length>1?pool.filter(item=>item.id!==lastId):pool).slice(),hand=[];
-  while(candidates.length&&hand.length<3){
+  const limit=Number(count)===5?5:3;
+  while(candidates.length&&hand.length<limit){
     const value=random(),unit=Number.isFinite(value)?Math.max(0,Math.min(1-Number.EPSILON,value)):0;
     hand.push(candidates.splice(Math.floor(unit*candidates.length),1)[0]);
   }
