@@ -9,6 +9,7 @@ import {THEMES} from './themes.js';
 import {defaultCoverStyles} from './default-covers.js';
 import {OPENING_LAYOUTS,openingLayout,coverPresentation,applyOpeningCover} from './opening-presentation.js';
 import {createCoverSettings} from './cover-settings.js';
+import {createOpeningPreview} from './opening-preview.js';
 import {bindUpdateControl} from './update-control.js';
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './greeting-analysis.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
@@ -32,8 +33,9 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   }
   root.__uosDispose?.();
   const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
-  let mediaPlayer,settingsFields,worldbookEditor;
-  root.__uosDispose=()=>{backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
+  let mediaPlayer,settingsFields,worldbookEditor,openingPreview;
+  let previewItems=[];
+  root.__uosDispose=()=>{openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -77,6 +79,9 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   settingsFields=createSettingsFields({el,view:doc.defaultView||globalThis,
     getDraft:()=>draft,status,onPendingChange:count=>{pendingSettingsTasks=count}});
   const {field,fileField}=settingsFields;
+  const previewAvatar=character()?.avatar,previewCharacterId=context()?.characterId;
+  openingPreview=createOpeningPreview({doc:host.document,host,getItems:()=>previewItems,getPalette:()=>root,
+    onChoose:async item=>{if(context()?.characterId!==previewCharacterId||character()?.avatar!==previewAvatar||root.isConnected===false){status('角色或聊天已变化，请重新打开选择器。');return}await choose(item.id)}});
   worldbookEditor=createWorldbookPresetEditor({doc,el,query:$,getDraft:()=>draft,entries,
     manager:worldbookPresetManager,character,isConnected:()=>root.isConnected!==false,
     status,confirmPresetDelete});
@@ -239,6 +244,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     $('[data-title]').textContent=config.title;
     $('[data-subtitle]').textContent=config.subtitle==='选择一个开场，故事将从那里继续。'?'':config.subtitle;
     const grid=$('[data-grid]');grid.replaceChildren();
+    previewItems=[];
     let filters=root.querySelector('.uos-search');
     if(!filters){filters=el('div','uos-search');const input=el('input'),person=el('select');input.type='search';input.placeholder='搜索标题、人物或正文';input.setAttribute('aria-label','搜索作者开场');person.setAttribute('aria-label','按人物筛选作者开场');input.oninput=()=>render();person.onchange=()=>render();filters.append(input,person);grid.before(filters)}
     const query=filters.querySelector('input').value.trim().toLocaleLowerCase(),person=filters.querySelector('select'),selected=person.value;
@@ -264,7 +270,11 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       if(castNames.length){const cast=el('p','uos-card-names');cast.append(el('span','uos-cast-label','人物'));for(const name of castNames.slice(0,3))cast.append(el('span','uos-name-chip',name));if(castNames.length>3)cast.append(el('span','uos-name-chip',`+${castNames.length-3}`));body.append(cast)}
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
       const source=greetings[i];
-      if(source){const details=el('details','uos-card-details');details.append(el('summary','','预览完整正文'));if(entry.description)details.append(el('p','uos-full-description',entry.description));if(castNames.length>3)details.append(el('p','uos-help',`全部人物：${castNames.join('、')}`));if(entry.nameSuggestions?.length)details.append(el('p','uos-help',`待确认人物：${entry.nameSuggestions.join('、')}`));details.append(el('pre','',source));shell.append(details)}
+      if(source){
+        previewItems.push({...entry,id:i+1,number:i+1,coverIndex:i,body:source,names:castNames,suggestions:entry.nameSuggestions});
+        const details=el('div','uos-card-details'),previewButton=el('button','uos-icon uos-card-preview-button','预览完整正文');previewButton.type='button';
+        previewButton.onclick=()=>{if(activePopup){status('请先关闭当前主题或设置窗口。');return}openingPreview.open(i+1,previewButton)};details.append(previewButton);shell.append(details);
+      }
       grid.append(shell);
     });
     let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=query||person.value?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;

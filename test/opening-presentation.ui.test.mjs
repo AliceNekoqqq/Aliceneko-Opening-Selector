@@ -51,7 +51,7 @@ try{
   await player.getByLabel('选择版式',{exact:true}).selectOption(layout);assert.equal(await player.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`player ${layout} ${width}`);
   assert.equal(await player.locator('.uos-user-select').count(),3);
  }}
- await player.getByRole('searchbox').fill('钟楼');assert.equal(await player.locator('.uos-user-card').count(),1);await player.locator('summary').filter({hasText:'预览完整正文'}).first().click();assert.match(await player.locator('pre').textContent(),/第二条开场/);
+ await player.getByRole('searchbox').fill('钟楼');assert.equal(await player.locator('.uos-user-card').count(),1);await player.getByRole('button',{name:'预览完整正文',exact:true}).first().click();assert.match(await page.locator('.uos-preview-body').textContent(),/第二条开场/);await page.getByRole('button',{name:'关闭预览',exact:true}).click();
  assert.deepEqual(errors,[]);
 }finally{await browser.close()}
 console.log('Author save / discard, fixed cover focus, filtering and six responsive layouts passed');

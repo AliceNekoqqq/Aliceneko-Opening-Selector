@@ -96,8 +96,9 @@ try{
   assert.equal(await selector.locator('.uos-card').count(),1);
   await selector.getByLabel('按人物筛选作者开场').selectOption('');
   assert.equal(await selector.locator('.uos-version-badge').evaluate(el=>el.firstChild.textContent),'v'+runtimeVersion);
-  await selector.locator('.uos-card-details summary').first().click();
-  assert.match(await selector.locator('.uos-card-details pre').first().textContent(),/原主开场/);
+  await selector.getByRole('button',{name:'预览完整正文',exact:true}).first().click();
+  assert.match(await page.locator('.uos-preview-body').textContent(),/原主开场/);
+  await page.getByRole('button',{name:'关闭预览',exact:true}).click();
   assert.equal(await page.locator('iframe[data-uos-author-frame]').evaluate(node=>getComputedStyle(node).pointerEvents),'auto');
 
   await selector.locator('[data-theme-button]').click();

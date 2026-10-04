@@ -11,6 +11,7 @@ export {clean,excludedTags,narrativeStart,greetingTitle,personAliases,detectGree
 import {defaultCoverStyles} from './default-covers.js';
 import {OPENING_LAYOUTS,openingLayout,applyOpeningCover} from './opening-presentation.js';
 import {OPENING_LAYOUT_CSS} from './opening-layout-styles.js';
+import {createOpeningPreview} from './opening-preview.js';
 import {bindUpdateControl} from './update-control.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
 import {createWorldbookPresetManager} from './worldbook-presets.js';
@@ -41,9 +42,9 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel button,.uos-user-panel select{font:inherit}.uos-user-close,.uos-user-select{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}.uos-user-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--muted);font-size:12px}.uos-user-tools select{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
 .uos-user-label-settings{flex:none;min-height:48px;max-height:min(35dvh,240px);overflow:auto;margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.uos-user-label-settings summary{color:var(--accent);cursor:pointer}.uos-user-label-settings label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:12px}.uos-user-label-settings input{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}.uos-user-label-settings button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--accent);color:var(--bg);font-weight:700}
 .uos-user-label-settings textarea{box-sizing:border-box;width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif;resize:vertical}.uos-worldbook-people{max-height:240px;overflow:auto;padding-left:22px;overflow-wrap:anywhere;font-size:13px}.uos-worldbook-people li{margin:10px 0}.uos-worldbook-people p{margin:4px 0;color:var(--muted);font-size:12px;line-height:1.5}.uos-user-candidates{font-size:12px;color:var(--muted)}
-.uos-user-list{display:grid;gap:12px;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 3px 12px}.uos-user-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.uos-user-card h3{margin:0 0 6px;color:var(--text);font:600 17px/1.4 Georgia,"Noto Serif SC",serif}.uos-user-card p{margin:0 0 9px;color:var(--muted);font-size:12px}.uos-user-card details{margin-bottom:10px}.uos-user-card summary{color:var(--accent);cursor:pointer}.uos-user-card pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:9px 0 0;padding:10px;border:1px solid var(--line);border-radius:7px;color:var(--text);font-size:12px;line-height:1.6;font-family:inherit}.uos-user-select{background:var(--accent);color:var(--bg);font-weight:700}.uos-user-select:disabled{opacity:.65;cursor:default}.uos-user-status{min-height:18px;margin:8px 0 0;color:var(--accent);font-size:12px}
+.uos-user-list{display:grid;gap:12px;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 3px 12px}.uos-user-card{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.uos-user-card h3{margin:0 0 6px;color:var(--text);font:600 17px/1.4 Georgia,"Noto Serif SC",serif}.uos-user-card p{margin:0 0 9px;color:var(--muted);font-size:12px}.uos-user-card .uos-user-preview-button{color:var(--accent);cursor:pointer}.uos-user-select{background:var(--accent);color:var(--bg);font-weight:700}.uos-user-select:disabled{opacity:.65;cursor:default}.uos-user-status{min-height:18px;margin:8px 0 0;color:var(--accent);font-size:12px}
 .uos-user-card .uos-user-names{color:var(--accent);font-size:13px}
-.uos-user-search{display:flex;gap:8px;flex:none;margin:0 0 10px}.uos-user-search input,.uos-user-search select{min-width:0;flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}.uos-user-source{opacity:.75;font-size:11px}.uos-user-empty{padding:16px;color:var(--muted)}
+.uos-user-search{display:flex;gap:8px;flex:none;margin:0 0 10px}.uos-user-search input,.uos-user-search select{min-width:0;flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}.uos-user-empty{padding:16px;color:var(--muted)}
 /* These selects live in the Tavern document and must override host control themes. */
 .uos-user-panel select,.uos-user-panel select option{background:var(--surface)!important;color:var(--text)!important;color-scheme:dark!important}
 .uos-user-panel[data-theme=paper] select,.uos-user-panel[data-theme=paper] select option{color-scheme:light!important}
@@ -69,10 +70,10 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-card::after{content:"";position:absolute;inset:9px;border:1px solid var(--line);border-radius:6px;opacity:.45;pointer-events:none}
 .uos-user-card[data-current=true]{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent),0 12px 28px #0004}
 .uos-user-card h3{position:relative;margin:2px 0 7px;font-size:19px;line-height:1.5;letter-spacing:.025em}
-.uos-user-card .uos-user-source{display:inline-block;margin-bottom:8px;color:var(--muted);font-size:10px;letter-spacing:.1em}
+
 .uos-user-card p{position:relative;line-height:1.6}.uos-user-card .uos-user-names{font-weight:650;letter-spacing:.025em}
-.uos-user-card details{position:relative;padding-top:7px;border-top:1px solid var(--line)}
-.uos-user-card pre{max-height:205px;background:color-mix(in srgb,var(--bg) 68%,var(--surface));scrollbar-width:thin}
+
+
 .uos-user-select{min-height:39px;padding:9px 16px;border-radius:7px;letter-spacing:.08em}
 .uos-user-status{flex:none;margin:9px 0 0}
 /* Archive: ink blue, brass rules, an old catalog card. */
@@ -86,7 +87,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=neon] .uos-user-head h2{text-shadow:0 0 18px #e556bd88}
 .uos-user-panel[data-theme=neon] .uos-user-card{border-radius:3px 13px 3px 13px;background:linear-gradient(135deg,#2a1b50,#101d3a 70%);box-shadow:inset 0 1px #cdaaff55,0 12px 28px #09052588}
 .uos-user-panel[data-theme=neon] .uos-user-card::after{border-color:#b784fa77;border-radius:1px 9px 1px 9px}
-.uos-user-panel[data-theme=neon] .uos-user-names,.uos-user-panel[data-theme=neon] .uos-user-card summary{color:#dcb5ff}
+.uos-user-panel[data-theme=neon] .uos-user-names,.uos-user-panel[data-theme=neon] .uos-user-card .uos-user-preview-button{color:#dcb5ff}
 .uos-user-panel[data-theme=neon] .uos-user-select{box-shadow:0 0 18px #ed5dc166}
 /* Paper: ivory stock, vermilion editorial marks and generous type. */
 .uos-user-panel[data-theme=paper]{--bg:#e9dfcb;--surface:#f9f2e4;--text:#292926;--muted:#665e53;--accent:#a43c30;--line:#9a745e80;--glow:#d9ae7a55;--wash:#fff8e2aa;--frame:#906d52;color-scheme:light}
@@ -113,7 +114,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 @media(max-width:600px){dialog.uos-user-overlay{width:calc(100vw - 16px);max-width:calc(100vw - 16px)}.uos-user-panel{max-height:86dvh;padding:16px 15px 13px}.uos-user-head{margin-bottom:11px;padding-bottom:10px}.uos-user-head h2{font-size:22px}.uos-user-card{padding:18px 16px 15px 20px;min-height:145px}.uos-user-card h3{font-size:17px}.uos-user-search{flex-wrap:wrap}.uos-user-search input{flex-basis:55%}.uos-user-search select{flex-basis:32%}.uos-user-list{gap:13px}}
 .uos-user-panel{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;min-height:0}
 .uos-user-panel .uos-user-list{flex:none;min-height:0;overflow:visible;overscroll-behavior:auto}
-.uos-user-panel .uos-user-card pre{max-height:none;overflow:visible}
+
 .uos-user-watermark{position:relative;flex:none;margin-top:16px;padding:12px 60px 0 0;border-top:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1.5;overflow-wrap:anywhere}
 .uos-user-version-badge{align-self:start;margin:auto 0 0;color:var(--accent);font:10px/1.3 Georgia,serif;white-space:nowrap}
 .uos-user-version{position:absolute;right:0;bottom:0;color:var(--accent);font:10px/1.5 Georgia,serif;white-space:nowrap}
@@ -137,7 +138,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-card .uos-user-names{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0;font-weight:500}
 .uos-cast-label{width:100%;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:2px}
 .uos-name-chip{display:inline-block;max-width:100%;overflow-wrap:anywhere;padding:4px 9px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:6px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--accent);font-family:inherit;font-weight:500;font-size:12px;line-height:1.5}
-.uos-user-card summary{border-top:0;padding:10px 0;font-size:12px}
+.uos-user-card .uos-user-preview-button{border-top:0;padding:10px 0;font-size:12px}
 .uos-user-card .uos-user-select{min-height:38px;padding:8px 14px;border-radius:8px}
 @media(hover:hover){.uos-user-card:hover{transform:translateY(-2px);border-color:var(--accent)}}
 .uos-user-card:focus-within{border-color:var(--accent)}
@@ -189,7 +190,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 @media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}}
 /* Opening number lives beside the title, away from the right-hand ornament. */
 .uos-user-panel[data-theme] .uos-user-card::before{content:attr(data-number);position:relative;float:left;inset:auto;z-index:auto;font:600 22px/1.5 Georgia,serif;letter-spacing:0;opacity:.8;margin:2px 10px 0 0;pointer-events:none}
-.uos-user-card>.uos-user-source{clear:left}
+
 .uos-user-panel[data-theme=archive]{--ornament-position:0.00000% 0.00000%}
 .uos-user-panel[data-theme=neon]{--ornament-position:33.33333% 0.00000%}
 .uos-user-panel[data-theme=paper]{--ornament-position:66.66667% 0.00000%}
@@ -214,8 +215,9 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel .uos-user-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.7;padding-right:0}
 .uos-user-panel .uos-user-card h3{padding-right:0}
 .uos-user-card .uos-user-names{margin:10px 0;font-size:12px}
-.uos-user-diagnostics{margin-top:12px;border-top:1px solid var(--line)}
 
+
+.uos-user-card .uos-user-preview-button{display:block;width:100%;margin:10px 0;padding:10px 0;border:0;border-top:1px solid var(--line);background:transparent;text-align:left;font:inherit;cursor:pointer;min-height:40px}
 `;
 
 export async function switchOpeningWithPreset(preset,presetManager,changeOpening){
@@ -370,6 +372,8 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     layoutSelect.onchange=()=>{panel.dataset.layout=openingLayout(layoutSelect.value);try{host.localStorage.setItem(layoutKey,panel.dataset.layout)}catch{}};
     const layoutControl=el('label','uos-user-theme-control');layoutControl.append(el('span','uos-user-theme-label','版式'),layoutSelect);tools.insertBefore(layoutControl,settingsButton);
     const authorEntries=Array.isArray(authorConfig.entries)?authorConfig.entries.map((entry,i)=>isLegacyGeneratedEntry(snapshot.entries[i]?.body,entry,i)?{...entry,title:'',description:''}:entry):[];
+    let previewItems=[];const previewActions=new Map();
+    const openingPreview=createOpeningPreview({doc,host,getItems:()=>previewItems,getPalette:()=>panel,onChoose:item=>previewActions.get(item.id)?.()});session.own(()=>openingPreview.dispose());
     const authorExcluded=excludedTags(authorConfig.excludedTags);
     const editKey=labelKey(snapshot).replace('_labels_','_edits_');
     let localEdits={};try{const saved=JSON.parse(host.localStorage.getItem(editKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localEdits=saved}catch{}
@@ -505,7 +509,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const search=el('div','uos-user-search'),query=el('input'),person=el('select');query.type='search';query.placeholder='搜索标题、人物或开场正文';query.setAttribute('aria-label','搜索开场');person.setAttribute('aria-label','按人物筛选');search.append(query,person);
     const results=el('p','uos-user-results');results.setAttribute('role','status');
     query.oninput=()=>renderCards();person.onchange=()=>renderCards();
-    function renderCards(){list.replaceChildren();const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
+    function renderCards(){list.replaceChildren();previewItems=[];previewActions.clear();const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
       const selected=person.value;person.replaceChildren();const any=el('option','','全部人物');any.value='';person.append(any);
       for(const name of new Set(resolved.flatMap(x=>x.names))){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
       let visible=0;for(const entry of snapshot.entries){const display=resolved[entry.index],term=query.value.trim().toLocaleLowerCase();
@@ -517,7 +521,8 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       if(entry.description)labelText.append(doc.createTextNode(` · ${entry.description}`));
       labelTexts[entry.index]=labelText;cardBody.append(el('h3','',display.title));if(labelText.textContent)cardBody.append(labelText);
       if(display.names.length){const cast=el('p','uos-user-names');cast.append(el('span','uos-cast-label','人物'));for(const name of display.names.slice(0,3))cast.append(el('span','uos-name-chip',name));if(display.names.length>3)cast.append(el('span','uos-name-chip',`+${display.names.length-3}`));cardBody.append(cast)}
-      const details=el('details','');details.append(el('summary','','预览完整正文'));if(labelText.textContent)details.append(el('p','',labelText.textContent));if(display.names.length>3)details.append(el('p','',`全部人物：${display.names.join('、')}`));const diagnostics=el('details','uos-user-diagnostics');diagnostics.append(el('summary','','识别信息'),el('small','uos-user-source',`标题：${display.titleSource}`));if(entry.nameSuggestions?.length)diagnostics.append(el('p','uos-user-candidates',`待确认：${entry.nameSuggestions.join('、')} · 可在设置中修正`));details.append(el('pre','',entry.body),diagnostics);card.append(details);
+      previewItems.push({...authorEntries[entry.index],id:entry.index,number:entry.index+1,coverIndex:entry.index,title:display.title,description:entry.description,label:customLabels[entry.index]||entry.label,names:display.names,body:entry.body,titleSource:display.titleSource,suggestions:entry.nameSuggestions,isCurrent:entry.index===snapshot.swipeId});
+      const previewButton=el('button','uos-user-preview-button','预览完整正文');previewButton.type='button';previewButton.onclick=()=>openingPreview.open(entry.index,previewButton);card.append(previewButton);
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=async()=>{
         let current=state();
@@ -539,6 +544,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
           session.close();scan();
         }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
       };
+      previewActions.set(entry.index,choose.onclick);
       card.append(choose);list.append(card);
     }results.textContent=query.value.trim()||person.value?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty','没有匹配的开场，请换个关键词。'))}
     updatePeople();
