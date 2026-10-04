@@ -1,5 +1,6 @@
 import {applyOpeningCover} from './opening-presentation.js';
 import {defaultCoverStyles} from './default-covers.js';
+import {openingMetadata} from './opening-categories.js';
 
 const CSS=`
 dialog.uos-opening-preview{position:fixed;inset:0;width:min(760px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:min(850px,calc(100vh - 24px));height:min(850px,calc(100dvh - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);margin:auto;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text);box-shadow:0 22px 70px #0007;font:14px/1.7 system-ui,sans-serif;z-index:2147483646;overflow:hidden;color-scheme:dark}
@@ -23,6 +24,8 @@ dialog.uos-opening-preview[data-theme=paper]{color-scheme:light}
 .uos-opening-preview .uos-preview-cast{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:16px 0}
 .uos-opening-preview .uos-preview-cast span{padding:3px 9px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--text);overflow-wrap:anywhere;max-width:100%}
 .uos-opening-preview .uos-preview-cast-label{color:var(--muted);font-size:12px}
+.uos-opening-preview .uos-preview-taxonomy{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.uos-opening-preview .uos-preview-taxonomy span{padding:3px 8px;border:1px solid var(--line);border-radius:5px;max-width:100%}
 .uos-opening-preview .uos-preview-body{white-space:pre-wrap;overflow-wrap:anywhere;margin:18px 0 0;padding:18px 0;border-top:1px solid var(--line);color:var(--text);font:inherit;word-break:normal}
 .uos-opening-preview .uos-preview-diagnostics{margin:12px 0;color:var(--muted);font-size:12px}
 .uos-opening-preview .uos-preview-diagnostics summary{cursor:pointer;color:var(--accent)}
@@ -57,6 +60,7 @@ export function createOpeningPreview({doc,getItems,getPalette,onChoose,host=doc.
       const cover=el('div','uos-preview-cover');cover.setAttribute('aria-hidden','true');applyOpeningCover(cover,item,item.body,item.coverIndex??item.id,host);content.append(cover);
       content.append(el('h2','uos-preview-title',item.title),el('p','uos-preview-label',`开场 ${item.number} ${item.label?'· '+item.label:''}`));
       if(item.description)content.append(el('p','uos-preview-description',item.description));
+      const metadata=openingMetadata(item);if(metadata.group||metadata.tags.length){const taxonomy=el('div','uos-preview-taxonomy');if(metadata.group)taxonomy.append(el('span','',`分组 · ${metadata.group}`));for(const tag of metadata.tags)taxonomy.append(el('span','',tag));content.append(taxonomy)}
       if(item.names?.length){const cast=el('div','uos-preview-cast');cast.append(el('b','uos-preview-cast-label','全部人物'));for(const name of item.names)cast.append(el('span','',name));content.append(cast)}
       content.append(el('pre','uos-preview-body',item.body));
       if(item.titleSource||item.suggestions?.length){const info=el('details','uos-preview-diagnostics');info.append(el('summary','','识别信息'));if(item.titleSource)info.append(el('p','',`标题：${item.titleSource}`));if(item.suggestions?.length)info.append(el('p','',`待确认人物：${item.suggestions.join('、')}`));content.append(info)}

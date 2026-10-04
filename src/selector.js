@@ -10,6 +10,8 @@ import {defaultCoverStyles} from './default-covers.js';
 import {OPENING_LAYOUTS,openingLayout,coverPresentation,applyOpeningCover} from './opening-presentation.js';
 import {createCoverSettings} from './cover-settings.js';
 import {createOpeningPreview} from './opening-preview.js';
+import {openingMetadata,matchesOpening} from './opening-categories.js';
+import {createOpeningCategoryFilters,createOpeningGroupRenderer,openingTagChips} from './opening-category-ui.js';
 import {bindUpdateControl} from './update-control.js';
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './greeting-analysis.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
@@ -79,6 +81,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   settingsFields=createSettingsFields({el,view:doc.defaultView||globalThis,
     getDraft:()=>draft,status,onPendingChange:count=>{pendingSettingsTasks=count}});
   const {field,fileField}=settingsFields;
+  const openingGroups=createOpeningGroupRenderer({el,gridClass:'uos-grid'});
   const previewAvatar=character()?.avatar,previewCharacterId=context()?.characterId;
   openingPreview=createOpeningPreview({doc:host.document,host,getItems:()=>previewItems,getPalette:()=>root,
     onChoose:async item=>{if(context()?.characterId!==previewCharacterId||character()?.avatar!==previewAvatar||root.isConnected===false){status('角色或聊天已变化，请重新打开选择器。');return}await choose(item.id)}});
@@ -99,6 +102,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
         title:String(e?.title||'开场 '+(i+1)).slice(0,100),
         description:String(e?.description||'').slice(0,300),
         label:String(e?.label||'').slice(0,60),
+        ...openingMetadata(e),
         ...(typeof e?.names==='string'?{names:e.names.slice(0,200)}:{}),
         ...(typeof e?.worldbookPresetId==='string'&&worldbookConfig.presets.some(preset=>preset.id===e.worldbookPresetId)?{worldbookPresetId:e.worldbookPresetId}:{}),
         image:String(e?.image||''),
@@ -249,15 +253,14 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     if(!filters){filters=el('div','uos-search');const input=el('input'),person=el('select');input.type='search';input.placeholder='搜索标题、人物或正文';input.setAttribute('aria-label','搜索作者开场');person.setAttribute('aria-label','按人物筛选作者开场');input.oninput=()=>render();person.onchange=()=>render();filters.append(input,person);grid.before(filters)}
     const query=filters.querySelector('input').value.trim().toLocaleLowerCase(),person=filters.querySelector('select'),selected=person.value;
     const items=entries(),greetings=greetingList(),people=new Set();
+    const rows=items.map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}));
+    if(!filters.__uosCategories){filters.__uosCategories=createOpeningCategoryFilters({el,onChange:()=>render()});filters.append(filters.__uosCategories.element)}filters.__uosCategories.update(rows);
     const openingCount=$('[data-opening-count]');if(openingCount)openingCount.textContent=`共 ${items.length} 个开场`;
     for(const entry of items)for(const name of String(entry.names||'').split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean))people.add(name);
     person.replaceChildren();const all=el('option','','全部人物');all.value='';person.append(all);for(const name of people){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
-    let visible=0;
-    items.forEach((entry,i)=>{
-      const names=typeof entry.names==='string'?entry.names.trim():'';
-      if(person.value&&!names.split(/[、，,\/]/).map(x=>x.trim()).includes(person.value))return;
-      if(query&&![entry.title,entry.description,entry.label,names,greetings[i]].some(x=>String(x||'').toLocaleLowerCase().includes(query)))return;
-      visible++;
+    const categoryValues=filters.__uosCategories.values(),filtered=rows.filter(row=>matchesOpening(row,{query,person:person.value,...categoryValues})),visible=filtered.length;
+    openingGroups.render(filtered,grid,(entry,target)=>{
+      const i=entry.id,names=entry.names.join('、');
       const shell=el('article','uos-card-shell');
       const card=el('button','uos-card');card.type='button';card.setAttribute('aria-label',`选择 ${entry.title}`);
       const cover=el('div','uos-cover');
@@ -266,6 +269,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
       const body=el('div','uos-card-body');if(entry.label)body.append(el('span','uos-label',entry.label));body.append(el('strong','',entry.title));
       if(entry.description)body.append(el('div','uos-description',entry.description));
+      const tagChips=openingTagChips(el,entry.tags);if(tagChips)body.append(tagChips);
       const castNames=names.split(/[、，,\/]/).map(x=>x.trim()).filter(Boolean);
       if(castNames.length){const cast=el('p','uos-card-names');cast.append(el('span','uos-cast-label','人物'));for(const name of castNames.slice(0,3))cast.append(el('span','uos-name-chip',name));if(castNames.length>3)cast.append(el('span','uos-name-chip',`+${castNames.length-3}`));body.append(cast)}
       card.append(cover,body);card.addEventListener('click',()=>choose(i+1));shell.append(card);
@@ -275,10 +279,10 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
         const details=el('div','uos-card-details'),previewButton=el('button','uos-icon uos-card-preview-button','预览完整正文');previewButton.type='button';
         previewButton.onclick=()=>{if(activePopup){status('请先关闭当前主题或设置窗口。');return}openingPreview.open(i+1,previewButton)};details.append(previewButton);shell.append(details);
       }
-      grid.append(shell);
-    });
-    let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=query||person.value?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
-    if(!visible)grid.append(el('p','uos-search-empty','没有匹配的开场，请换个关键词或人物。'));
+      target.append(shell);
+    },rows);
+    let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=query||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
+    if(!visible)grid.append(el('p','uos-search-empty','没有匹配的开场，请调整关键词或筛选条件。'));
     renderMusic(config.music);
     const actions=root.querySelector('.uos-actions');if(actions&&!actions.querySelector('.uos-version-badge'))actions.append(el('small','uos-version-badge',`v${VERSION}`));
     let watermark=root.querySelector('[data-uos-watermark]');
@@ -350,16 +354,17 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       const previewWrap=el('div','uos-layout-preview');previewWrap.dataset.layout=draft.layout;
       const preview=el('div','uos-card uos-card-preview'),cover=el('div','uos-cover'),body=el('div','uos-card-body');
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
-      const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description'),namesPreview=el('p','uos-card-names');body.append(label,title,description,namesPreview);preview.append(cover,body);previewWrap.append(preview);box.append(previewWrap);
+      const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description'),namesPreview=el('p','uos-card-names'),categoryPreview=el('div','uos-opening-tags');body.append(label,title,description,namesPreview,categoryPreview);preview.append(cover,body);previewWrap.append(preview);box.append(previewWrap);
       let coverSettings;
-      const updatePreview=()=>{entryHeading.textContent=`第 ${i+1} 条 · ${entry.title||'未命名开场'}`;label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;applyOpeningCover(cover,entry,greetings[i]||entry.title,i,host,{shade:true});coverSettings?.refresh()};updatePreview();
+      const updatePreview=()=>{entryHeading.textContent=`第 ${i+1} 条 · ${entry.title||'未命名开场'}`;label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;applyOpeningCover(cover,entry,greetings[i]||entry.title,i,host,{shade:true});const metadata=openingMetadata(entry);categoryPreview.replaceChildren();for(const text of [metadata.group?`分组 · ${metadata.group}`:'',...metadata.tags].filter(Boolean))categoryPreview.append(el('span','',text));coverSettings?.refresh()};updatePreview();
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
-        field('标签',entry.label,v=>{entry.label=v;updatePreview()}),
+        field('卡片标注',entry.label,v=>{entry.label=v;updatePreview()}),
         field('登场人物（逗号分隔；留空恢复自动，输入“无”隐藏）',entry.names===''?'无':entry.names||'',v=>{if(v.trim()==='')delete entry.names;else entry.names=v.trim()==='无'?'':v;manuallyEditedNames.add(i);updatePreview()}),
         field('简介',entry.description,v=>{entry.description=v;updatePreview()},true),
         fileField('上传封面（原图 8 MB 内）','image/png,image/jpeg,image/webp,image/gif',8*1048576,async(v,file,settings)=>{const next=await optimizeCoverData(v,file,doc);if(!settingsFields.isCurrent(settings))return;if(next.length>1400000)throw Error('压缩后仍超过约 1 MB，请换更小的图片；GIF 动图不会压缩');entry.image=next;updatePreview();return next.length<v.length?`封面已压缩：${Math.round(v.length/1024)} KB → ${Math.round(next.length/1024)} KB，保存后随卡导出。`:'封面已载入；原图更小或不支持压缩，保存后随卡导出。'}));
       box.append(group);
+      const categories=el('div','uos-fields');categories.append(field('分组（留空表示未分组）',entry.group,v=>{entry.group=openingMetadata({group:v}).group;updatePreview()}),field('筛选标签（逗号分隔）',openingMetadata(entry).tags.join('、'),v=>{entry.tags=openingMetadata({tags:v}).tags;updatePreview()}));box.append(categories,el('p','uos-help','同名分组会自动合并。筛选标签最多 12 个，每个最多 30 字，例如：雨夜、重逢。'));
       coverSettings=createCoverSettings({el,entry,onChange:updatePreview});box.append(coverSettings.element);
       if(entry.nameSuggestions?.length){const accept=el('button','uos-icon',`采纳候选：${entry.nameSuggestions.join('、')}`);accept.type='button';accept.onclick=()=>{entry.names=[...new Set([...(entry.names||'').split(/[、，,\/]/).filter(Boolean),...entry.nameSuggestions])].join('、');manuallyEditedNames.add(i);group.querySelectorAll('input,textarea')[2].value=entry.names;updatePreview();status('候选已填入人物字段，请检查后保存。')};box.append(accept)}
       if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[3].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}

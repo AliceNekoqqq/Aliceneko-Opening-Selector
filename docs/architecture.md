@@ -10,6 +10,8 @@
 | src/asset-source.js | 已发布的固定资源 SHA 与 CDN／备用地址 |
 | src/theme-art.js | 图标、页眉角饰、设置插画的显式资源接口 |
 | src/theme-backgrounds.js | 共享背景预加载、在途去重、缓存、备用源与取消 |
+| src/opening-categories.js | 作者明确填写的分组／标签规范、组合筛选与按原索引分组；不依赖 UI |
+| src/opening-category-ui.js / opening-category-styles.js | 共用分类筛选控件、分组折叠、标签展示与样式 |
 | src/opening-preview.js | 作者／玩家共用只读预览窗口；筛选结果导航、完整内容、原事务选择与清理 |
 | src/opening-presentation.js | 共用版式值、封面编号与取景焦点规范；自定义图优先的封面渲染 |
 | src/opening-layout-styles.js | 作者与玩家共用的画廊／故事目录／档案版式样式 |
