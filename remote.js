@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16-beta.3" : "development";
+var RUNTIME_VERSION = true ? "1.0.16-beta.4" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -1637,7 +1637,7 @@ function createPlayerSettingsLayout(el) {
   };
   let stopToggles = () => {
   }, closed = false;
-  function assemble({ exclusion, people, edits, labels, updates }) {
+  function assemble({ exclusion, people, edits, labels, updates, floatingStyle }) {
     if (closed) return;
     stopToggles();
     const sheets = [exclusion, people, edits, labels, updates];
@@ -1656,11 +1656,13 @@ function createPlayerSettingsLayout(el) {
     const intro = el("p", "uos-user-settings-intro", "按需要展开一项。修改后使用该项的保存按钮。");
     const common = el("section", "uos-user-settings-group");
     common.append(el("h3", "", "开场显示"), edits, labels);
+    const appearance = el("section", "uos-user-settings-group");
+    appearance.append(el("h3", "", "界面外观"), floatingStyle);
     const advanced = el("section", "uos-user-settings-group");
     advanced.append(el("h3", "", "识别规则"), exclusion, people);
     const system = el("section", "uos-user-settings-group");
     system.append(el("h3", "", "插件"), updates);
-    settings.replaceChildren(intro, common, advanced, system);
+    settings.replaceChildren(intro, common, appearance, advanced, system);
   }
   return { settings, button, assemble, close() {
     if (closed) return;
@@ -1668,6 +1670,31 @@ function createPlayerSettingsLayout(el) {
     stopToggles();
     button.onclick = null;
   } };
+}
+
+// src/player-trigger-style.js
+var STORAGE_KEY = "uos_player_floating_style_v1";
+var normalize = (value) => value === "simple" ? "simple" : "mascot";
+function createPlayerTriggerStylePreference(host) {
+  let value = "mascot";
+  try {
+    value = normalize(host?.localStorage?.getItem(STORAGE_KEY));
+  } catch {
+  }
+  return {
+    get() {
+      return value;
+    },
+    set(next) {
+      value = normalize(next);
+      try {
+        host?.localStorage?.setItem(STORAGE_KEY, value);
+        return { value, saved: true };
+      } catch {
+        return { value, saved: false };
+      }
+    }
+  };
 }
 
 // src/player-draft-guard.js
@@ -3292,6 +3319,11 @@ var CSS2 = `
 .uos-user-trigger-title{font-size:12px;font-weight:700;line-height:1.35;white-space:nowrap}
 .uos-user-trigger-count{font-size:10px;line-height:1.3;letter-spacing:.08em;opacity:.76;font-variant-numeric:tabular-nums;white-space:nowrap}
 .uos-user-trigger-arrow{flex:none;font-size:18px;line-height:1;opacity:.68}
+.uos-user-trigger[data-style=simple]{width:max-content;min-height:38px;gap:7px;padding:7px 13px;border-radius:999px}
+.uos-user-trigger[data-style=simple] .uos-brand-avatar,.uos-user-trigger[data-style=simple] .uos-user-trigger-arrow{display:none}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-copy{display:flex;align-items:center;gap:7px;flex:0 1 auto}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-title{font-size:12px}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-count{font-size:11px;letter-spacing:0}
 .uos-user-trigger[data-floating=true]{position:fixed!important;z-index:2147483645;right:auto!important;bottom:auto!important;margin:0!important;transform:none!important;transition:none!important;touch-action:none;user-select:none}
 .uos-user-trigger[data-theme=neon]{background:#211839;border-color:#d279ef;color:#fff0fa;box-shadow:0 0 18px #b044c288}.uos-user-trigger[data-theme=paper]{background:#f8eedb;border-color:#a3493b;color:#522d28}.uos-user-trigger[data-theme=noir]{background:#1b1c1e;border-color:#e1dfda;color:#f7f5ef}.uos-user-trigger[data-theme=meadow]{background:#1d392f;border-color:#bec889;color:#f3f1d9}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
@@ -3486,6 +3518,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 /* Browse first; edit and inspect details on demand. */
 .uos-user-panel .uos-user-settings[hidden]{display:none}
 .uos-user-settings-intro{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.7}.uos-user-settings-group{margin:16px 0}.uos-user-settings-group>h3{font-size:13px;margin:0 0 8px;color:var(--accent)}.uos-user-settings .uos-user-label-settings{max-height:none;overflow:visible;min-height:0;padding:12px;margin:8px 0}.uos-user-settings .uos-user-label-settings summary{line-height:1.6}.uos-user-settings .uos-user-label-settings>p{font-size:12px;line-height:1.7}.uos-user-settings .uos-user-label-settings>button{margin:10px 6px 0 0}.uos-user-settings-button{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;min-height:38px}
+.uos-user-floating-style{display:grid;grid-template-columns:minmax(86px,auto) minmax(0,1fr);align-items:center;gap:8px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.uos-user-floating-style-title{color:var(--text);font-size:13px;font-weight:600}.uos-user-floating-style select{width:100%;max-width:200px;min-height:38px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}.uos-user-floating-style small{grid-column:1/-1;color:var(--muted);font-size:11px;line-height:1.6}
 .uos-user-settings{margin:0 0 16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .uos-user-results{margin:0 0 12px;color:var(--muted);font-size:12px}
 .uos-user-panel .uos-user-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.7;padding-right:0}
@@ -3563,6 +3596,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   }
   doc.__uosPlayer?.close?.();
   const host = doc.defaultView || globalThis;
+  const triggerStylePreference = createPlayerTriggerStylePreference(host);
   const helper = helperApi || host.TavernHelper || host;
   const readWorldbookPeople = createWorldbookPeopleReader(() => [helperApi, startDocument?.defaultView?.TavernHelper, startDocument?.defaultView, host.TavernHelper, host]);
   const worldbookPresetManager = createWorldbookPresetManager(() => [helperApi, startDocument?.defaultView?.TavernHelper, startDocument?.defaultView, host.TavernHelper, host], () => {
@@ -3619,6 +3653,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
           if (!triggerDrag?.suppressClick(event)) openPanel();
         };
       }
+      trigger.dataset.style = triggerStylePreference.get();
       try {
         trigger.dataset.theme = host.localStorage.getItem("uos_player_theme") || "archive";
       } catch {
@@ -3717,6 +3752,22 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const { settings, button: settingsButton } = settingsLayout;
     tools.append(settingsButton);
     session.own(() => settingsLayout.close());
+    const floatingStyle = el("label", "uos-user-floating-style");
+    const floatingStyleSelect = el("select");
+    floatingStyleSelect.setAttribute("aria-label", "悬浮窗样式");
+    for (const [value, label] of [["simple", "简洁版"], ["mascot", "看板娘版"]]) {
+      const option = el("option", "", label);
+      option.value = value;
+      floatingStyleSelect.append(option);
+    }
+    floatingStyleSelect.value = triggerStylePreference.get();
+    const floatingStyleHint = el("small", "", "简洁版显示标题和编号；看板娘版会随主题更换造型。");
+    floatingStyle.append(el("span", "uos-user-floating-style-title", "悬浮窗样式"), floatingStyleSelect, floatingStyleHint);
+    floatingStyleSelect.onchange = () => {
+      const result = triggerStylePreference.set(floatingStyleSelect.value);
+      if (trigger) trigger.dataset.style = result.value;
+      floatingStyleHint.textContent = result.saved ? "简洁版显示标题和编号；看板娘版会随主题更换造型。" : "浏览器未能保存偏好，本次运行仍会立即切换。";
+    };
     const character = host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
     const authorConfig = (character?.data || character)?.extensions?.[KEY] || {};
     const layoutKey = `uos_player_layout_${snapshot.avatar}`;
@@ -4276,7 +4327,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     mark.append(footerVersion);
     const stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
     session.own(stopUpdateControl);
-    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings });
+    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings, floatingStyle });
     const welcome = createMascotNote(el, "welcome", "按需要展开一项设置，修改后使用该项的保存按钮。");
     settings.querySelector(".uos-user-settings-intro").replaceWith(welcome.element);
     session.own(welcome.dispose);
@@ -6017,7 +6068,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     if (list) renderWorldbookPeopleList(doc, list, worldbookPeople, worldbookDiagnostics);
   }
   const stored = character()?.data?.extensions?.[KEY2] ?? character()?.extensions?.[KEY2];
-  let config = normalize(stored || seed);
+  let config = normalize2(stored || seed);
   let draft = null;
   let displayTheme = localTheme() || config.theme;
   let portaled = [];
@@ -6112,7 +6163,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     status,
     confirmPresetDelete
   });
-  function normalize(input) {
+  function normalize2(input) {
     const x = input && typeof input === "object" ? input : {};
     const worldbookConfig = migrateWorldbookPresetAssignments(x.entries, x.worldbookPresets);
     return {
@@ -6194,7 +6245,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     if (!draft) return false;
     if (worldbookEditor.hasUnsaved() || pendingSettingsTasks > 0) return true;
     try {
-      return settingsDraftBaseline !== null && JSON.stringify(normalize({ ...draft, theme: displayTheme })) !== settingsDraftBaseline;
+      return settingsDraftBaseline !== null && JSON.stringify(normalize2({ ...draft, theme: displayTheme })) !== settingsDraftBaseline;
     } catch {
       return true;
     }
@@ -6681,7 +6732,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const dlg = showSheet("[data-settings-dialog]");
     if (!dlg) return;
     ensureUpdateSettings(dlg);
-    draft || (draft = normalize(config));
+    draft || (draft = normalize2(config));
     pagePreview?.dispose();
     const manuallyEditedNames = /* @__PURE__ */ new Set(), fields = $("[data-settings-fields]");
     fields.replaceChildren();
@@ -6710,7 +6761,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       backgroundService,
       readModel: () => {
         if (draft !== previewDraft || root.isConnected === false || character()?.avatar !== previewAvatar || context()?.characterId !== previewCharacterId) return null;
-        const settings = normalize({ ...draft, theme: displayTheme, entries: draft.entries.map((entry, i) => {
+        const settings = normalize2({ ...draft, theme: displayTheme, entries: draft.entries.map((entry, i) => {
           if (manuallyEditedNames.has(i) || typeof config.entries[i]?.names === "string") return entry;
           const { names, ...automatic } = entry;
           return automatic;
@@ -6890,7 +6941,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       dlg.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b === button)));
       dlg.querySelectorAll("[data-tab-panel]").forEach((panel) => panel.hidden = panel.dataset.tabPanel !== button.dataset.tab);
     });
-    settingsDraftBaseline = JSON.stringify(normalize({ ...draft, theme: displayTheme }));
+    settingsDraftBaseline = JSON.stringify(normalize2({ ...draft, theme: displayTheme }));
     saveSettingsToCard = async ({ closeOnSuccess = true, commitPresetDraft = false } = {}) => {
       if (pendingSettingsTasks > 0) {
         status("文件仍在处理，请稍候后再保存。");
@@ -6937,7 +6988,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         if (!same(saved, saveData)) throw Error("角色卡复核未找到刚保存的设置，请重新打开角色卡检查");
         if (context()?.characterId !== saveCharacterId || character()?.avatar !== card.avatar) throw Error("原角色卡已保存，但当前角色已切换，请重新打开设置");
         await c.writeExtensionField(saveCharacterId, KEY2, saveData);
-        config = normalize(saveData);
+        config = normalize2(saveData);
         draft = null;
         settingsDraftBaseline = null;
         worldbookEditor.reset();
