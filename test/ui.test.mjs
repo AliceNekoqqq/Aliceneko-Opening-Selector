@@ -65,6 +65,17 @@ try{
  await page.waitForFunction(()=>__state.characterId===1);
  assert.equal(await page.evaluate(()=>window.__extensionWrites),0);
  await page.evaluate(()=>{__state.characterId=0;__state.characters[0].data.first_mes='钟楼的清晨。';__state.characters[0].data.alternate_greetings=['雨夜车站。'];document.__uosAuthor.scan();document.__uosPlayer.scan();__state.writeExtensionField=async(id,key,value)=>{__state.characters[id].data.extensions[key]=structuredClone(value)}});
+ // Float the entry out of a transformed, scrolling chat, then drag it twice.
+ await page.evaluate(()=>{const chat=document.querySelector('#chat');chat.style.transform='translate(35px,20px)';chat.style.overflow='auto';chat.style.height='350px'});
+ const entry=page.locator('.uos-user-trigger');let entryRect=await entry.boundingBox();
+ await page.mouse.move(entryRect.x+20,entryRect.y+15);await page.mouse.down();await page.mouse.move(240,180,{steps:5});await page.mouse.up();
+ assert.equal(await page.locator('.uos-user-overlay').count(),0,'drag release does not open the selector');
+ assert.equal(await entry.evaluate(node=>node.parentNode===document.body),true);
+ await page.evaluate(()=>{document.__uosPlayer.scan();document.querySelector('#chat').scrollTop=100});
+ entryRect=await entry.boundingBox();const firstEntryPosition={x:entryRect.x,y:entryRect.y};
+ await page.mouse.move(entryRect.x+20,entryRect.y+15);await page.mouse.down();await page.mouse.move(entryRect.x+60,entryRect.y+45,{steps:5});await page.mouse.up();
+ entryRect=await entry.boundingBox();assert.ok(Math.abs(entryRect.x-firstEntryPosition.x-40)<2&&Math.abs(entryRect.y-firstEntryPosition.y-30)<2,'repeat drag retains the visible origin');
+ await page.evaluate(()=>{document.querySelector('#chat').style.transform='none'});
  await page.locator('.uos-user-trigger').click();
  const player=page.locator('dialog.uos-user-overlay');
  await page.addStyleTag({content:'select{background:#333!important;color:#111!important;color-scheme:dark!important}'});

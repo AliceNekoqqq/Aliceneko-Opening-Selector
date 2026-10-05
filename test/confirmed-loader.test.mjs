@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const payload=JSON.parse(fs.readFileSync('dist/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.11.json'));
+const payload=JSON.parse(fs.readFileSync('test/fixtures/红豆粉开场白选择器_测试版脚本_v1.0.10-beta.11.json'));
 assert.match(payload.name,/确认更新/);
 assert.equal(payload.enabled,false);assert.equal(payload.export_with.data,false);
 const old=payload.content.match(/"fallbackRef":"([a-f0-9]{40})"/)[1];

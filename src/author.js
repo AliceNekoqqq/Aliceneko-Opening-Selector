@@ -1,10 +1,12 @@
 import {mountInDocument} from './selector.js';
-import {AUTHOR_HTML} from './author-template.js';
+import {buildAuthorHtml} from './author-template.js';
+import {THEME_ART} from './theme-art.js';
+import {RUNTIME_VERSION} from './version.js';
 
-const AUTHOR_VERSION='1.0.13';
+const AUTHOR_VERSION=RUNTIME_VERSION;
 export const AUTHOR_MARKER='<UniversalOpeningSelector/>';
-const EMPTY_OPENING_ART=AUTHOR_HTML.match(/--uos-empty-opening-art:url\("([^"]+)"\)/)?.[1]||'';
-const DIAGNOSTICS_ART=AUTHOR_HTML.match(/--uos-diagnostics-art:url\("([^"]+)"\)/)?.[1]||EMPTY_OPENING_ART;
+const EMPTY_OPENING_ART=THEME_ART.openings;
+const DIAGNOSTICS_ART=THEME_ART.diagnostics;
 
 export function inspectAuthorState(context,helper){
   const card=context?.characters?.[context.characterId];
@@ -28,11 +30,10 @@ export function readAuthorState(context,helper){return inspectAuthorState(contex
 export function authorHtml(count){
   // Existing saved card settings take precedence over this initial seed.
   const seed={version:1,title:'选择故事的起点',subtitle:'选择一个开场，故事将从那里继续。',theme:'archive',entries:[],music:{enabled:false,title:'',audio:'',lyrics:''}};
-  return AUTHOR_HTML.replace(/(<script type="application\/json" id="uos-seed">)[\s\S]*?(<\/script>)/,(_,start,end)=>start+JSON.stringify(seed)+end)
-    .replace('已读取 1 条正式开场',`已读取 ${count} 条正式开场`);
+  return buildAuthorHtml(seed,count);
 }
 
-export function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=false}={}){
+export function mountAuthorSelector(startDocument=document,helperApi,{showSetupHints=false,backgroundService=null}={}){
   let doc=startDocument,win=doc.defaultView;
   try{for(let i=0;i<8&&win?.parent&&win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
   doc.__uosAuthor?.close?.();
@@ -61,6 +62,7 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
     const copy=doc.createElement('span');copy.textContent=message;notice.append(art,copy);container.prepend(notice);
   }
   function closeFrame(){
+    active?.frame.contentDocument?.querySelector('[data-uos]')?.__uosDispose?.();
     if(!active)return;
     const {frame,container,contents,resize}=active;active=null;resize?.disconnect();
     for(const popup of doc.querySelectorAll('iframe[data-uos-frame]'))popup.remove();frame.remove();
@@ -87,7 +89,7 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
       if(!frameDoc)throw Error('选择页 iframe 无法访问');
       frameDoc.open();frameDoc.write(authorHtml(state.entries.length));frameDoc.close();
       const root=frameDoc.querySelector('[data-uos]');root.__uosHostDocument=doc;
-      if(!mountInDocument(frameDoc,helper))throw Error('选择页未挂载');
+      if(!mountInDocument(frameDoc,helper,{backgroundService}))throw Error('选择页未挂载');
       // Measure content, not document.scrollHeight: the latter is at least the
       // current iframe viewport and cannot shrink after filtering/collapsing.
       const fitFrame=()=>{

@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {buildAuthorHtml} from '../src/author-template.js';
+import {THEME_ART} from '../src/theme-art.js';
+import {THEME_IDS} from '../src/themes.js';
+const config={version:1,title:'含 <字段> 的标题',subtitle:'</script><script>错误</script>',entries:[{title:'第一条',image:'data:image/png;base64,YWJj'}],music:{audio:'data:audio/mpeg;base64,YWJj'}};
+const html=buildAuthorHtml(config,2);
+assert.equal((html.match(/id="uos-seed"/g)||[]).length,1);
+assert.doesNotMatch(html,/<script type="module">|<script>错误|__(?:THEME|TAB)_[A-Z_]+__/);
+assert.match(html,/已读取 2 条正式开场/);
+const seed=html.match(/<script type="application\/json" id="uos-seed">([\s\S]*?)<\/script>/)[1];
+assert.deepEqual(JSON.parse(seed),config,'seed preserves author media and escapes HTML injection');
+for(const id of THEME_IDS)assert.ok(html.includes(`theme-background-${id}.webp`),id);
+for(const url of Object.values(THEME_ART))assert.ok(html.includes(url));
+console.log('In-Tavern author template: safe seed, media preservation, all themes and explicit art references passed');
