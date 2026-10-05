@@ -5,7 +5,7 @@ import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {OPENING_FAVORITES_CSS} from './opening-favorites-styles.js';
 import {createPlayerPanelSession} from './player-panel-session.js';
 import {createPlayerButtonDrag} from './player-button-drag.js';
-import {BRAND_CSS,createBrandMark,createMascotNote} from './brand-mark.js';
+import {BRAND_CSS,createBrandMark,createMascotNote,bindBrandImages} from './brand-mark.js';
 import {createPlayerSettingsLayout} from './player-settings-layout.js';
 import {unsavedPlayerGroups,createPlayerDraftGuard,showPlayerUnsavedPrompt} from './player-draft-guard.js';
 export {unsavedPlayerGroups} from './player-draft-guard.js';
@@ -330,7 +330,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
     const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);const backgroundControl=createThemeBackgroundController(panel,'--uos-user-background',doc.defaultView,{service:backgroundService});void backgroundControl.setTheme(panel.dataset.theme);session.own(()=>backgroundControl.close());
-    const brand=createBrandMark(el);panel.append(brand.element);session.own(brand.dispose);
+    const brand=createBrandMark(el);panel.append(brand.element);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
@@ -553,6 +553,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     settings.querySelector('.uos-user-settings-intro').replaceWith(welcome.element);session.own(welcome.dispose);
     panel.append(head,tools,settings,search,results,list,status,mark);
     overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
+    const stopBrandImages=bindBrandImages(panel);session.own(stopBrandImages);
     const active=overlay;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;

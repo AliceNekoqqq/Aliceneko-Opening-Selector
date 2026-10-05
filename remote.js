@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16-beta.1" : "development";
+var RUNTIME_VERSION = true ? "1.0.16-beta.2" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -32,12 +32,12 @@ function themeDraw(theme) {
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
 var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
-var BRAND_ASSET_REF = "c1d717d38234269939ac7cc4fc8be7b3a388a2e9";
+var BRAND_ASSET_REF = "64c34a71954308f54f0b648c721dc77f679c6e66";
 var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
 function themeAssetRef(path) {
-  if (/^assets\/brand\/(?:mascot|welcome|search)\.webp$/.test(path)) return BRAND_ASSET_REF;
+  if (/^assets\/brand\/(?:mascot|welcome|search|theme-mascots)\.webp$/.test(path)) return BRAND_ASSET_REF;
   if (/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path)) return SCHOOL_THEME_ASSET_REF;
   if (path.startsWith("assets/default-covers/")) return DEFAULT_COVER_ASSET_REF;
   if (path.startsWith("assets/blind-box/card-backs/")) return BLIND_BOX_THEME_ASSET_REF;
@@ -1495,9 +1495,10 @@ function createPlayerButtonDrag(button, { positionKey = "uos_player_button_posit
 // src/theme-art.js
 var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
 var THEME_ART = Object.freeze({
-  mascot: artUrl("brand/mascot"),
+  mascot: artUrl("brand/theme-mascots"),
   welcome: artUrl("brand/welcome"),
   search: artUrl("brand/search"),
+  themeMascots: artUrl("brand/theme-mascots"),
   icons: artUrl("theme-icons"),
   schoolIcon: artUrl("theme-icon-school"),
   schoolOrnament: artUrl("theme-ornament-school"),
@@ -1510,10 +1511,17 @@ var THEME_ART = Object.freeze({
 });
 
 // src/brand-mark.js
+var MASCOT_COLUMNS = 4;
+var MASCOT_ROWS = 5;
+var THEME_MASCOT_POSITIONS = Object.freeze(Object.fromEntries(THEME_IDS.map((id, index) => [
+  id,
+  `${index % MASCOT_COLUMNS / (MASCOT_COLUMNS - 1) * 100}% ${Math.floor(index / MASCOT_COLUMNS) / (MASCOT_ROWS - 1) * 100}%`
+])));
+var themeRules = THEMES.map(([id]) => `.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join("\n");
 var BRAND_CSS = `
 .uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
 .uos-masthead .uos-brand{padding-right:64px}
-.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;object-fit:contain;object-position:center;filter:drop-shadow(0 3px 5px #0002);background:radial-gradient(ellipse,#d9759a20,transparent 72%)}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("${THEME_ART.themeMascots}"));background-size:${MASCOT_COLUMNS * 100}% ${MASCOT_ROWS * 100}%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
 .uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
 .uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
 .uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
@@ -1529,9 +1537,11 @@ var BRAND_CSS = `
 .uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
 @media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note img{width:76px;height:70px}}
 @media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
+${themeRules}
+img[data-uos-mascot-loader]{display:none!important}
 `;
 function brandMarkMarkup() {
-  return `<div class="uos-brand"><img class="uos-brand-avatar" data-uos-mascot src="${THEME_ART.mascot}" width="384" height="351" alt="" aria-hidden="true" draggable="false" decoding="async"><div class="uos-brand-copy"><strong>红豆粉开场白选择器</strong><small>ALICENEKO · OPENING SELECTOR</small></div></div>`;
+  return `<div class="uos-brand"><span class="uos-brand-avatar" data-uos-theme-mascot role="img" aria-label="主题看板娘 Logo"></span><div class="uos-brand-copy"><strong>红豆粉开场白选择器</strong><small>ALICENEKO · OPENING SELECTOR</small></div></div>`;
 }
 function bindMascotImage(image, kind = "mascot") {
   if (!image) return () => {
@@ -1558,8 +1568,33 @@ function bindMascotImage(image, kind = "mascot") {
   };
 }
 function bindBrandImages(root) {
-  const stops = [...root.querySelectorAll?.("[data-uos-mascot]") || []].map((image) => bindMascotImage(image, image.getAttribute("data-mascot-kind") || "mascot"));
-  return () => stops.forEach((stop) => stop());
+  if (!root?.querySelectorAll) return () => {
+  };
+  const doc = root.ownerDocument, urls = themeAssetCandidates("assets/brand/theme-mascots.webp");
+  let index = 0, disposed = false;
+  const loader = doc?.createElement?.("img");
+  if (!loader) return () => {
+  };
+  loader.dataset.uosMascotLoader = "";
+  loader.alt = "";
+  loader.hidden = true;
+  root.append(loader);
+  const stop = () => {
+    if (disposed) return;
+    disposed = true;
+    loader.onload = loader.onerror = null;
+    loader.remove();
+    root.style?.removeProperty?.("--uos-theme-mascot-image");
+  };
+  loader.onload = () => {
+    if (!disposed && root.isConnected !== false) root.style?.setProperty?.("--uos-theme-mascot-image", `url("${urls[index]}")`);
+  };
+  loader.onerror = () => {
+    if (disposed || root.isConnected === false) return;
+    if (++index < urls.length) loader.src = urls[index];
+  };
+  loader.src = urls[index];
+  return stop;
 }
 function mascotNoteMarkup(kind, text) {
   return `<div class="uos-mascot-note"><img data-uos-mascot data-mascot-kind="${kind}" src="${THEME_ART[kind]}" width="320" height="292" alt="" aria-hidden="true" draggable="false" decoding="async"><span>${text}</span></div>`;
@@ -1577,17 +1612,13 @@ function createMascotNote(el, kind, text, cls = "") {
   return { element, dispose: bindMascotImage(image, kind) };
 }
 function createBrandMark(el) {
-  const element = el("div", "uos-brand"), image = el("img", "uos-brand-avatar"), copy = el("div", "uos-brand-copy");
-  image.alt = "";
-  image.draggable = false;
-  image.decoding = "async";
-  image.width = 384;
-  image.height = 351;
-  image.setAttribute("aria-hidden", "true");
-  image.src = THEME_ART.mascot;
+  const element = el("div", "uos-brand"), image = el("span", "uos-brand-avatar"), copy = el("div", "uos-brand-copy");
+  image.setAttribute("role", "img");
+  image.setAttribute("aria-label", "主题看板娘 Logo");
+  image.dataset.uosThemeMascot = "";
   copy.append(el("strong", "", "红豆粉开场白选择器"), el("small", "", "ALICENEKO · OPENING SELECTOR"));
   element.append(image, copy);
-  return { element, dispose: bindMascotImage(image) };
+  return { element };
 }
 
 // src/player-settings-layout.js
@@ -3626,7 +3657,6 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     session.own(() => backgroundControl.close());
     const brand = createBrandMark(el);
     panel.append(brand.element);
-    session.own(brand.dispose);
     const head = el("div", "uos-user-head"), heading = el("div"), kicker = el("span", "uos-user-kicker", THEME_CAPTIONS[panel.dataset.theme]);
     const headerArt = el("span", "uos-user-header-ornament");
     headerArt.setAttribute("aria-hidden", "true");
@@ -4234,6 +4264,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     panel.append(head, tools, settings, search, results, list, status, mark);
     overlay.append(panel);
     (doc.body || doc.documentElement).append(overlay);
+    const stopBrandImages = bindBrandImages(panel);
+    session.own(stopBrandImages);
     const active = overlay;
     const restorePlayerDraft = () => {
       if (!playerBaseline) return;
@@ -5553,7 +5585,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 
 .uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
 .uos-masthead .uos-brand{padding-right:64px}
-.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;object-fit:contain;object-position:center;filter:drop-shadow(0 3px 5px #0002);background:radial-gradient(ellipse,#d9759a20,transparent 72%)}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@64c34a71954308f54f0b648c721dc77f679c6e66/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
 .uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
 .uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
 .uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
@@ -5565,10 +5597,28 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-mascot-note span{min-width:0;overflow-wrap:anywhere}
 .uos-brand img[hidden],.uos-mascot-note img[hidden]{display:none}
 .uos .uos-search-empty.uos-mascot-note::before{display:none}
-.uos .uos-search-empty:not(.uos-mascot-note)::before{background-image:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@c1d717d38234269939ac7cc4fc8be7b3a388a2e9/assets/brand/search.webp");background-size:contain;background-position:center;background-repeat:no-repeat}
+.uos .uos-search-empty:not(.uos-mascot-note)::before{background-image:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@64c34a71954308f54f0b648c721dc77f679c6e66/assets/brand/search.webp");background-size:contain;background-position:center;background-repeat:no-repeat}
 .uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
 @media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note img{width:76px;height:70px}}
 @media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
+.uos[data-theme="archive"] .uos-brand-avatar,.uos-user-panel[data-theme="archive"] .uos-brand-avatar{--uos-mascot-position:0% 0%}
+.uos[data-theme="neon"] .uos-brand-avatar,.uos-user-panel[data-theme="neon"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 0%}
+.uos[data-theme="paper"] .uos-brand-avatar,.uos-user-panel[data-theme="paper"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 0%}
+.uos[data-theme="noir"] .uos-brand-avatar,.uos-user-panel[data-theme="noir"] .uos-brand-avatar{--uos-mascot-position:100% 0%}
+.uos[data-theme="meadow"] .uos-brand-avatar,.uos-user-panel[data-theme="meadow"] .uos-brand-avatar{--uos-mascot-position:0% 25%}
+.uos[data-theme="ancient"] .uos-brand-avatar,.uos-user-panel[data-theme="ancient"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 25%}
+.uos[data-theme="starmap"] .uos-brand-avatar,.uos-user-panel[data-theme="starmap"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 25%}
+.uos[data-theme="rose"] .uos-brand-avatar,.uos-user-panel[data-theme="rose"] .uos-brand-avatar{--uos-mascot-position:100% 25%}
+.uos[data-theme="wasteland"] .uos-brand-avatar,.uos-user-panel[data-theme="wasteland"] .uos-brand-avatar{--uos-mascot-position:0% 50%}
+.uos[data-theme="deepsea"] .uos-brand-avatar,.uos-user-panel[data-theme="deepsea"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 50%}
+.uos[data-theme="amber"] .uos-brand-avatar,.uos-user-panel[data-theme="amber"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 50%}
+.uos[data-theme="theatre"] .uos-brand-avatar,.uos-user-panel[data-theme="theatre"] .uos-brand-avatar{--uos-mascot-position:100% 50%}
+.uos[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-brand-avatar{--uos-mascot-position:0% 75%}
+.uos[data-theme="aurora"] .uos-brand-avatar,.uos-user-panel[data-theme="aurora"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 75%}
+.uos[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 75%}
+.uos[data-theme="japan"] .uos-brand-avatar,.uos-user-panel[data-theme="japan"] .uos-brand-avatar{--uos-mascot-position:100% 75%}
+.uos[data-theme="school"] .uos-brand-avatar,.uos-user-panel[data-theme="school"] .uos-brand-avatar{--uos-mascot-position:0% 100%}
+img[data-uos-mascot-loader]{display:none!important}
 `;
 
 // src/author-template.js

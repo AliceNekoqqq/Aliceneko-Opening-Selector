@@ -1,6 +1,11 @@
 # PROJECT_STATE.md
 
-## 当前测试：v1.0.16-beta.1
+## 当前测试：v1.0.16-beta.2
+- 按 themes.js 原顺序设计完整的 17 套 OC 服装（发饰、上装、下装、鞋袜、配件）：docs/mascot-wardrobe.md。每个主题半身标志的领口、肩袖与胸针体现该主题，统一保留双马尾、左侧紫蝶和蝶影瞳。
+- assets/brand/theme-mascots.webp 为 4×5 透明精灵图；每格对应一个主题，压缩约 500KB，通过 themeAssetCandidates 的三源顺序加载。brand-mark.js 根据 themes.js 的主题顺序计算图格，作者页、作者整页预览与玩家页头随主题切换造型；角色卡只引用远程资源。
+- 设置欢迎与搜索空结果保留已有动作差分。`npm test` 全部 107 项通过；preview 构建、remote.js 语法、差异空白检查通过；sprite WebP 为 1120×1400 sRGBA、约 500 KiB。无浏览器执行环境，真实酒馆的视觉／触摸需用户手动验收。
+
+## beta.1 交接记录
 - 已从 v1.0.16 正式源码开始新测试周期。新增三款透明 OC 看板娘：页眉卡片 Logo、设置招手欢迎、搜索放大镜思考。
 - assets/brand 三张 WebP 约 90KiB，固定资源提交 c1d717d38234269939ac7cc4fc8be7b3a388a2e9。brand-mark.js 共用品牌样式、标识、差分与三源失败处理；作者、玩家与作者整页预览复用。缩小玩家原主题页眉装饰，手机 Logo 为 58px。
 - 不改正式通道与既有本地 JSON，角色卡不保存品牌图片。必要定向 Node 检查、preview 构建和模块语法通过；浏览器仍缺失，实际酒馆视觉待用户检查。
