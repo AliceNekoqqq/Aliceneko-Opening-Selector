@@ -7,7 +7,7 @@ import {defaultCoverStyles} from './default-covers.js';
 import {createThemeBackgroundController} from './theme-backgrounds.js';
 import {lyricRows} from './media-player.js';
 import {RUNTIME_VERSION} from './version.js';
-import {bindBrandImages} from './brand-mark.js';
+import {bindBrandImages,createMascotNote} from './brand-mark.js';
 
 // No author mount, helper, persistence or audio source in this visual-only view.
 export function renderAuthorPagePreview({doc,model,host,groups}){
@@ -25,7 +25,7 @@ export function renderAuthorPagePreview({doc,model,host,groups}){
   for(const select of categories.element.querySelectorAll('select'))select.disabled=true;
   let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');filters.after(result)}result.textContent=`${model.items.length} 个开场 · 点击卡片进入`;
   const grid=root.querySelector('[data-grid]');grid.replaceChildren();groups.render(model.items,grid,(entry,target)=>target.append(createAuthorOpeningCard({el,entry,index:entry.id,body:entry.body,host})));
-  if(!model.items.length)grid.append(el('p','uos-search-empty','暂无开场，请先在角色卡中添加备用开场。'));
+  if(!model.items.length)grid.append(createMascotNote(el,'search','暂无开场，请先在角色卡中添加备用开场。','uos-search-empty').element);
   const music=model.music||{};root.querySelector('[data-player]').hidden=!music.enabled;
   root.querySelector('[data-music-title]').textContent=music.title||'开场音乐';
   const lyrics=root.querySelector('[data-lyrics]'),rows=lyricRows(music.lyrics);lyrics.replaceChildren();

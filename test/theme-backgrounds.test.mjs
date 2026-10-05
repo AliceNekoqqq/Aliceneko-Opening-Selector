@@ -84,10 +84,7 @@ for(const url of Object.values(THEME_ART)){
   // This checkout may not contain the just-created remote theme asset commit yet;
   // still verify that each local brand asset matches its immutable published Git blob.
   const brandBlobs={
-   'assets/brand/mascot.webp':'fd440ae15c0b9fadfe47ca3eb31a52fed011b0e6',
-   'assets/brand/search.webp':'be3a9004a1ec8def2790b46433de131d5a3e530f',
-   'assets/brand/welcome.webp':'8bf72edbbc4d2ffe4324c6a580f18a6e5cf960c9',
-   'assets/brand/theme-mascots.webp':'03e5c7f6122400fca3ab2264dd9b37c38da60831',
+   'assets/brand/theme-mascots.webp':'7763dacf8fa5986c7f54943eec76b0bd1f300a75',
   };
   if(!(asset in brandBlobs))throw error;
   assert.equal(localBlob,brandBlobs[asset],asset);

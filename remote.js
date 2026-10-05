@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16-beta.4" : "development";
+var RUNTIME_VERSION = true ? "1.0.16-beta.5" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -32,12 +32,12 @@ function themeDraw(theme) {
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
 var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
-var BRAND_ASSET_REF = "64c34a71954308f54f0b648c721dc77f679c6e66";
+var BRAND_ASSET_REF = "a5fcefd2bd1cf0188937ed6b9031dd6857c61103";
 var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
 function themeAssetRef(path) {
-  if (/^assets\/brand\/(?:mascot|welcome|search|theme-mascots)\.webp$/.test(path)) return BRAND_ASSET_REF;
+  if (path === "assets/brand/theme-mascots.webp") return BRAND_ASSET_REF;
   if (/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path)) return SCHOOL_THEME_ASSET_REF;
   if (path.startsWith("assets/default-covers/")) return DEFAULT_COVER_ASSET_REF;
   if (path.startsWith("assets/blind-box/card-backs/")) return BLIND_BOX_THEME_ASSET_REF;
@@ -1496,8 +1496,6 @@ function createPlayerButtonDrag(button, { positionKey = "uos_player_button_posit
 var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
 var THEME_ART = Object.freeze({
   mascot: artUrl("brand/theme-mascots"),
-  welcome: artUrl("brand/welcome"),
-  search: artUrl("brand/search"),
   themeMascots: artUrl("brand/theme-mascots"),
   icons: artUrl("theme-icons"),
   schoolIcon: artUrl("theme-icon-school"),
@@ -1517,7 +1515,7 @@ var THEME_MASCOT_POSITIONS = Object.freeze(Object.fromEntries(THEME_IDS.map((id,
   id,
   `${index % MASCOT_COLUMNS / (MASCOT_COLUMNS - 1) * 100}% ${Math.floor(index / MASCOT_COLUMNS) / (MASCOT_ROWS - 1) * 100}%`
 ])));
-var themeRules = THEMES.map(([id]) => `.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar,.uos-user-trigger[data-theme="${id}"] .uos-brand-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join("\n");
+var themeRules = THEMES.map(([id]) => `.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar,.uos-user-trigger[data-theme="${id}"] .uos-brand-avatar,.uos[data-theme="${id}"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="${id}"] .uos-mascot-note-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join("\n");
 var BRAND_CSS = `
 .uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
 .uos-masthead .uos-brand{padding-right:64px}
@@ -1529,43 +1527,17 @@ var BRAND_CSS = `
 .uos-user-panel .uos-brand-avatar{width:64px;height:59px}
 .uos-user-head>div:first-child{min-width:0;flex:1}
 .uos-mascot-note{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,var(--surface));color:var(--muted);font:13px/1.7 system-ui,"Noto Sans SC",sans-serif;box-sizing:border-box;min-width:0}
-.uos-mascot-note img{display:block;width:94px;height:86px;object-fit:contain;flex:none}
-.uos-mascot-note span{min-width:0;overflow-wrap:anywhere}
-.uos-brand img[hidden],.uos-mascot-note img[hidden]{display:none}
+.uos-mascot-note-avatar{display:block;flex:none;width:94px;height:86px;background-color:transparent;background-image:var(--uos-theme-mascot-image,url("${THEME_ART.themeMascots}"));background-size:${MASCOT_COLUMNS * 100}% ${MASCOT_ROWS * 100}%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0002)}
+.uos-mascot-note-copy{min-width:0;overflow-wrap:anywhere}
 .uos .uos-search-empty.uos-mascot-note::before{display:none}
-.uos .uos-search-empty:not(.uos-mascot-note)::before{background-image:url("${THEME_ART.search}");background-size:contain;background-position:center;background-repeat:no-repeat}
 .uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
-@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note img{width:76px;height:70px}}
+@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note-avatar{width:76px;height:70px}}
 @media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
 ${themeRules}
 img[data-uos-mascot-loader]{display:none!important}
 `;
 function brandMarkMarkup() {
   return `<div class="uos-brand"><span class="uos-brand-avatar" data-uos-theme-mascot role="img" aria-label="主题看板娘 Logo"></span><div class="uos-brand-copy"><strong>红豆粉开场白选择器</strong><small>ALICENEKO · OPENING SELECTOR</small></div></div>`;
-}
-function bindMascotImage(image, kind = "mascot") {
-  if (!image) return () => {
-  };
-  if (!["mascot", "welcome", "search"].includes(kind)) kind = "mascot";
-  const sources = themeAssetCandidates(`assets/brand/${kind}.webp`);
-  let index = 0, disposed = false;
-  const fail = () => {
-    if (disposed || image.isConnected === false) return;
-    if (++index < sources.length) image.src = sources[index];
-    else {
-      image.hidden = true;
-      image.onload = image.onerror = null;
-    }
-  };
-  image.onload = () => {
-    if (!disposed && image.isConnected !== false) image.hidden = false;
-  };
-  image.onerror = fail;
-  if (image.complete && image.naturalWidth === 0) fail();
-  return () => {
-    disposed = true;
-    image.onload = image.onerror = null;
-  };
 }
 function bindBrandImages(root) {
   if (!root?.querySelectorAll) return () => {
@@ -1597,19 +1569,16 @@ function bindBrandImages(root) {
   return stop;
 }
 function mascotNoteMarkup(kind, text) {
-  return `<div class="uos-mascot-note"><img data-uos-mascot data-mascot-kind="${kind}" src="${THEME_ART[kind]}" width="320" height="292" alt="" aria-hidden="true" draggable="false" decoding="async"><span>${text}</span></div>`;
+  return `<div class="uos-mascot-note"><span class="uos-mascot-note-avatar" data-mascot-kind="${kind}" aria-hidden="true"></span><span class="uos-mascot-note-copy">${text}</span></div>`;
 }
 function createMascotNote(el, kind, text, cls = "") {
-  const element = el("div", `uos-mascot-note ${cls}`), image = el("img");
-  image.alt = "";
-  image.draggable = false;
-  image.decoding = "async";
-  image.width = 320;
-  image.height = 292;
-  image.setAttribute("aria-hidden", "true");
-  image.src = THEME_ART[kind];
-  element.append(image, el("span", "", text));
-  return { element, dispose: bindMascotImage(image, kind) };
+  const element = el("div", `uos-mascot-note ${cls}`), avatar = el("span", "uos-mascot-note-avatar"), copy = el("span", "uos-mascot-note-copy", "");
+  avatar.dataset.mascotKind = kind;
+  avatar.setAttribute("aria-hidden", "true");
+  copy.textContent = String(text ?? "");
+  element.append(avatar, copy);
+  return { element, dispose: () => {
+  } };
 }
 function createBrandMark(el) {
   const element = el("div", "uos-brand"), image = el("span", "uos-brand-avatar"), copy = el("div", "uos-brand-copy");
@@ -5655,7 +5624,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 
 .uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
 .uos-masthead .uos-brand{padding-right:64px}
-.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@64c34a71954308f54f0b648c721dc77f679c6e66/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@a5fcefd2bd1cf0188937ed6b9031dd6857c61103/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
 .uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
 .uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
 .uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
@@ -5663,31 +5632,29 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-user-panel .uos-brand-avatar{width:64px;height:59px}
 .uos-user-head>div:first-child{min-width:0;flex:1}
 .uos-mascot-note{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,var(--surface));color:var(--muted);font:13px/1.7 system-ui,"Noto Sans SC",sans-serif;box-sizing:border-box;min-width:0}
-.uos-mascot-note img{display:block;width:94px;height:86px;object-fit:contain;flex:none}
-.uos-mascot-note span{min-width:0;overflow-wrap:anywhere}
-.uos-brand img[hidden],.uos-mascot-note img[hidden]{display:none}
+.uos-mascot-note-avatar{display:block;flex:none;width:94px;height:86px;background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@a5fcefd2bd1cf0188937ed6b9031dd6857c61103/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0002)}
+.uos-mascot-note-copy{min-width:0;overflow-wrap:anywhere}
 .uos .uos-search-empty.uos-mascot-note::before{display:none}
-.uos .uos-search-empty:not(.uos-mascot-note)::before{background-image:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@64c34a71954308f54f0b648c721dc77f679c6e66/assets/brand/search.webp");background-size:contain;background-position:center;background-repeat:no-repeat}
 .uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
-@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note img{width:76px;height:70px}}
+@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note-avatar{width:76px;height:70px}}
 @media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
-.uos[data-theme="archive"] .uos-brand-avatar,.uos-user-panel[data-theme="archive"] .uos-brand-avatar,.uos-user-trigger[data-theme="archive"] .uos-brand-avatar{--uos-mascot-position:0% 0%}
-.uos[data-theme="neon"] .uos-brand-avatar,.uos-user-panel[data-theme="neon"] .uos-brand-avatar,.uos-user-trigger[data-theme="neon"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 0%}
-.uos[data-theme="paper"] .uos-brand-avatar,.uos-user-panel[data-theme="paper"] .uos-brand-avatar,.uos-user-trigger[data-theme="paper"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 0%}
-.uos[data-theme="noir"] .uos-brand-avatar,.uos-user-panel[data-theme="noir"] .uos-brand-avatar,.uos-user-trigger[data-theme="noir"] .uos-brand-avatar{--uos-mascot-position:100% 0%}
-.uos[data-theme="meadow"] .uos-brand-avatar,.uos-user-panel[data-theme="meadow"] .uos-brand-avatar,.uos-user-trigger[data-theme="meadow"] .uos-brand-avatar{--uos-mascot-position:0% 25%}
-.uos[data-theme="ancient"] .uos-brand-avatar,.uos-user-panel[data-theme="ancient"] .uos-brand-avatar,.uos-user-trigger[data-theme="ancient"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 25%}
-.uos[data-theme="starmap"] .uos-brand-avatar,.uos-user-panel[data-theme="starmap"] .uos-brand-avatar,.uos-user-trigger[data-theme="starmap"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 25%}
-.uos[data-theme="rose"] .uos-brand-avatar,.uos-user-panel[data-theme="rose"] .uos-brand-avatar,.uos-user-trigger[data-theme="rose"] .uos-brand-avatar{--uos-mascot-position:100% 25%}
-.uos[data-theme="wasteland"] .uos-brand-avatar,.uos-user-panel[data-theme="wasteland"] .uos-brand-avatar,.uos-user-trigger[data-theme="wasteland"] .uos-brand-avatar{--uos-mascot-position:0% 50%}
-.uos[data-theme="deepsea"] .uos-brand-avatar,.uos-user-panel[data-theme="deepsea"] .uos-brand-avatar,.uos-user-trigger[data-theme="deepsea"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 50%}
-.uos[data-theme="amber"] .uos-brand-avatar,.uos-user-panel[data-theme="amber"] .uos-brand-avatar,.uos-user-trigger[data-theme="amber"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 50%}
-.uos[data-theme="theatre"] .uos-brand-avatar,.uos-user-panel[data-theme="theatre"] .uos-brand-avatar,.uos-user-trigger[data-theme="theatre"] .uos-brand-avatar{--uos-mascot-position:100% 50%}
-.uos[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-trigger[data-theme="lasttrain"] .uos-brand-avatar{--uos-mascot-position:0% 75%}
-.uos[data-theme="aurora"] .uos-brand-avatar,.uos-user-panel[data-theme="aurora"] .uos-brand-avatar,.uos-user-trigger[data-theme="aurora"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 75%}
-.uos[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-trigger[data-theme="glasshouse"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 75%}
-.uos[data-theme="japan"] .uos-brand-avatar,.uos-user-panel[data-theme="japan"] .uos-brand-avatar,.uos-user-trigger[data-theme="japan"] .uos-brand-avatar{--uos-mascot-position:100% 75%}
-.uos[data-theme="school"] .uos-brand-avatar,.uos-user-panel[data-theme="school"] .uos-brand-avatar,.uos-user-trigger[data-theme="school"] .uos-brand-avatar{--uos-mascot-position:0% 100%}
+.uos[data-theme="archive"] .uos-brand-avatar,.uos-user-panel[data-theme="archive"] .uos-brand-avatar,.uos-user-trigger[data-theme="archive"] .uos-brand-avatar,.uos[data-theme="archive"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="archive"] .uos-mascot-note-avatar{--uos-mascot-position:0% 0%}
+.uos[data-theme="neon"] .uos-brand-avatar,.uos-user-panel[data-theme="neon"] .uos-brand-avatar,.uos-user-trigger[data-theme="neon"] .uos-brand-avatar,.uos[data-theme="neon"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="neon"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 0%}
+.uos[data-theme="paper"] .uos-brand-avatar,.uos-user-panel[data-theme="paper"] .uos-brand-avatar,.uos-user-trigger[data-theme="paper"] .uos-brand-avatar,.uos[data-theme="paper"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="paper"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 0%}
+.uos[data-theme="noir"] .uos-brand-avatar,.uos-user-panel[data-theme="noir"] .uos-brand-avatar,.uos-user-trigger[data-theme="noir"] .uos-brand-avatar,.uos[data-theme="noir"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="noir"] .uos-mascot-note-avatar{--uos-mascot-position:100% 0%}
+.uos[data-theme="meadow"] .uos-brand-avatar,.uos-user-panel[data-theme="meadow"] .uos-brand-avatar,.uos-user-trigger[data-theme="meadow"] .uos-brand-avatar,.uos[data-theme="meadow"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="meadow"] .uos-mascot-note-avatar{--uos-mascot-position:0% 25%}
+.uos[data-theme="ancient"] .uos-brand-avatar,.uos-user-panel[data-theme="ancient"] .uos-brand-avatar,.uos-user-trigger[data-theme="ancient"] .uos-brand-avatar,.uos[data-theme="ancient"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="ancient"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 25%}
+.uos[data-theme="starmap"] .uos-brand-avatar,.uos-user-panel[data-theme="starmap"] .uos-brand-avatar,.uos-user-trigger[data-theme="starmap"] .uos-brand-avatar,.uos[data-theme="starmap"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="starmap"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 25%}
+.uos[data-theme="rose"] .uos-brand-avatar,.uos-user-panel[data-theme="rose"] .uos-brand-avatar,.uos-user-trigger[data-theme="rose"] .uos-brand-avatar,.uos[data-theme="rose"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="rose"] .uos-mascot-note-avatar{--uos-mascot-position:100% 25%}
+.uos[data-theme="wasteland"] .uos-brand-avatar,.uos-user-panel[data-theme="wasteland"] .uos-brand-avatar,.uos-user-trigger[data-theme="wasteland"] .uos-brand-avatar,.uos[data-theme="wasteland"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="wasteland"] .uos-mascot-note-avatar{--uos-mascot-position:0% 50%}
+.uos[data-theme="deepsea"] .uos-brand-avatar,.uos-user-panel[data-theme="deepsea"] .uos-brand-avatar,.uos-user-trigger[data-theme="deepsea"] .uos-brand-avatar,.uos[data-theme="deepsea"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="deepsea"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 50%}
+.uos[data-theme="amber"] .uos-brand-avatar,.uos-user-panel[data-theme="amber"] .uos-brand-avatar,.uos-user-trigger[data-theme="amber"] .uos-brand-avatar,.uos[data-theme="amber"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="amber"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 50%}
+.uos[data-theme="theatre"] .uos-brand-avatar,.uos-user-panel[data-theme="theatre"] .uos-brand-avatar,.uos-user-trigger[data-theme="theatre"] .uos-brand-avatar,.uos[data-theme="theatre"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="theatre"] .uos-mascot-note-avatar{--uos-mascot-position:100% 50%}
+.uos[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-trigger[data-theme="lasttrain"] .uos-brand-avatar,.uos[data-theme="lasttrain"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-mascot-note-avatar{--uos-mascot-position:0% 75%}
+.uos[data-theme="aurora"] .uos-brand-avatar,.uos-user-panel[data-theme="aurora"] .uos-brand-avatar,.uos-user-trigger[data-theme="aurora"] .uos-brand-avatar,.uos[data-theme="aurora"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="aurora"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 75%}
+.uos[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-trigger[data-theme="glasshouse"] .uos-brand-avatar,.uos[data-theme="glasshouse"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 75%}
+.uos[data-theme="japan"] .uos-brand-avatar,.uos-user-panel[data-theme="japan"] .uos-brand-avatar,.uos-user-trigger[data-theme="japan"] .uos-brand-avatar,.uos[data-theme="japan"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="japan"] .uos-mascot-note-avatar{--uos-mascot-position:100% 75%}
+.uos[data-theme="school"] .uos-brand-avatar,.uos-user-panel[data-theme="school"] .uos-brand-avatar,.uos-user-trigger[data-theme="school"] .uos-brand-avatar,.uos[data-theme="school"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="school"] .uos-mascot-note-avatar{--uos-mascot-position:0% 100%}
 img[data-uos-mascot-loader]{display:none!important}
 `;
 
@@ -5754,7 +5721,7 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
   const grid = root.querySelector("[data-grid]");
   grid.replaceChildren();
   groups.render(model.items, grid, (entry, target) => target.append(createAuthorOpeningCard({ el, entry, index: entry.id, body: entry.body, host })));
-  if (!model.items.length) grid.append(el("p", "uos-search-empty", "暂无开场，请先在角色卡中添加备用开场。"));
+  if (!model.items.length) grid.append(createMascotNote(el, "search", "暂无开场，请先在角色卡中添加备用开场。", "uos-search-empty").element);
   const music = model.music || {};
   root.querySelector("[data-player]").hidden = !music.enabled;
   root.querySelector("[data-music-title]").textContent = music.title || "开场音乐";
