@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 18618)
+Total output lines: 603
+
 import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
 import {BLIND_BOX_CONTROL_CSS} from './opening-blind-box-styles.js';
 import {createOpeningFavorites} from './opening-favorites.js';
@@ -33,7 +36,12 @@ const VERSION=RUNTIME_VERSION;
 const THEME_ORNAMENT_SPRITE=THEME_ART.ornaments;
 const THEME_ICON_SPRITE=THEME_ART.icons;
 const CSS=`
-.uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
+.uos-user-trigger{display:flex;align-items:center;gap:8px;width:156px;max-width:calc(100% - 24px);min-height:54px;box-sizing:border-box;margin:10px 12px;padding:5px 9px 5px 5px;border:1px solid #b99669;border-radius:13px;background:#17242d;color:#f3e9d7;font:13px/1.3 system-ui,sans-serif;text-align:left;cursor:pointer;box-shadow:0 4px 14px #0004;overflow:hidden}
+.uos-user-trigger .uos-brand-avatar{width:42px;height:42px;border-radius:9px;background-color:#ffffff12;flex:none}
+.uos-user-trigger-copy{display:grid;gap:2px;flex:1;min-width:0}
+.uos-user-trigger-title{font-size:12px;font-weight:700;line-height:1.35;white-space:nowrap}
+.uos-user-trigger-count{font-size:10px;line-height:1.3;letter-spacing:.08em;opacity:.76;font-variant-numeric:tabular-nums;white-space:nowrap}
+.uos-user-trigger-arrow{flex:none;font-size:18px;line-height:1;opacity:.68}
 .uos-user-trigger[data-floating=true]{position:fixed!important;z-index:2147483645;right:auto!important;bottom:auto!important;margin:0!important;transform:none!important;transition:none!important;touch-action:none;user-select:none}
 .uos-user-trigger[data-theme=neon]{background:#211839;border-color:#d279ef;color:#fff0fa;box-shadow:0 0 18px #b044c288}.uos-user-trigger[data-theme=paper]{background:#f8eedb;border-color:#a3493b;color:#522d28}.uos-user-trigger[data-theme=noir]{background:#1b1c1e;border-color:#e1dfda;color:#f7f5ef}.uos-user-trigger[data-theme=meadow]{background:#1d392f;border-color:#bec889;color:#f3f1d9}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
@@ -272,43 +280,27 @@ export function readPlayerState(context,helper){
   if(!first || first.trimStart().startsWith('<UniversalOpeningSelector/>') || !Array.isArray(alternates) || !alternates.length)return null;
   if(typeof helper?.getChatMessages!=='function' || typeof helper?.setChatMessages!=='function')return null;
   let message,last;
-  try{message=helper.getChatMessages(0,{include_swipes:true})?.[0];last=helper.getLastMessageId?.()}catch{return null}
-  if(last!=null && Number(last)>0)return null;
-  if(message?.role!=='assistant' || !Array.isArray(message.swipes) || !message.swipes.length)return null;
-  const all=[first,...alternates],count=Math.min(all.length,message.swipes.length);
-  if(count<2)return null;
-  const settings=data.extensions?.[KEY]||{};
-  const metadata=settings.entries||[],excluded=excludedTags(settings.excludedTags);
-  const bodies=all.slice(0,count);
-  const people=detectGreetingCollection(bodies,{characterName:data.name||c.name,knownNames:metadata.flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[]),aliases:settings.personAliases||''});
-  return {characterId:context.characterId,avatar:c.avatar||data.name||'',swipeId:Number(message.swipe_id)||0,entries:bodies.map((body,i)=>({index:i,body,title:!isLegacyGeneratedEntry(body,metadata[i],i)&&metadata[i]?.title||greetingTitle(body,i,excluded),description:isLegacyGeneratedEntry(body,metadata[i],i)?'':metadata[i]?.description||'',names:people[i].names,nameEvidence:people[i].evidence,nameSuggestions:people[i].suggestions,label:metadata[i]?.label||`OPENING ${String(i+1).padStart(2,'0')}`}))};
-}
-
-export function mountPlayerSelector(startDocument=document,helperApi,{backgroundService=null}={}){
-  let doc=startDocument,win=doc.defaultView;
-  try{for(let i=0;i<8 && win?.parent && win.parent!==win;i++){void win.parent.document;win=win.parent;doc=win.document}}catch{}
-  // Script replacement rebinds the helper API even if the same version runs again.
-  doc.__uosPlayer?.close?.();
-  const host=doc.defaultView||globalThis;
-  const helper=helperApi||host.TavernHelper||host;
-  const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
-  const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+BRAND_CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
-  let trigger=null,triggerDrag=null,panelSession=null,updating=false;
+  try{message=helper.getChatMessages(0,{include_swipes:true})?.[0]…618 tokens truncated…nd-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
+  let trigger=null,triggerDrag=null,stopTriggerBrand=()=>{},triggerCount=null,panelSession=null,updating=false;
   const el=(tag,className,text)=>{const node=doc.createElement(tag);node.className=className;if(text!=null)node.textContent=String(text);return node};
   const state=()=>readPlayerState(host.SillyTavern?.getContext?.(),helper);
-  const removeTrigger=()=>{triggerDrag?.dispose();triggerDrag=null;trigger?.remove();trigger=null};
+  const removeTrigger=()=>{triggerDrag?.dispose();triggerDrag=null;stopTriggerBrand();stopTriggerBrand=()=>{};trigger?.remove();trigger=null;triggerCount=null};
   function scan(){
     if(updating)return;updating=true;
     try{
       const snapshot=state(),first=doc.querySelector('#chat .mes[mesid="0"],#chat .mes[data-mesid="0"]');
       if(!snapshot||!first){removeTrigger();closePanel();return}
       if(!trigger){trigger=el('button','uos-user-trigger');trigger.type='button';trigger.style.touchAction='none';
+        const avatar=el('span','uos-brand-avatar');avatar.setAttribute('aria-hidden','true');
+        const copy=el('span','uos-user-trigger-copy');copy.append(el('span','uos-user-trigger-title','预览开场'),triggerCount=el('span','uos-user-trigger-count'));
+        const arrow=el('span','uos-user-trigger-arrow','›');arrow.setAttribute('aria-hidden','true');trigger.append(avatar,copy,arrow);
+        stopTriggerBrand=bindBrandImages(trigger);
         triggerDrag=createPlayerButtonDrag(trigger);trigger.onclick=event=>{if(!triggerDrag?.suppressClick(event))openPanel()};
       }
       try{trigger.dataset.theme=host.localStorage.getItem('uos_player_theme')||'archive'}catch{}
-      const label=`◈ 预览开场 · ${snapshot.swipeId+1}/${snapshot.entries.length}`;
-      if(trigger.textContent!==label)trigger.textContent=label;
+      const position=`${snapshot.swipeId+1} / ${snapshot.entries.length}`;
+      if(triggerCount&&triggerCount.textContent!==position)triggerCount.textContent=position;
+      trigger.setAttribute('aria-label',`预览开场，第 ${snapshot.swipeId+1} 个，共 ${snapshot.entries.length} 个`);
       if(trigger.dataset.floating!=='true'&&(trigger.nextElementSibling!==first||trigger.parentNode!==first.parentNode)){first.before(trigger);triggerDrag.restore()}
     }finally{updating=false}
   }

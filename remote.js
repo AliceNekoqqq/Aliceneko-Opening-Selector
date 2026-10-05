@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16-beta.2" : "development";
+var RUNTIME_VERSION = true ? "1.0.16-beta.3" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -1517,7 +1517,7 @@ var THEME_MASCOT_POSITIONS = Object.freeze(Object.fromEntries(THEME_IDS.map((id,
   id,
   `${index % MASCOT_COLUMNS / (MASCOT_COLUMNS - 1) * 100}% ${Math.floor(index / MASCOT_COLUMNS) / (MASCOT_ROWS - 1) * 100}%`
 ])));
-var themeRules = THEMES.map(([id]) => `.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join("\n");
+var themeRules = THEMES.map(([id]) => `.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar,.uos-user-trigger[data-theme="${id}"] .uos-brand-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join("\n");
 var BRAND_CSS = `
 .uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
 .uos-masthead .uos-brand{padding-right:64px}
@@ -3286,7 +3286,12 @@ var VERSION = RUNTIME_VERSION;
 var THEME_ORNAMENT_SPRITE = THEME_ART.ornaments;
 var THEME_ICON_SPRITE = THEME_ART.icons;
 var CSS2 = `
-.uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
+.uos-user-trigger{display:flex;align-items:center;gap:8px;width:156px;max-width:calc(100% - 24px);min-height:54px;box-sizing:border-box;margin:10px 12px;padding:5px 9px 5px 5px;border:1px solid #b99669;border-radius:13px;background:#17242d;color:#f3e9d7;font:13px/1.3 system-ui,sans-serif;text-align:left;cursor:pointer;box-shadow:0 4px 14px #0004;overflow:hidden}
+.uos-user-trigger .uos-brand-avatar{width:42px;height:42px;border-radius:9px;background-color:#ffffff12;flex:none}
+.uos-user-trigger-copy{display:grid;gap:2px;flex:1;min-width:0}
+.uos-user-trigger-title{font-size:12px;font-weight:700;line-height:1.35;white-space:nowrap}
+.uos-user-trigger-count{font-size:10px;line-height:1.3;letter-spacing:.08em;opacity:.76;font-variant-numeric:tabular-nums;white-space:nowrap}
+.uos-user-trigger-arrow{flex:none;font-size:18px;line-height:1;opacity:.68}
 .uos-user-trigger[data-floating=true]{position:fixed!important;z-index:2147483645;right:auto!important;bottom:auto!important;margin:0!important;transform:none!important;transition:none!important;touch-action:none;user-select:none}
 .uos-user-trigger[data-theme=neon]{background:#211839;border-color:#d279ef;color:#fff0fa;box-shadow:0 0 18px #b044c288}.uos-user-trigger[data-theme=paper]{background:#f8eedb;border-color:#a3493b;color:#522d28}.uos-user-trigger[data-theme=noir]{background:#1b1c1e;border-color:#e1dfda;color:#f7f5ef}.uos-user-trigger[data-theme=meadow]{background:#1d392f;border-color:#bec889;color:#f3f1d9}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
@@ -3568,7 +3573,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   style.dataset.uosUserStyle = "";
   style.textContent = CSS2 + BRAND_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
-  let trigger = null, triggerDrag = null, panelSession = null, updating = false;
+  let trigger = null, triggerDrag = null, stopTriggerBrand = () => {
+  }, triggerCount = null, panelSession = null, updating = false;
   const el = (tag, className, text) => {
     const node = doc.createElement(tag);
     node.className = className;
@@ -3579,8 +3585,12 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   const removeTrigger = () => {
     triggerDrag?.dispose();
     triggerDrag = null;
+    stopTriggerBrand();
+    stopTriggerBrand = () => {
+    };
     trigger?.remove();
     trigger = null;
+    triggerCount = null;
   };
   function scan() {
     if (updating) return;
@@ -3596,6 +3606,14 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         trigger = el("button", "uos-user-trigger");
         trigger.type = "button";
         trigger.style.touchAction = "none";
+        const avatar = el("span", "uos-brand-avatar");
+        avatar.setAttribute("aria-hidden", "true");
+        const copy = el("span", "uos-user-trigger-copy");
+        copy.append(el("span", "uos-user-trigger-title", "预览开场"), triggerCount = el("span", "uos-user-trigger-count"));
+        const arrow = el("span", "uos-user-trigger-arrow", "›");
+        arrow.setAttribute("aria-hidden", "true");
+        trigger.append(avatar, copy, arrow);
+        stopTriggerBrand = bindBrandImages(trigger);
         triggerDrag = createPlayerButtonDrag(trigger);
         trigger.onclick = (event) => {
           if (!triggerDrag?.suppressClick(event)) openPanel();
@@ -3605,8 +3623,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         trigger.dataset.theme = host.localStorage.getItem("uos_player_theme") || "archive";
       } catch {
       }
-      const label = `◈ 预览开场 · ${snapshot.swipeId + 1}/${snapshot.entries.length}`;
-      if (trigger.textContent !== label) trigger.textContent = label;
+      const position = `${snapshot.swipeId + 1} / ${snapshot.entries.length}`;
+      if (triggerCount && triggerCount.textContent !== position) triggerCount.textContent = position;
+      trigger.setAttribute("aria-label", `预览开场，第 ${snapshot.swipeId + 1} 个，共 ${snapshot.entries.length} 个`);
       if (trigger.dataset.floating !== "true" && (trigger.nextElementSibling !== first || trigger.parentNode !== first.parentNode)) {
         first.before(trigger);
         triggerDrag.restore();
@@ -5601,23 +5620,23 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
 @media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note img{width:76px;height:70px}}
 @media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
-.uos[data-theme="archive"] .uos-brand-avatar,.uos-user-panel[data-theme="archive"] .uos-brand-avatar{--uos-mascot-position:0% 0%}
-.uos[data-theme="neon"] .uos-brand-avatar,.uos-user-panel[data-theme="neon"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 0%}
-.uos[data-theme="paper"] .uos-brand-avatar,.uos-user-panel[data-theme="paper"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 0%}
-.uos[data-theme="noir"] .uos-brand-avatar,.uos-user-panel[data-theme="noir"] .uos-brand-avatar{--uos-mascot-position:100% 0%}
-.uos[data-theme="meadow"] .uos-brand-avatar,.uos-user-panel[data-theme="meadow"] .uos-brand-avatar{--uos-mascot-position:0% 25%}
-.uos[data-theme="ancient"] .uos-brand-avatar,.uos-user-panel[data-theme="ancient"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 25%}
-.uos[data-theme="starmap"] .uos-brand-avatar,.uos-user-panel[data-theme="starmap"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 25%}
-.uos[data-theme="rose"] .uos-brand-avatar,.uos-user-panel[data-theme="rose"] .uos-brand-avatar{--uos-mascot-position:100% 25%}
-.uos[data-theme="wasteland"] .uos-brand-avatar,.uos-user-panel[data-theme="wasteland"] .uos-brand-avatar{--uos-mascot-position:0% 50%}
-.uos[data-theme="deepsea"] .uos-brand-avatar,.uos-user-panel[data-theme="deepsea"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 50%}
-.uos[data-theme="amber"] .uos-brand-avatar,.uos-user-panel[data-theme="amber"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 50%}
-.uos[data-theme="theatre"] .uos-brand-avatar,.uos-user-panel[data-theme="theatre"] .uos-brand-avatar{--uos-mascot-position:100% 50%}
-.uos[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-brand-avatar{--uos-mascot-position:0% 75%}
-.uos[data-theme="aurora"] .uos-brand-avatar,.uos-user-panel[data-theme="aurora"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 75%}
-.uos[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 75%}
-.uos[data-theme="japan"] .uos-brand-avatar,.uos-user-panel[data-theme="japan"] .uos-brand-avatar{--uos-mascot-position:100% 75%}
-.uos[data-theme="school"] .uos-brand-avatar,.uos-user-panel[data-theme="school"] .uos-brand-avatar{--uos-mascot-position:0% 100%}
+.uos[data-theme="archive"] .uos-brand-avatar,.uos-user-panel[data-theme="archive"] .uos-brand-avatar,.uos-user-trigger[data-theme="archive"] .uos-brand-avatar{--uos-mascot-position:0% 0%}
+.uos[data-theme="neon"] .uos-brand-avatar,.uos-user-panel[data-theme="neon"] .uos-brand-avatar,.uos-user-trigger[data-theme="neon"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 0%}
+.uos[data-theme="paper"] .uos-brand-avatar,.uos-user-panel[data-theme="paper"] .uos-brand-avatar,.uos-user-trigger[data-theme="paper"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 0%}
+.uos[data-theme="noir"] .uos-brand-avatar,.uos-user-panel[data-theme="noir"] .uos-brand-avatar,.uos-user-trigger[data-theme="noir"] .uos-brand-avatar{--uos-mascot-position:100% 0%}
+.uos[data-theme="meadow"] .uos-brand-avatar,.uos-user-panel[data-theme="meadow"] .uos-brand-avatar,.uos-user-trigger[data-theme="meadow"] .uos-brand-avatar{--uos-mascot-position:0% 25%}
+.uos[data-theme="ancient"] .uos-brand-avatar,.uos-user-panel[data-theme="ancient"] .uos-brand-avatar,.uos-user-trigger[data-theme="ancient"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 25%}
+.uos[data-theme="starmap"] .uos-brand-avatar,.uos-user-panel[data-theme="starmap"] .uos-brand-avatar,.uos-user-trigger[data-theme="starmap"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 25%}
+.uos[data-theme="rose"] .uos-brand-avatar,.uos-user-panel[data-theme="rose"] .uos-brand-avatar,.uos-user-trigger[data-theme="rose"] .uos-brand-avatar{--uos-mascot-position:100% 25%}
+.uos[data-theme="wasteland"] .uos-brand-avatar,.uos-user-panel[data-theme="wasteland"] .uos-brand-avatar,.uos-user-trigger[data-theme="wasteland"] .uos-brand-avatar{--uos-mascot-position:0% 50%}
+.uos[data-theme="deepsea"] .uos-brand-avatar,.uos-user-panel[data-theme="deepsea"] .uos-brand-avatar,.uos-user-trigger[data-theme="deepsea"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 50%}
+.uos[data-theme="amber"] .uos-brand-avatar,.uos-user-panel[data-theme="amber"] .uos-brand-avatar,.uos-user-trigger[data-theme="amber"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 50%}
+.uos[data-theme="theatre"] .uos-brand-avatar,.uos-user-panel[data-theme="theatre"] .uos-brand-avatar,.uos-user-trigger[data-theme="theatre"] .uos-brand-avatar{--uos-mascot-position:100% 50%}
+.uos[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-trigger[data-theme="lasttrain"] .uos-brand-avatar{--uos-mascot-position:0% 75%}
+.uos[data-theme="aurora"] .uos-brand-avatar,.uos-user-panel[data-theme="aurora"] .uos-brand-avatar,.uos-user-trigger[data-theme="aurora"] .uos-brand-avatar{--uos-mascot-position:33.33333333333333% 75%}
+.uos[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-trigger[data-theme="glasshouse"] .uos-brand-avatar{--uos-mascot-position:66.66666666666666% 75%}
+.uos[data-theme="japan"] .uos-brand-avatar,.uos-user-panel[data-theme="japan"] .uos-brand-avatar,.uos-user-trigger[data-theme="japan"] .uos-brand-avatar{--uos-mascot-position:100% 75%}
+.uos[data-theme="school"] .uos-brand-avatar,.uos-user-panel[data-theme="school"] .uos-brand-avatar,.uos-user-trigger[data-theme="school"] .uos-brand-avatar{--uos-mascot-position:0% 100%}
 img[data-uos-mascot-loader]{display:none!important}
 `;
 

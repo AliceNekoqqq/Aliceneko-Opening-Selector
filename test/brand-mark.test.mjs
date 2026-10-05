@@ -21,6 +21,7 @@ test('every theme maps to its ordered sprite cell and shared branding CSS',()=>{
   THEME_IDS.forEach((id,index)=>{
     assert.equal(THEME_MASCOT_POSITIONS[id],`${index%4/3*100}% ${Math.floor(index/4)/4*100}%`);
     assert.ok(BRAND_CSS.includes(`data-theme="${id}"`),id);
+    assert.ok(BRAND_CSS.includes(`.uos-user-trigger[data-theme="${id}"] .uos-brand-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`),id);
   });
   assert.equal(themeAssetCandidates('assets/brand/theme-mascots.webp')[0].includes(BRAND_ASSET_REF),true);
 });

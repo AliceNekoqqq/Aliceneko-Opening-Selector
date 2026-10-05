@@ -6,7 +6,7 @@ const MASCOT_COLUMNS=4,MASCOT_ROWS=5;
 export const THEME_MASCOT_POSITIONS=Object.freeze(Object.fromEntries(THEME_IDS.map((id,index)=>[
   id,`${(index%MASCOT_COLUMNS)/(MASCOT_COLUMNS-1)*100}% ${(Math.floor(index/MASCOT_COLUMNS))/(MASCOT_ROWS-1)*100}%`,
 ])));
-const themeRules=THEMES.map(([id])=>`.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join('\n');
+const themeRules=THEMES.map(([id])=>`.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar,.uos-user-trigger[data-theme="${id}"] .uos-brand-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join('\n');
 
 // Brand identity is shared by author, player and the read-only page preview.
 export const BRAND_CSS=`
