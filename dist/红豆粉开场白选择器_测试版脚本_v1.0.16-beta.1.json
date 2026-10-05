@@ -1,7 +1,7 @@
 {
   "type": "script",
   "enabled": false,
-  "name": "红豆粉开场白选择器 · 测试版确认更新脚本 v1.0.15-beta.16",
+  "name": "红豆粉开场白选择器 · 测试版确认更新脚本 v1.0.16-beta.1",
   "id": "b499bdc3-d6c2-46cc-a56a-80eef52df75d",
   "content": "(async function cdnLoader({urls,channel}){\n  const errors=[];\n  for(const url of urls){\n    try{\n      const bootstrap=await import(url);\n      if(bootstrap.BOOTSTRAP_CHANNEL!==channel||bootstrap.BOOTSTRAP_PROTOCOL!==1||typeof bootstrap.start!=='function')throw Error('远程入口格式或通道不匹配');\n      await bootstrap.start();return;\n    }catch(error){errors.push(String(error?.message||error))}\n  }\n  const message='红豆粉开场白选择器远程加载失败：'+errors.join(' | ');\n  if(globalThis.toastr?.error)globalThis.toastr.error(message);else console.error(message);\n})({\"urls\":[\"https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@develop/bootstrap-preview.js\",\"https://testingcf.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@develop/bootstrap-preview.js\",\"https://raw.githubusercontent.com/AliceNekoqqq/Aliceneko-Opening-Selector/develop/bootstrap-preview.js\"],\"channel\":\"preview\"});",
   "info": "仅供测试，从 develop 检查更新，经用户确认才更新；更新入口在设置中，可关闭启动时自动检查；更新前显示逐版本更新说明。请勿与正式版同时启用。作者设置、封面、音乐与歌词保存在角色卡扩展字段。唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全免费",

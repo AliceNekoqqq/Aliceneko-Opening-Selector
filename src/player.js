@@ -5,6 +5,7 @@ import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {OPENING_FAVORITES_CSS} from './opening-favorites-styles.js';
 import {createPlayerPanelSession} from './player-panel-session.js';
 import {createPlayerButtonDrag} from './player-button-drag.js';
+import {BRAND_CSS,createBrandMark,createMascotNote} from './brand-mark.js';
 import {createPlayerSettingsLayout} from './player-settings-layout.js';
 import {unsavedPlayerGroups,createPlayerDraftGuard,showPlayerUnsavedPrompt} from './player-draft-guard.js';
 export {unsavedPlayerGroups} from './player-draft-guard.js';
@@ -201,10 +202,10 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel{--ornament-position:0% 0%}
 .uos-user-header-ornament{display:block;pointer-events:none;background-image:url("${THEME_ORNAMENT_SPRITE}");background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
 .uos-user-kicker{display:flex;align-items:center;gap:10px}.uos-user-panel[data-theme=japan] .uos-user-kicker::after{display:none}
-.uos-user-header-ornament{width:72px;height:72px;flex:none}
+.uos-user-header-ornament{width:28px;height:28px;flex:none}
 
 .uos-user-card{box-shadow:inset 0 1px 0 #ffffff0d,0 9px 22px #0002}
-@media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}}
+@media(max-width:500px){.uos-user-header-ornament{width:24px;height:24px}}
 /* Opening number lives beside the title, away from the right-hand ornament. */
 .uos-user-panel[data-theme] .uos-user-card::before{content:attr(data-number);position:relative;float:left;inset:auto;z-index:auto;font:600 22px/1.5 Georgia,serif;letter-spacing:0;opacity:.8;margin:2px 10px 0 0;pointer-events:none}
 
@@ -292,7 +293,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
+  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+BRAND_CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
   let trigger=null,triggerDrag=null,panelSession=null,updating=false;
   const el=(tag,className,text)=>{const node=doc.createElement(tag);node.className=className;if(text!=null)node.textContent=String(text);return node};
   const state=()=>readPlayerState(host.SillyTavern?.getContext?.(),helper);
@@ -329,6 +330,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
     const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);const backgroundControl=createThemeBackgroundController(panel,'--uos-user-background',doc.defaultView,{service:backgroundService});void backgroundControl.setTheme(panel.dataset.theme);session.own(()=>backgroundControl.close());
+    const brand=createBrandMark(el);panel.append(brand.element);session.own(brand.dispose);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
@@ -541,12 +543,14 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=()=>chooseOpening(entry,choose);
       card.append(choose);target.append(card);
-    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
+    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(createMascotNote(el,'search',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-user-empty').element)}
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
     const stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});session.own(stopUpdateControl);
     settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings});
+    const welcome=createMascotNote(el,'welcome','按需要展开一项设置，修改后使用该项的保存按钮。');
+    settings.querySelector('.uos-user-settings-intro').replaceWith(welcome.element);session.own(welcome.dispose);
     panel.append(head,tools,settings,search,results,list,status,mark);
     overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const active=overlay;

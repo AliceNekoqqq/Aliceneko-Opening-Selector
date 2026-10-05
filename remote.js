@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16" : "development";
+var RUNTIME_VERSION = true ? "1.0.16-beta.1" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -32,10 +32,12 @@ function themeDraw(theme) {
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
 var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
+var BRAND_ASSET_REF = "c1d717d38234269939ac7cc4fc8be7b3a388a2e9";
 var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
 function themeAssetRef(path) {
+  if (/^assets\/brand\/(?:mascot|welcome|search)\.webp$/.test(path)) return BRAND_ASSET_REF;
   if (/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path)) return SCHOOL_THEME_ASSET_REF;
   if (path.startsWith("assets/default-covers/")) return DEFAULT_COVER_ASSET_REF;
   if (path.startsWith("assets/blind-box/card-backs/")) return BLIND_BOX_THEME_ASSET_REF;
@@ -1490,6 +1492,104 @@ function createPlayerButtonDrag(button, { positionKey = "uos_player_button_posit
   };
 }
 
+// src/theme-art.js
+var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
+var THEME_ART = Object.freeze({
+  mascot: artUrl("brand/mascot"),
+  welcome: artUrl("brand/welcome"),
+  search: artUrl("brand/search"),
+  icons: artUrl("theme-icons"),
+  schoolIcon: artUrl("theme-icon-school"),
+  schoolOrnament: artUrl("theme-ornament-school"),
+  ornaments: artUrl("theme-ornaments"),
+  openings: artUrl("tab-openings"),
+  worldbooks: artUrl("tab-worldbooks"),
+  bgm: artUrl("tab-bgm"),
+  diagnostics: artUrl("tab-diagnostics"),
+  updates: artUrl("tab-updates")
+});
+
+// src/brand-mark.js
+var BRAND_CSS = `
+.uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
+.uos-masthead .uos-brand{padding-right:64px}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;object-fit:contain;object-position:center;filter:drop-shadow(0 3px 5px #0002);background:radial-gradient(ellipse,#d9759a20,transparent 72%)}
+.uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
+.uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
+.uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
+.uos-user-panel .uos-brand{margin-bottom:12px}
+.uos-user-panel .uos-brand-avatar{width:64px;height:59px}
+.uos-user-head>div:first-child{min-width:0;flex:1}
+.uos-mascot-note{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,var(--surface));color:var(--muted);font:13px/1.7 system-ui,"Noto Sans SC",sans-serif;box-sizing:border-box;min-width:0}
+.uos-mascot-note img{display:block;width:94px;height:86px;object-fit:contain;flex:none}
+.uos-mascot-note span{min-width:0;overflow-wrap:anywhere}
+.uos-brand img[hidden],.uos-mascot-note img[hidden]{display:none}
+.uos .uos-search-empty.uos-mascot-note::before{display:none}
+.uos .uos-search-empty:not(.uos-mascot-note)::before{background-image:url("${THEME_ART.search}");background-size:contain;background-position:center;background-repeat:no-repeat}
+.uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
+@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note img{width:76px;height:70px}}
+@media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
+`;
+function brandMarkMarkup() {
+  return `<div class="uos-brand"><img class="uos-brand-avatar" data-uos-mascot src="${THEME_ART.mascot}" width="384" height="351" alt="" aria-hidden="true" draggable="false" decoding="async"><div class="uos-brand-copy"><strong>红豆粉开场白选择器</strong><small>ALICENEKO · OPENING SELECTOR</small></div></div>`;
+}
+function bindMascotImage(image, kind = "mascot") {
+  if (!image) return () => {
+  };
+  if (!["mascot", "welcome", "search"].includes(kind)) kind = "mascot";
+  const sources = themeAssetCandidates(`assets/brand/${kind}.webp`);
+  let index = 0, disposed = false;
+  const fail = () => {
+    if (disposed || image.isConnected === false) return;
+    if (++index < sources.length) image.src = sources[index];
+    else {
+      image.hidden = true;
+      image.onload = image.onerror = null;
+    }
+  };
+  image.onload = () => {
+    if (!disposed && image.isConnected !== false) image.hidden = false;
+  };
+  image.onerror = fail;
+  if (image.complete && image.naturalWidth === 0) fail();
+  return () => {
+    disposed = true;
+    image.onload = image.onerror = null;
+  };
+}
+function bindBrandImages(root) {
+  const stops = [...root.querySelectorAll?.("[data-uos-mascot]") || []].map((image) => bindMascotImage(image, image.getAttribute("data-mascot-kind") || "mascot"));
+  return () => stops.forEach((stop) => stop());
+}
+function mascotNoteMarkup(kind, text) {
+  return `<div class="uos-mascot-note"><img data-uos-mascot data-mascot-kind="${kind}" src="${THEME_ART[kind]}" width="320" height="292" alt="" aria-hidden="true" draggable="false" decoding="async"><span>${text}</span></div>`;
+}
+function createMascotNote(el, kind, text, cls = "") {
+  const element = el("div", `uos-mascot-note ${cls}`), image = el("img");
+  image.alt = "";
+  image.draggable = false;
+  image.decoding = "async";
+  image.width = 320;
+  image.height = 292;
+  image.setAttribute("aria-hidden", "true");
+  image.src = THEME_ART[kind];
+  element.append(image, el("span", "", text));
+  return { element, dispose: bindMascotImage(image, kind) };
+}
+function createBrandMark(el) {
+  const element = el("div", "uos-brand"), image = el("img", "uos-brand-avatar"), copy = el("div", "uos-brand-copy");
+  image.alt = "";
+  image.draggable = false;
+  image.decoding = "async";
+  image.width = 384;
+  image.height = 351;
+  image.setAttribute("aria-hidden", "true");
+  image.src = THEME_ART.mascot;
+  copy.append(el("strong", "", "红豆粉开场白选择器"), el("small", "", "ALICENEKO · OPENING SELECTOR"));
+  element.append(image, copy);
+  return { element, dispose: bindMascotImage(image) };
+}
+
 // src/player-settings-layout.js
 function createPlayerSettingsLayout(el) {
   const settings = el("section", "uos-user-settings");
@@ -1670,20 +1770,6 @@ function showPlayerUnsavedPrompt(doc, dialog, panel, groups, canSaveToCard, { si
     stay.focus();
   });
 }
-
-// src/theme-art.js
-var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
-var THEME_ART = Object.freeze({
-  icons: artUrl("theme-icons"),
-  schoolIcon: artUrl("theme-icon-school"),
-  schoolOrnament: artUrl("theme-ornament-school"),
-  ornaments: artUrl("theme-ornaments"),
-  openings: artUrl("tab-openings"),
-  worldbooks: artUrl("tab-worldbooks"),
-  bgm: artUrl("tab-bgm"),
-  diagnostics: artUrl("tab-diagnostics"),
-  updates: artUrl("tab-updates")
-});
 
 // src/worldbook-people.js
 var WB_STRUCTURAL = /时间|地点|场景|世界观|设定|规则|系统|状态|预警|剧情|大纲|地图|机制|速览|一览|列表|名单|目录|人物关系|角色关系|档案|说明|简介|年龄|性别|职业|姓名|登场人物|在场角色|^(?:人物|角色|名称|序号|编号|身份|别名|称呼|name|character|id|content|description|location|scene|status|gender|age|(?:基本|基础|详细)?(?:信息|资料|属性|介绍|概况))$/i;
@@ -3338,10 +3424,10 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel{--ornament-position:0% 0%}
 .uos-user-header-ornament{display:block;pointer-events:none;background-image:url("${THEME_ORNAMENT_SPRITE}");background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
 .uos-user-kicker{display:flex;align-items:center;gap:10px}.uos-user-panel[data-theme=japan] .uos-user-kicker::after{display:none}
-.uos-user-header-ornament{width:72px;height:72px;flex:none}
+.uos-user-header-ornament{width:28px;height:28px;flex:none}
 
 .uos-user-card{box-shadow:inset 0 1px 0 #ffffff0d,0 9px 22px #0002}
-@media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}}
+@media(max-width:500px){.uos-user-header-ornament{width:24px;height:24px}}
 /* Opening number lives beside the title, away from the right-hand ornament. */
 .uos-user-panel[data-theme] .uos-user-card::before{content:attr(data-number);position:relative;float:left;inset:auto;z-index:auto;font:600 22px/1.5 Georgia,serif;letter-spacing:0;opacity:.8;margin:2px 10px 0 0;pointer-events:none}
 
@@ -3449,7 +3535,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS2 + BRAND_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
   let trigger = null, triggerDrag = null, panelSession = null, updating = false;
   const el = (tag, className, text) => {
@@ -3538,6 +3624,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const backgroundControl = createThemeBackgroundController(panel, "--uos-user-background", doc.defaultView, { service: backgroundService });
     void backgroundControl.setTheme(panel.dataset.theme);
     session.own(() => backgroundControl.close());
+    const brand = createBrandMark(el);
+    panel.append(brand.element);
+    session.own(brand.dispose);
     const head = el("div", "uos-user-head"), heading = el("div"), kicker = el("span", "uos-user-kicker", THEME_CAPTIONS[panel.dataset.theme]);
     const headerArt = el("span", "uos-user-header-ornament");
     headerArt.setAttribute("aria-hidden", "true");
@@ -4130,7 +4219,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: panel.dataset.theme, manual: blindBox.rangeMode() === "manual" });
       blindRangeTrigger.textContent = blindBox.rangeSummary();
       results.textContent = favoriteUI.onlyFavorites() || query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
-      if (!visible) list.append(el("p", "uos-user-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
+      if (!visible) list.append(createMascotNote(el, "search", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。", "uos-user-empty").element);
     }
     updatePeople();
     renderCards();
@@ -4139,6 +4228,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
     session.own(stopUpdateControl);
     settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings });
+    const welcome = createMascotNote(el, "welcome", "按需要展开一项设置，修改后使用该项的保存按钮。");
+    settings.querySelector(".uos-user-settings-intro").replaceWith(welcome.element);
+    session.own(welcome.dispose);
     panel.append(head, tools, settings, search, results, list, status, mark);
     overlay.append(panel);
     (doc.body || doc.documentElement).append(overlay);
@@ -5457,16 +5549,36 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px;--uos-fan-step:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:35px;height:52px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
 @media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px;--uos-fan-step:5px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:30px;height:46px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
 @media(prefers-reduced-motion:reduce){:is(.uos,.uos-user-panel) .uos-blind-trigger,:is(.uos,.uos-user-panel) .uos-blind-trigger *,:is(.uos,.uos-user-panel) .uos-blind-trigger::after{animation:none!important;transition:none!important}}
+
+
+.uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
+.uos-masthead .uos-brand{padding-right:64px}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;object-fit:contain;object-position:center;filter:drop-shadow(0 3px 5px #0002);background:radial-gradient(ellipse,#d9759a20,transparent 72%)}
+.uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
+.uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
+.uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
+.uos-user-panel .uos-brand{margin-bottom:12px}
+.uos-user-panel .uos-brand-avatar{width:64px;height:59px}
+.uos-user-head>div:first-child{min-width:0;flex:1}
+.uos-mascot-note{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,var(--surface));color:var(--muted);font:13px/1.7 system-ui,"Noto Sans SC",sans-serif;box-sizing:border-box;min-width:0}
+.uos-mascot-note img{display:block;width:94px;height:86px;object-fit:contain;flex:none}
+.uos-mascot-note span{min-width:0;overflow-wrap:anywhere}
+.uos-brand img[hidden],.uos-mascot-note img[hidden]{display:none}
+.uos .uos-search-empty.uos-mascot-note::before{display:none}
+.uos .uos-search-empty:not(.uos-mascot-note)::before{background-image:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@c1d717d38234269939ac7cc4fc8be7b3a388a2e9/assets/brand/search.webp");background-size:contain;background-position:center;background-repeat:no-repeat}
+.uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
+@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note img{width:76px;height:70px}}
+@media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
 `;
 
 // src/author-template.js
 function buildAuthorHtml(config, greetingCount) {
   const css = AUTHOR_CSS;
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style id="uos-css">${css}</style></head><body>
-<main class="uos" data-uos data-background-mode="remote" data-theme="archive"><div class="uos-background-art" aria-hidden="true"></div><header class="uos-masthead"><span class="uos-header-ornament" aria-hidden="true"></span><span class="uos-kicker">STORY INDEX</span><h1 data-title></h1><p class="uos-intro" data-subtitle></p><div class="uos-top"><p class="uos-opening-count" data-opening-count></p><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div><p class="uos-status uos-top-status" data-top-status role="status"></p></header><section class="uos-player" data-player hidden aria-label="开场音乐播放器"><div class="uos-player-head"><span class="uos-player-record" aria-hidden="true"></span><div class="uos-player-meta"><span class="uos-player-kicker">SOUNDTRACK · 开场音乐</span><strong data-music-title></strong></div><div class="uos-player-controls"><button type="button" data-skip="-10" aria-label="快退10秒">↶</button><button type="button" data-play aria-label="播放">▶</button><button type="button" data-skip="10" aria-label="快进10秒">↷</button></div></div><div class="uos-player-track"><input type="range" data-seek min="0" max="1000" value="0" aria-label="音乐播放进度"><span data-clock>0:00 / 0:00</span></div><div class="uos-lyrics" data-lyrics>♫</div><audio preload="metadata"></audio></section><div class="uos-grid" data-grid></div>
+<main class="uos" data-uos data-background-mode="remote" data-theme="archive"><div class="uos-background-art" aria-hidden="true"></div><header class="uos-masthead">${brandMarkMarkup()}<span class="uos-header-ornament" aria-hidden="true"></span><span class="uos-kicker">STORY INDEX</span><h1 data-title></h1><p class="uos-intro" data-subtitle></p><div class="uos-top"><p class="uos-opening-count" data-opening-count></p><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div><p class="uos-status uos-top-status" data-top-status role="status"></p></header><section class="uos-player" data-player hidden aria-label="开场音乐播放器"><div class="uos-player-head"><span class="uos-player-record" aria-hidden="true"></span><div class="uos-player-meta"><span class="uos-player-kicker">SOUNDTRACK · 开场音乐</span><strong data-music-title></strong></div><div class="uos-player-controls"><button type="button" data-skip="-10" aria-label="快退10秒">↶</button><button type="button" data-play aria-label="播放">▶</button><button type="button" data-skip="10" aria-label="快进10秒">↷</button></div></div><div class="uos-player-track"><input type="range" data-seek min="0" max="1000" value="0" aria-label="音乐播放进度"><span data-clock>0:00 / 0:00</span></div><div class="uos-lyrics" data-lyrics>♫</div><audio preload="metadata"></audio></section><div class="uos-grid" data-grid></div>
 <p class="uos-footer">选择后进入对应的正式开场。也可使用酒馆首条消息的翻页箭头。当前聊天开始后不能重新选择。</p><div class="uos-status" data-status role="status"></div>
 <div class="uos-dialog" data-theme-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>切换主题</h2><button type="button" class="uos-icon" data-close="[data-theme-dialog]">关闭</button></div><div class="uos-theme-grid" data-theme-grid></div></div></div>
-<div class="uos-dialog" data-settings-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>作者设置</h2><button type="button" class="uos-icon" data-close="[data-settings-dialog]">关闭</button></div><nav class="uos-tabs" aria-label="设置分类"><button type="button" data-tab="openings" aria-selected="true"><span class="uos-tab-art" data-tab-art="openings" aria-hidden="true"></span>开场白</button><button type="button" data-tab="worldbooks" aria-selected="false"><span class="uos-tab-art" data-tab-art="worldbooks" aria-hidden="true"></span>世界书</button><button type="button" data-tab="bgm" aria-selected="false"><span class="uos-tab-art" data-tab-art="bgm" aria-hidden="true"></span>BGM</button><button type="button" data-tab="diagnostics" aria-selected="false"><span class="uos-tab-art" data-tab-art="diagnostics" aria-hidden="true"></span>制卡检查</button></nav><section data-tab-panel="openings"><p class="uos-help">已读取 ${greetingCount} 条正式开场。修改后点击下方保存，并从酒馆导出更新的角色卡。</p><div data-settings-fields></div></section><section data-tab-panel="worldbooks" hidden><p class="uos-help">为每个开场预设角色世界书的条目开关。预设保存在角色卡配置中；未配置的开场不会改动世界书。</p><div data-worldbook-presets></div></section><section data-tab-panel="bgm" hidden><p class="uos-help">上传音乐和 LRC/TXT 歌词。文件会在选择页预览，保存后随角色卡导出。</p><div data-bgm-fields></div><div class="uos-empty-music" data-bgm-empty aria-hidden="true" hidden></div><p class="uos-help">音频内嵌会增加角色卡体积。请确认分享权利；可在 https://www.gequhai.com/ 查找曲目。</p></section><section data-tab-panel="diagnostics" hidden><p class="uos-help">根据当前酒馆中的角色数据检查。修改设置后请先保存，再从酒馆导出角色卡；玩家仍需安装并启用酒馆助手。</p><div data-diagnostics></div></section><div class="uos-settings-savebar"><button type="button" class="uos-save" data-save>保存到角色卡</button><p class="uos-help" data-save-state role="status"></p></div></div></div>
+<div class="uos-dialog" data-settings-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>作者设置</h2><button type="button" class="uos-icon" data-close="[data-settings-dialog]">关闭</button></div>${mascotNoteMarkup("welcome", "从下面选择一项设置，修改完成后保存到角色卡。")}<nav class="uos-tabs" aria-label="设置分类"><button type="button" data-tab="openings" aria-selected="true"><span class="uos-tab-art" data-tab-art="openings" aria-hidden="true"></span>开场白</button><button type="button" data-tab="worldbooks" aria-selected="false"><span class="uos-tab-art" data-tab-art="worldbooks" aria-hidden="true"></span>世界书</button><button type="button" data-tab="bgm" aria-selected="false"><span class="uos-tab-art" data-tab-art="bgm" aria-hidden="true"></span>BGM</button><button type="button" data-tab="diagnostics" aria-selected="false"><span class="uos-tab-art" data-tab-art="diagnostics" aria-hidden="true"></span>制卡检查</button></nav><section data-tab-panel="openings"><p class="uos-help">已读取 ${greetingCount} 条正式开场。修改后点击下方保存，并从酒馆导出更新的角色卡。</p><div data-settings-fields></div></section><section data-tab-panel="worldbooks" hidden><p class="uos-help">为每个开场预设角色世界书的条目开关。预设保存在角色卡配置中；未配置的开场不会改动世界书。</p><div data-worldbook-presets></div></section><section data-tab-panel="bgm" hidden><p class="uos-help">上传音乐和 LRC/TXT 歌词。文件会在选择页预览，保存后随角色卡导出。</p><div data-bgm-fields></div><div class="uos-empty-music" data-bgm-empty aria-hidden="true" hidden></div><p class="uos-help">音频内嵌会增加角色卡体积。请确认分享权利；可在 https://www.gequhai.com/ 查找曲目。</p></section><section data-tab-panel="diagnostics" hidden><p class="uos-help">根据当前酒馆中的角色数据检查。修改设置后请先保存，再从酒馆导出角色卡；玩家仍需安装并启用酒馆助手。</p><div data-diagnostics></div></section><div class="uos-settings-savebar"><button type="button" class="uos-save" data-save>保存到角色卡</button><p class="uos-help" data-save-state role="status"></p></div></div></div>
 </main><script type="application/json" id="uos-seed">${JSON.stringify(config).replace(/</g, "\\u003c")}<\/script></body></html>`;
 }
 
@@ -5564,7 +5676,8 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
   tools.append(phone, desktop);
   const stage = el("div", "uos-page-preview-stage");
   element.append(summary, el("p", "uos-help", "编辑时自动同步；预览只用于查看，点击保存后写入角色卡。"), tools, stage);
-  let width = 390, frame = null, background = null, groups = null, timer = null, observer = null, disposed = false;
+  let width = 390, frame = null, background = null, groups = null, timer = null, observer = null, disposed = false, stopMascot = () => {
+  };
   const controls = () => {
     phone.setAttribute("aria-pressed", String(width === 390));
     desktop.setAttribute("aria-pressed", String(width === 900));
@@ -5595,6 +5708,7 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
     previewDoc.head.append(style);
     const root = previewDoc.querySelector("[data-uos]");
     root.inert = true;
+    stopMascot = bindBrandImages(root);
     groups = createOpeningGroupRenderer({ el: (tag, cls = "", text) => {
       const node = previewDoc.createElement(tag);
       if (cls) node.className = cls;
@@ -5652,6 +5766,7 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
     watch?.removeEventListener("change", refresh);
     view.removeEventListener("resize", fit);
     observer?.disconnect();
+    stopMascot();
     background?.close();
     frame?.remove();
     element.remove();
@@ -5762,10 +5877,12 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     delete root.dataset.uosMounted;
   }
   root.__uosDispose?.();
+  const stopMascot = bindBrandImages(root);
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
   let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox;
   let previewItems = [], allDrawItems = [];
   root.__uosDispose = () => {
+    stopMascot();
     blindBox?.dispose();
     favoriteUI?.dispose();
     pagePreview?.dispose();
@@ -6363,7 +6480,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       grid.before(result);
     }
     result.textContent = favoriteUI.onlyFavorites() || query || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${items.length} 个开场` : `${items.length} 个开场 · 点击卡片进入`;
-    if (!visible) grid.append(el("p", "uos-search-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
+    if (!visible) grid.append(createMascotNote(el, "search", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。", "uos-search-empty").element);
     renderMusic(config.music);
     const actions = root.querySelector(".uos-actions");
     if (actions && !actions.querySelector(".uos-version-badge")) actions.append(el("small", "uos-version-badge", `v${VERSION2}`));

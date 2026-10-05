@@ -1,4 +1,5 @@
 import {createWorldbookPresetEditor} from './worldbook-preset-editor.js';
+import {bindBrandImages,createMascotNote} from './brand-mark.js';
 import {optimizeCoverData} from './media-files.js';
 import {createMediaPlayer} from './media-player.js';
 import {createSettingsFields} from './settings-fields.js';
@@ -39,10 +40,11 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     delete root.dataset.uosMounted;
   }
   root.__uosDispose?.();
+  const stopMascot=bindBrandImages(root);
   const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
   let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI,blindBox;
   let previewItems=[],allDrawItems=[];
-  root.__uosDispose=()=>{blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
+  root.__uosDispose=()=>{stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -288,7 +290,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     },rows);
     updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:displayTheme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();
     let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=favoriteUI.onlyFavorites()||query||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
-    if(!visible)grid.append(el('p','uos-search-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'));
+    if(!visible)grid.append(createMascotNote(el,'search',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-search-empty').element);
     renderMusic(config.music);
     const actions=root.querySelector('.uos-actions');if(actions&&!actions.querySelector('.uos-version-badge'))actions.append(el('small','uos-version-badge',`v${VERSION}`));
     let watermark=root.querySelector('[data-uos-watermark]');
