@@ -1,7 +1,7 @@
 // All theme artwork already exists at this published immutable commit.
 export const THEME_ASSET_REF='444518cc8d97befd6016e7b948066ef23fd4e560';
 export const SCHOOL_THEME_ASSET_REF='b11e5addc6e1e60dae710ed4d83cb4c8565b77ea';
-export const BRAND_ASSET_REF='a5fcefd2bd1cf0188937ed6b9031dd6857c61103';
+export const BRAND_ASSET_REF='354db09485df9c48356bc484ede26f5e07b118a4';
 export const DEFAULT_COVER_ASSET_REF='9f2160b3d289e27390d73b5cea8450cf821b61d1';
 export const BLIND_BOX_ASSET_REF='f2af3337a5a02827ce1634f1551ed93b8ef8bde9';
 import {THEME_IDS} from './themes.js';

@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16-beta.5" : "development";
+var RUNTIME_VERSION = true ? "1.0.16-beta.6" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -32,7 +32,7 @@ function themeDraw(theme) {
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
 var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
-var BRAND_ASSET_REF = "a5fcefd2bd1cf0188937ed6b9031dd6857c61103";
+var BRAND_ASSET_REF = "354db09485df9c48356bc484ede26f5e07b118a4";
 var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
@@ -5492,6 +5492,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(max-width:600px){.uos-masthead{padding-top:0;margin-bottom:16px;padding-bottom:16px}.uos .uos-masthead h1{font-size:26px;margin-top:9px}.uos .uos-masthead .uos-intro{font-size:13px;margin-bottom:14px}.uos .uos-masthead .uos-actions{margin-left:0;width:100%}.uos-masthead .uos-version-badge{margin-left:auto}.uos-masthead .uos-header-ornament{width:48px;height:48px}}
 
 
+
 .uos[data-layout=gallery] .uos-grid,.uos-user-panel[data-layout=gallery] .uos-user-list{grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));align-items:start}
 .uos[data-layout=gallery] .uos-card-shell .uos-cover{height:auto;aspect-ratio:16/9}
 .uos-user-panel[data-layout=gallery] .uos-user-default-cover{height:auto;aspect-ratio:16/9}
@@ -5624,7 +5625,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 
 .uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
 .uos-masthead .uos-brand{padding-right:64px}
-.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@a5fcefd2bd1cf0188937ed6b9031dd6857c61103/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@354db09485df9c48356bc484ede26f5e07b118a4/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
 .uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
 .uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
 .uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
@@ -5632,7 +5633,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-user-panel .uos-brand-avatar{width:64px;height:59px}
 .uos-user-head>div:first-child{min-width:0;flex:1}
 .uos-mascot-note{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,var(--surface));color:var(--muted);font:13px/1.7 system-ui,"Noto Sans SC",sans-serif;box-sizing:border-box;min-width:0}
-.uos-mascot-note-avatar{display:block;flex:none;width:94px;height:86px;background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@a5fcefd2bd1cf0188937ed6b9031dd6857c61103/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0002)}
+.uos-mascot-note-avatar{display:block;flex:none;width:94px;height:86px;background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@354db09485df9c48356bc484ede26f5e07b118a4/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0002)}
 .uos-mascot-note-copy{min-width:0;overflow-wrap:anywhere}
 .uos .uos-search-empty.uos-mascot-note::before{display:none}
 .uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
