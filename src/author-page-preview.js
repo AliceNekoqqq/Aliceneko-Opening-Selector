@@ -7,6 +7,7 @@ import {defaultCoverStyles} from './default-covers.js';
 import {createThemeBackgroundController} from './theme-backgrounds.js';
 import {lyricRows} from './media-player.js';
 import {RUNTIME_VERSION} from './version.js';
+import {bindBrandImages,createMascotNote} from './brand-mark.js';
 
 // No author mount, helper, persistence or audio source in this visual-only view.
 export function renderAuthorPagePreview({doc,model,host,groups}){
@@ -24,7 +25,7 @@ export function renderAuthorPagePreview({doc,model,host,groups}){
   for(const select of categories.element.querySelectorAll('select'))select.disabled=true;
   let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');filters.after(result)}result.textContent=`${model.items.length} 个开场 · 点击卡片进入`;
   const grid=root.querySelector('[data-grid]');grid.replaceChildren();groups.render(model.items,grid,(entry,target)=>target.append(createAuthorOpeningCard({el,entry,index:entry.id,body:entry.body,host})));
-  if(!model.items.length)grid.append(el('p','uos-search-empty','暂无开场，请先在角色卡中添加备用开场。'));
+  if(!model.items.length)grid.append(createMascotNote(el,'search','暂无开场，请先在角色卡中添加备用开场。','uos-search-empty').element);
   const music=model.music||{};root.querySelector('[data-player]').hidden=!music.enabled;
   root.querySelector('[data-music-title]').textContent=music.title||'开场音乐';
   const lyrics=root.querySelector('[data-lyrics]'),rows=lyricRows(music.lyrics);lyrics.replaceChildren();
@@ -41,7 +42,7 @@ export function createAuthorPagePreview({doc,readModel,host,backgroundService,wa
   copy.append(el('strong','','点击预览整个选择页'),el('small','','查看手机／电脑效果，修改后实时更新'));summary.append(icon,copy,action);
   phone.type=desktop.type='button';tools.setAttribute('role','group');tools.setAttribute('aria-label','整页预览宽度');tools.append(phone,desktop);
   const stage=el('div','uos-page-preview-stage');element.append(summary,el('p','uos-help','编辑时自动同步；预览只用于查看，点击保存后写入角色卡。'),tools,stage);
-  let width=390,frame=null,background=null,groups=null,timer=null,observer=null,disposed=false;
+  let width=390,frame=null,background=null,groups=null,timer=null,observer=null,disposed=false,stopMascot=()=>{};
   const controls=()=>{phone.setAttribute('aria-pressed',String(width===390));desktop.setAttribute('aria-pressed',String(width===900))};controls();
   function fit(){
     if(!frame||disposed)return;
@@ -56,6 +57,7 @@ export function createAuthorPagePreview({doc,readModel,host,backgroundService,wa
     for(const node of previewDoc.querySelectorAll('.uos-dialog,#uos-seed,audio'))node.remove();
     const style=previewDoc.createElement('style');style.textContent=defaultCoverStyles('.uos')+'\nhtml{height:auto}body{margin:0;background:transparent}.uos{border-radius:0;box-shadow:none}.uos button:disabled{cursor:default}.uos-top-status,.uos-status[data-status]{display:none}';previewDoc.head.append(style);
     const root=previewDoc.querySelector('[data-uos]');root.inert=true;
+    stopMascot=bindBrandImages(root);
     groups=createOpeningGroupRenderer({el:(tag,cls='',text)=>{const node=previewDoc.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=String(text);return node},gridClass:'uos-grid'});
     background=createThemeBackgroundController(root,'--uos-theme-bg-active',previewDoc.defaultView,{service:backgroundService});
     if(view.ResizeObserver){observer=new view.ResizeObserver(fit);observer.observe(stage)}view.addEventListener('resize',fit);fit();
@@ -69,5 +71,5 @@ export function createAuthorPagePreview({doc,readModel,host,backgroundService,wa
   const onToggle=()=>{if(disposed)return;action.textContent=element.open?'收起预览':'展开预览';if(element.open)refresh()};element.addEventListener('toggle',onToggle);
   watch?.addEventListener('input',refresh);watch?.addEventListener('change',refresh);
   phone.onclick=()=>{if(disposed)return;width=390;controls();fit()};desktop.onclick=()=>{if(disposed)return;width=900;controls();fit()};
-  return {element,refresh,dispose(){if(disposed)return;disposed=true;if(timer!==null)view.clearTimeout(timer);element.removeEventListener('toggle',onToggle);watch?.removeEventListener('input',refresh);watch?.removeEventListener('change',refresh);view.removeEventListener('resize',fit);observer?.disconnect();background?.close();frame?.remove();element.remove()}};
+  return {element,refresh,dispose(){if(disposed)return;disposed=true;if(timer!==null)view.clearTimeout(timer);element.removeEventListener('toggle',onToggle);watch?.removeEventListener('input',refresh);watch?.removeEventListener('change',refresh);view.removeEventListener('resize',fit);observer?.disconnect();stopMascot();background?.close();frame?.remove();element.remove()}};
 }

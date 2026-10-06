@@ -5,7 +5,9 @@ import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {OPENING_FAVORITES_CSS} from './opening-favorites-styles.js';
 import {createPlayerPanelSession} from './player-panel-session.js';
 import {createPlayerButtonDrag} from './player-button-drag.js';
+import {BRAND_CSS,createBrandMark,createMascotNote,bindBrandImages} from './brand-mark.js';
 import {createPlayerSettingsLayout} from './player-settings-layout.js';
+import {createPlayerTriggerStylePreference} from './player-trigger-style.js';
 import {unsavedPlayerGroups,createPlayerDraftGuard,showPlayerUnsavedPrompt} from './player-draft-guard.js';
 export {unsavedPlayerGroups} from './player-draft-guard.js';
 import {THEME_ART} from './theme-art.js';
@@ -32,7 +34,17 @@ const VERSION=RUNTIME_VERSION;
 const THEME_ORNAMENT_SPRITE=THEME_ART.ornaments;
 const THEME_ICON_SPRITE=THEME_ART.icons;
 const CSS=`
-.uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
+.uos-user-trigger{display:flex;align-items:center;gap:8px;width:156px;max-width:calc(100% - 24px);min-height:54px;box-sizing:border-box;margin:10px 12px;padding:5px 9px 5px 5px;border:1px solid #b99669;border-radius:13px;background:#17242d;color:#f3e9d7;font:13px/1.3 system-ui,sans-serif;text-align:left;cursor:pointer;box-shadow:0 4px 14px #0004;overflow:hidden}
+.uos-user-trigger .uos-brand-avatar{width:42px;height:42px;border-radius:9px;background-color:#ffffff12;flex:none}
+.uos-user-trigger-copy{display:grid;gap:2px;flex:1;min-width:0}
+.uos-user-trigger-title{font-size:12px;font-weight:700;line-height:1.35;white-space:nowrap}
+.uos-user-trigger-count{font-size:10px;line-height:1.3;letter-spacing:.08em;opacity:.76;font-variant-numeric:tabular-nums;white-space:nowrap}
+.uos-user-trigger-arrow{flex:none;font-size:18px;line-height:1;opacity:.68}
+.uos-user-trigger[data-style=simple]{width:max-content;min-height:38px;gap:7px;padding:7px 13px;border-radius:999px}
+.uos-user-trigger[data-style=simple] .uos-brand-avatar,.uos-user-trigger[data-style=simple] .uos-user-trigger-arrow{display:none}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-copy{display:flex;align-items:center;gap:7px;flex:0 1 auto}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-title{font-size:12px}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-count{font-size:11px;letter-spacing:0}
 .uos-user-trigger[data-floating=true]{position:fixed!important;z-index:2147483645;right:auto!important;bottom:auto!important;margin:0!important;transform:none!important;transition:none!important;touch-action:none;user-select:none}
 .uos-user-trigger[data-theme=neon]{background:#211839;border-color:#d279ef;color:#fff0fa;box-shadow:0 0 18px #b044c288}.uos-user-trigger[data-theme=paper]{background:#f8eedb;border-color:#a3493b;color:#522d28}.uos-user-trigger[data-theme=noir]{background:#1b1c1e;border-color:#e1dfda;color:#f7f5ef}.uos-user-trigger[data-theme=meadow]{background:#1d392f;border-color:#bec889;color:#f3f1d9}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
@@ -201,10 +213,10 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel{--ornament-position:0% 0%}
 .uos-user-header-ornament{display:block;pointer-events:none;background-image:url("${THEME_ORNAMENT_SPRITE}");background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
 .uos-user-kicker{display:flex;align-items:center;gap:10px}.uos-user-panel[data-theme=japan] .uos-user-kicker::after{display:none}
-.uos-user-header-ornament{width:72px;height:72px;flex:none}
+.uos-user-header-ornament{width:28px;height:28px;flex:none}
 
 .uos-user-card{box-shadow:inset 0 1px 0 #ffffff0d,0 9px 22px #0002}
-@media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}}
+@media(max-width:500px){.uos-user-header-ornament{width:24px;height:24px}}
 /* Opening number lives beside the title, away from the right-hand ornament. */
 .uos-user-panel[data-theme] .uos-user-card::before{content:attr(data-number);position:relative;float:left;inset:auto;z-index:auto;font:600 22px/1.5 Georgia,serif;letter-spacing:0;opacity:.8;margin:2px 10px 0 0;pointer-events:none}
 
@@ -227,6 +239,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 /* Browse first; edit and inspect details on demand. */
 .uos-user-panel .uos-user-settings[hidden]{display:none}
 .uos-user-settings-intro{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.7}.uos-user-settings-group{margin:16px 0}.uos-user-settings-group>h3{font-size:13px;margin:0 0 8px;color:var(--accent)}.uos-user-settings .uos-user-label-settings{max-height:none;overflow:visible;min-height:0;padding:12px;margin:8px 0}.uos-user-settings .uos-user-label-settings summary{line-height:1.6}.uos-user-settings .uos-user-label-settings>p{font-size:12px;line-height:1.7}.uos-user-settings .uos-user-label-settings>button{margin:10px 6px 0 0}.uos-user-settings-button{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;min-height:38px}
+.uos-user-floating-style{display:grid;grid-template-columns:minmax(86px,auto) minmax(0,1fr);align-items:center;gap:8px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.uos-user-floating-style-title{color:var(--text);font-size:13px;font-weight:600}.uos-user-floating-style select{width:100%;max-width:200px;min-height:38px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}.uos-user-floating-style small{grid-column:1/-1;color:var(--muted);font-size:11px;line-height:1.6}
 .uos-user-settings{margin:0 0 16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .uos-user-results{margin:0 0 12px;color:var(--muted);font-size:12px}
 .uos-user-panel .uos-user-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.7;padding-right:0}
@@ -289,25 +302,32 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   // Script replacement rebinds the helper API even if the same version runs again.
   doc.__uosPlayer?.close?.();
   const host=doc.defaultView||globalThis;
+  const triggerStylePreference=createPlayerTriggerStylePreference(host);
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
-  let trigger=null,triggerDrag=null,panelSession=null,updating=false;
+  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+BRAND_CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
+  let trigger=null,triggerDrag=null,stopTriggerBrand=()=>{},triggerCount=null,panelSession=null,updating=false;
   const el=(tag,className,text)=>{const node=doc.createElement(tag);node.className=className;if(text!=null)node.textContent=String(text);return node};
   const state=()=>readPlayerState(host.SillyTavern?.getContext?.(),helper);
-  const removeTrigger=()=>{triggerDrag?.dispose();triggerDrag=null;trigger?.remove();trigger=null};
+  const removeTrigger=()=>{triggerDrag?.dispose();triggerDrag=null;stopTriggerBrand();stopTriggerBrand=()=>{};trigger?.remove();trigger=null;triggerCount=null};
   function scan(){
     if(updating)return;updating=true;
     try{
       const snapshot=state(),first=doc.querySelector('#chat .mes[mesid="0"],#chat .mes[data-mesid="0"]');
       if(!snapshot||!first){removeTrigger();closePanel();return}
       if(!trigger){trigger=el('button','uos-user-trigger');trigger.type='button';trigger.style.touchAction='none';
+        const avatar=el('span','uos-brand-avatar');avatar.setAttribute('aria-hidden','true');
+        const copy=el('span','uos-user-trigger-copy');copy.append(el('span','uos-user-trigger-title','预览开场'),triggerCount=el('span','uos-user-trigger-count'));
+        const arrow=el('span','uos-user-trigger-arrow','›');arrow.setAttribute('aria-hidden','true');trigger.append(avatar,copy,arrow);
+        stopTriggerBrand=bindBrandImages(trigger);
         triggerDrag=createPlayerButtonDrag(trigger);trigger.onclick=event=>{if(!triggerDrag?.suppressClick(event))openPanel()};
       }
+      trigger.dataset.style=triggerStylePreference.get();
       try{trigger.dataset.theme=host.localStorage.getItem('uos_player_theme')||'archive'}catch{}
-      const label=`◈ 预览开场 · ${snapshot.swipeId+1}/${snapshot.entries.length}`;
-      if(trigger.textContent!==label)trigger.textContent=label;
+      const position=`${snapshot.swipeId+1} / ${snapshot.entries.length}`;
+      if(triggerCount&&triggerCount.textContent!==position)triggerCount.textContent=position;
+      trigger.setAttribute('aria-label',`预览开场，第 ${snapshot.swipeId+1} 个，共 ${snapshot.entries.length} 个`);
       if(trigger.dataset.floating!=='true'&&(trigger.nextElementSibling!==first||trigger.parentNode!==first.parentNode)){first.before(trigger);triggerDrag.restore()}
     }finally{updating=false}
   }
@@ -329,6 +349,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
     const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);const backgroundControl=createThemeBackgroundController(panel,'--uos-user-background',doc.defaultView,{service:backgroundService});void backgroundControl.setTheme(panel.dataset.theme);session.own(()=>backgroundControl.close());
+    const brand=createBrandMark(el);panel.append(brand.element);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
@@ -337,6 +358,13 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const settingsLayout=createPlayerSettingsLayout(el);
     const {settings,button:settingsButton}=settingsLayout;
     tools.append(settingsButton);session.own(()=>settingsLayout.close());
+    const floatingStyle=el('label','uos-user-floating-style');
+    const floatingStyleSelect=el('select');floatingStyleSelect.setAttribute('aria-label','悬浮窗样式');
+    for(const [value,label] of [['simple','简洁版'],['mascot','看板娘版']]){const option=el('option','',label);option.value=value;floatingStyleSelect.append(option)}
+    floatingStyleSelect.value=triggerStylePreference.get();
+    const floatingStyleHint=el('small','','简洁版显示标题和编号；看板娘版会随主题更换造型。');
+    floatingStyle.append(el('span','uos-user-floating-style-title','悬浮窗样式'),floatingStyleSelect,floatingStyleHint);
+    floatingStyleSelect.onchange=()=>{const result=triggerStylePreference.set(floatingStyleSelect.value);if(trigger)trigger.dataset.style=result.value;floatingStyleHint.textContent=result.saved?'简洁版显示标题和编号；看板娘版会随主题更换造型。':'浏览器未能保存偏好，本次运行仍会立即切换。'};
     const character=host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
     const authorConfig=(character?.data||character)?.extensions?.[KEY]||{};
     const layoutKey=`uos_player_layout_${snapshot.avatar}`;let layout=authorConfig.layout;
@@ -541,14 +569,17 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=()=>chooseOpening(entry,choose);
       card.append(choose);target.append(card);
-    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(el('p','uos-user-empty',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。'))}
+    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(createMascotNote(el,'search',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-user-empty').element)}
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
     const stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});session.own(stopUpdateControl);
-    settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings});
+    settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings,floatingStyle});
+    const welcome=createMascotNote(el,'welcome','按需要展开一项设置，修改后使用该项的保存按钮。');
+    settings.querySelector('.uos-user-settings-intro').replaceWith(welcome.element);session.own(welcome.dispose);
     panel.append(head,tools,settings,search,results,list,status,mark);
     overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
+    const stopBrandImages=bindBrandImages(panel);session.own(stopBrandImages);
     const active=overlay;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;

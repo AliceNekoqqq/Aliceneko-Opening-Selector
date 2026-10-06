@@ -20,11 +20,13 @@ function element(tag,cls='',text='') {
 test('settings layout preserves every group, disclosure controls and accessibility labels',()=>{
   const layout=createPlayerSettingsLayout(element);
   const sheets=Object.fromEntries(['exclusion','people','edits','labels','updates'].map(key=>[key,element('details')]));
+  sheets.floatingStyle=element('label','uos-user-floating-style');
   layout.assemble(sheets);
   assert.equal(layout.settings.hidden,true);assert.equal(layout.button.attrs['aria-controls'],layout.settings.id);
   layout.button.onclick();assert.equal(layout.settings.hidden,false);assert.equal(layout.button.attrs['aria-expanded'],'true');
-  const [,common,advanced,system]=layout.settings.children;
+  const [,common,appearance,advanced,system]=layout.settings.children;
   assert.deepEqual(common.children.slice(1),[sheets.edits,sheets.labels]);
+  assert.deepEqual(appearance.children.slice(1),[sheets.floatingStyle]);
   assert.deepEqual(advanced.children.slice(1),[sheets.exclusion,sheets.people]);assert.deepEqual(system.children.slice(1),[sheets.updates]);
   sheets.people.open=true;sheets.edits.open=true;sheets.people.dispatch('toggle');
   assert.equal(sheets.people.open,true);assert.equal(sheets.edits.open,false);

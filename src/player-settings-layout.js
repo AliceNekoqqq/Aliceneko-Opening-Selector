@@ -6,7 +6,7 @@ export function createPlayerSettingsLayout(el) {
   button.setAttribute('aria-controls',settings.id);button.setAttribute('aria-expanded','false');
   button.onclick=()=>{settings.hidden=!settings.hidden;button.setAttribute('aria-expanded',String(!settings.hidden))};
   let stopToggles=()=>{},closed=false;
-  function assemble({exclusion,people,edits,labels,updates}) {
+  function assemble({exclusion,people,edits,labels,updates,floatingStyle}) {
     if(closed)return;
     stopToggles();
     const sheets=[exclusion,people,edits,labels,updates];
@@ -17,9 +17,10 @@ export function createPlayerSettingsLayout(el) {
     stopToggles=()=>{listeners.forEach(stop=>stop())};
     const intro=el('p','uos-user-settings-intro','按需要展开一项。修改后使用该项的保存按钮。');
     const common=el('section','uos-user-settings-group');common.append(el('h3','','开场显示'),edits,labels);
+    const appearance=el('section','uos-user-settings-group');appearance.append(el('h3','','界面外观'),floatingStyle);
     const advanced=el('section','uos-user-settings-group');advanced.append(el('h3','','识别规则'),exclusion,people);
     const system=el('section','uos-user-settings-group');system.append(el('h3','','插件'),updates);
-    settings.replaceChildren(intro,common,advanced,system);
+    settings.replaceChildren(intro,common,appearance,advanced,system);
   }
   return {settings,button,assemble,close(){if(closed)return;closed=true;stopToggles();button.onclick=null}};
 }

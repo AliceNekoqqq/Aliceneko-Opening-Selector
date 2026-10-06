@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16" : "development";
+var RUNTIME_VERSION = true ? "1.0.17" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -32,10 +32,12 @@ function themeDraw(theme) {
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
 var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
+var BRAND_ASSET_REF = "354db09485df9c48356bc484ede26f5e07b118a4";
 var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
 function themeAssetRef(path) {
+  if (path === "assets/brand/theme-mascots.webp") return BRAND_ASSET_REF;
   if (/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path)) return SCHOOL_THEME_ASSET_REF;
   if (path.startsWith("assets/default-covers/")) return DEFAULT_COVER_ASSET_REF;
   if (path.startsWith("assets/blind-box/card-backs/")) return BLIND_BOX_THEME_ASSET_REF;
@@ -1490,6 +1492,104 @@ function createPlayerButtonDrag(button, { positionKey = "uos_player_button_posit
   };
 }
 
+// src/theme-art.js
+var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
+var THEME_ART = Object.freeze({
+  mascot: artUrl("brand/theme-mascots"),
+  themeMascots: artUrl("brand/theme-mascots"),
+  icons: artUrl("theme-icons"),
+  schoolIcon: artUrl("theme-icon-school"),
+  schoolOrnament: artUrl("theme-ornament-school"),
+  ornaments: artUrl("theme-ornaments"),
+  openings: artUrl("tab-openings"),
+  worldbooks: artUrl("tab-worldbooks"),
+  bgm: artUrl("tab-bgm"),
+  diagnostics: artUrl("tab-diagnostics"),
+  updates: artUrl("tab-updates")
+});
+
+// src/brand-mark.js
+var MASCOT_COLUMNS = 4;
+var MASCOT_ROWS = 5;
+var THEME_MASCOT_POSITIONS = Object.freeze(Object.fromEntries(THEME_IDS.map((id, index) => [
+  id,
+  `${index % MASCOT_COLUMNS / (MASCOT_COLUMNS - 1) * 100}% ${Math.floor(index / MASCOT_COLUMNS) / (MASCOT_ROWS - 1) * 100}%`
+])));
+var themeRules = THEMES.map(([id]) => `.uos[data-theme="${id}"] .uos-brand-avatar,.uos-user-panel[data-theme="${id}"] .uos-brand-avatar,.uos-user-trigger[data-theme="${id}"] .uos-brand-avatar,.uos[data-theme="${id}"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="${id}"] .uos-mascot-note-avatar{--uos-mascot-position:${THEME_MASCOT_POSITIONS[id]}}`).join("\n");
+var BRAND_CSS = `
+.uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
+.uos-masthead .uos-brand{padding-right:64px}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("${THEME_ART.themeMascots}"));background-size:${MASCOT_COLUMNS * 100}% ${MASCOT_ROWS * 100}%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
+.uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
+.uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
+.uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
+.uos-user-panel .uos-brand{margin-bottom:12px}
+.uos-user-panel .uos-brand-avatar{width:64px;height:59px}
+.uos-user-head>div:first-child{min-width:0;flex:1}
+.uos-mascot-note{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,var(--surface));color:var(--muted);font:13px/1.7 system-ui,"Noto Sans SC",sans-serif;box-sizing:border-box;min-width:0}
+.uos-mascot-note-avatar{display:block;flex:none;width:94px;height:86px;background-color:transparent;background-image:var(--uos-theme-mascot-image,url("${THEME_ART.themeMascots}"));background-size:${MASCOT_COLUMNS * 100}% ${MASCOT_ROWS * 100}%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0002)}
+.uos-mascot-note-copy{min-width:0;overflow-wrap:anywhere}
+.uos .uos-search-empty.uos-mascot-note::before{display:none}
+.uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
+@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note-avatar{width:76px;height:70px}}
+@media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
+${themeRules}
+img[data-uos-mascot-loader]{display:none!important}
+`;
+function brandMarkMarkup() {
+  return `<div class="uos-brand"><span class="uos-brand-avatar" data-uos-theme-mascot role="img" aria-label="主题看板娘 Logo"></span><div class="uos-brand-copy"><strong>红豆粉开场白选择器</strong><small>ALICENEKO · OPENING SELECTOR</small></div></div>`;
+}
+function bindBrandImages(root) {
+  if (!root?.querySelectorAll) return () => {
+  };
+  const doc = root.ownerDocument, urls = themeAssetCandidates("assets/brand/theme-mascots.webp");
+  let index = 0, disposed = false;
+  const loader = doc?.createElement?.("img");
+  if (!loader) return () => {
+  };
+  loader.dataset.uosMascotLoader = "";
+  loader.alt = "";
+  loader.hidden = true;
+  root.append(loader);
+  const stop = () => {
+    if (disposed) return;
+    disposed = true;
+    loader.onload = loader.onerror = null;
+    loader.remove();
+    root.style?.removeProperty?.("--uos-theme-mascot-image");
+  };
+  loader.onload = () => {
+    if (!disposed && root.isConnected !== false) root.style?.setProperty?.("--uos-theme-mascot-image", `url("${urls[index]}")`);
+  };
+  loader.onerror = () => {
+    if (disposed || root.isConnected === false) return;
+    if (++index < urls.length) loader.src = urls[index];
+  };
+  loader.src = urls[index];
+  return stop;
+}
+function mascotNoteMarkup(kind, text) {
+  return `<div class="uos-mascot-note"><span class="uos-mascot-note-avatar" data-mascot-kind="${kind}" aria-hidden="true"></span><span class="uos-mascot-note-copy">${text}</span></div>`;
+}
+function createMascotNote(el, kind, text, cls = "") {
+  const element = el("div", `uos-mascot-note ${cls}`), avatar = el("span", "uos-mascot-note-avatar"), copy = el("span", "uos-mascot-note-copy", "");
+  avatar.dataset.mascotKind = kind;
+  avatar.setAttribute("aria-hidden", "true");
+  copy.textContent = String(text ?? "");
+  element.append(avatar, copy);
+  return { element, dispose: () => {
+  } };
+}
+function createBrandMark(el) {
+  const element = el("div", "uos-brand"), image = el("span", "uos-brand-avatar"), copy = el("div", "uos-brand-copy");
+  image.setAttribute("role", "img");
+  image.setAttribute("aria-label", "主题看板娘 Logo");
+  image.dataset.uosThemeMascot = "";
+  copy.append(el("strong", "", "红豆粉开场白选择器"), el("small", "", "ALICENEKO · OPENING SELECTOR"));
+  element.append(image, copy);
+  return { element };
+}
+
 // src/player-settings-layout.js
 function createPlayerSettingsLayout(el) {
   const settings = el("section", "uos-user-settings");
@@ -1506,7 +1606,7 @@ function createPlayerSettingsLayout(el) {
   };
   let stopToggles = () => {
   }, closed = false;
-  function assemble({ exclusion, people, edits, labels, updates }) {
+  function assemble({ exclusion, people, edits, labels, updates, floatingStyle }) {
     if (closed) return;
     stopToggles();
     const sheets = [exclusion, people, edits, labels, updates];
@@ -1525,11 +1625,13 @@ function createPlayerSettingsLayout(el) {
     const intro = el("p", "uos-user-settings-intro", "按需要展开一项。修改后使用该项的保存按钮。");
     const common = el("section", "uos-user-settings-group");
     common.append(el("h3", "", "开场显示"), edits, labels);
+    const appearance = el("section", "uos-user-settings-group");
+    appearance.append(el("h3", "", "界面外观"), floatingStyle);
     const advanced = el("section", "uos-user-settings-group");
     advanced.append(el("h3", "", "识别规则"), exclusion, people);
     const system = el("section", "uos-user-settings-group");
     system.append(el("h3", "", "插件"), updates);
-    settings.replaceChildren(intro, common, advanced, system);
+    settings.replaceChildren(intro, common, appearance, advanced, system);
   }
   return { settings, button, assemble, close() {
     if (closed) return;
@@ -1537,6 +1639,31 @@ function createPlayerSettingsLayout(el) {
     stopToggles();
     button.onclick = null;
   } };
+}
+
+// src/player-trigger-style.js
+var STORAGE_KEY = "uos_player_floating_style_v1";
+var normalize = (value) => value === "simple" ? "simple" : "mascot";
+function createPlayerTriggerStylePreference(host) {
+  let value = "mascot";
+  try {
+    value = normalize(host?.localStorage?.getItem(STORAGE_KEY));
+  } catch {
+  }
+  return {
+    get() {
+      return value;
+    },
+    set(next) {
+      value = normalize(next);
+      try {
+        host?.localStorage?.setItem(STORAGE_KEY, value);
+        return { value, saved: true };
+      } catch {
+        return { value, saved: false };
+      }
+    }
+  };
 }
 
 // src/player-draft-guard.js
@@ -1670,20 +1797,6 @@ function showPlayerUnsavedPrompt(doc, dialog, panel, groups, canSaveToCard, { si
     stay.focus();
   });
 }
-
-// src/theme-art.js
-var artUrl = (path) => themeAssetCandidates(`assets/${path}.webp`)[0];
-var THEME_ART = Object.freeze({
-  icons: artUrl("theme-icons"),
-  schoolIcon: artUrl("theme-icon-school"),
-  schoolOrnament: artUrl("theme-ornament-school"),
-  ornaments: artUrl("theme-ornaments"),
-  openings: artUrl("tab-openings"),
-  worldbooks: artUrl("tab-worldbooks"),
-  bgm: artUrl("tab-bgm"),
-  diagnostics: artUrl("tab-diagnostics"),
-  updates: artUrl("tab-updates")
-});
 
 // src/worldbook-people.js
 var WB_STRUCTURAL = /时间|地点|场景|世界观|设定|规则|系统|状态|预警|剧情|大纲|地图|机制|速览|一览|列表|名单|目录|人物关系|角色关系|档案|说明|简介|年龄|性别|职业|姓名|登场人物|在场角色|^(?:人物|角色|名称|序号|编号|身份|别名|称呼|name|character|id|content|description|location|scene|status|gender|age|(?:基本|基础|详细)?(?:信息|资料|属性|介绍|概况))$/i;
@@ -3169,7 +3282,17 @@ var VERSION = RUNTIME_VERSION;
 var THEME_ORNAMENT_SPRITE = THEME_ART.ornaments;
 var THEME_ICON_SPRITE = THEME_ART.icons;
 var CSS2 = `
-.uos-user-trigger{display:block;width:max-content;max-width:calc(100% - 24px);margin:10px 12px;padding:8px 13px;border:1px solid #b99669;border-radius:999px;background:#17242d;color:#f3e9d7;font:13px/1.4 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0004}
+.uos-user-trigger{display:flex;align-items:center;gap:8px;width:156px;max-width:calc(100% - 24px);min-height:54px;box-sizing:border-box;margin:10px 12px;padding:5px 9px 5px 5px;border:1px solid #b99669;border-radius:13px;background:#17242d;color:#f3e9d7;font:13px/1.3 system-ui,sans-serif;text-align:left;cursor:pointer;box-shadow:0 4px 14px #0004;overflow:hidden}
+.uos-user-trigger .uos-brand-avatar{width:42px;height:42px;border-radius:9px;background-color:#ffffff12;flex:none}
+.uos-user-trigger-copy{display:grid;gap:2px;flex:1;min-width:0}
+.uos-user-trigger-title{font-size:12px;font-weight:700;line-height:1.35;white-space:nowrap}
+.uos-user-trigger-count{font-size:10px;line-height:1.3;letter-spacing:.08em;opacity:.76;font-variant-numeric:tabular-nums;white-space:nowrap}
+.uos-user-trigger-arrow{flex:none;font-size:18px;line-height:1;opacity:.68}
+.uos-user-trigger[data-style=simple]{width:max-content;min-height:38px;gap:7px;padding:7px 13px;border-radius:999px}
+.uos-user-trigger[data-style=simple] .uos-brand-avatar,.uos-user-trigger[data-style=simple] .uos-user-trigger-arrow{display:none}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-copy{display:flex;align-items:center;gap:7px;flex:0 1 auto}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-title{font-size:12px}
+.uos-user-trigger[data-style=simple] .uos-user-trigger-count{font-size:11px;letter-spacing:0}
 .uos-user-trigger[data-floating=true]{position:fixed!important;z-index:2147483645;right:auto!important;bottom:auto!important;margin:0!important;transform:none!important;transition:none!important;touch-action:none;user-select:none}
 .uos-user-trigger[data-theme=neon]{background:#211839;border-color:#d279ef;color:#fff0fa;box-shadow:0 0 18px #b044c288}.uos-user-trigger[data-theme=paper]{background:#f8eedb;border-color:#a3493b;color:#522d28}.uos-user-trigger[data-theme=noir]{background:#1b1c1e;border-color:#e1dfda;color:#f7f5ef}.uos-user-trigger[data-theme=meadow]{background:#1d392f;border-color:#bec889;color:#f3f1d9}
 .uos-user-trigger:focus-visible,.uos-user-panel button:focus-visible{outline:2px solid #efc58b;outline-offset:2px}
@@ -3338,10 +3461,10 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel{--ornament-position:0% 0%}
 .uos-user-header-ornament{display:block;pointer-events:none;background-image:url("${THEME_ORNAMENT_SPRITE}");background-size:400% 400%;background-position:var(--ornament-position);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0003)}
 .uos-user-kicker{display:flex;align-items:center;gap:10px}.uos-user-panel[data-theme=japan] .uos-user-kicker::after{display:none}
-.uos-user-header-ornament{width:72px;height:72px;flex:none}
+.uos-user-header-ornament{width:28px;height:28px;flex:none}
 
 .uos-user-card{box-shadow:inset 0 1px 0 #ffffff0d,0 9px 22px #0002}
-@media(max-width:500px){.uos-user-header-ornament{width:54px;height:54px}}
+@media(max-width:500px){.uos-user-header-ornament{width:24px;height:24px}}
 /* Opening number lives beside the title, away from the right-hand ornament. */
 .uos-user-panel[data-theme] .uos-user-card::before{content:attr(data-number);position:relative;float:left;inset:auto;z-index:auto;font:600 22px/1.5 Georgia,serif;letter-spacing:0;opacity:.8;margin:2px 10px 0 0;pointer-events:none}
 
@@ -3364,6 +3487,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 /* Browse first; edit and inspect details on demand. */
 .uos-user-panel .uos-user-settings[hidden]{display:none}
 .uos-user-settings-intro{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.7}.uos-user-settings-group{margin:16px 0}.uos-user-settings-group>h3{font-size:13px;margin:0 0 8px;color:var(--accent)}.uos-user-settings .uos-user-label-settings{max-height:none;overflow:visible;min-height:0;padding:12px;margin:8px 0}.uos-user-settings .uos-user-label-settings summary{line-height:1.6}.uos-user-settings .uos-user-label-settings>p{font-size:12px;line-height:1.7}.uos-user-settings .uos-user-label-settings>button{margin:10px 6px 0 0}.uos-user-settings-button{border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;min-height:38px}
+.uos-user-floating-style{display:grid;grid-template-columns:minmax(86px,auto) minmax(0,1fr);align-items:center;gap:8px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.uos-user-floating-style-title{color:var(--text);font-size:13px;font-weight:600}.uos-user-floating-style select{width:100%;max-width:200px;min-height:38px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}.uos-user-floating-style small{grid-column:1/-1;color:var(--muted);font-size:11px;line-height:1.6}
 .uos-user-settings{margin:0 0 16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .uos-user-results{margin:0 0 12px;color:var(--muted);font-size:12px}
 .uos-user-panel .uos-user-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.7;padding-right:0}
@@ -3441,6 +3565,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   }
   doc.__uosPlayer?.close?.();
   const host = doc.defaultView || globalThis;
+  const triggerStylePreference = createPlayerTriggerStylePreference(host);
   const helper = helperApi || host.TavernHelper || host;
   const readWorldbookPeople = createWorldbookPeopleReader(() => [helperApi, startDocument?.defaultView?.TavernHelper, startDocument?.defaultView, host.TavernHelper, host]);
   const worldbookPresetManager = createWorldbookPresetManager(() => [helperApi, startDocument?.defaultView?.TavernHelper, startDocument?.defaultView, host.TavernHelper, host], () => {
@@ -3449,9 +3574,10 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS2 + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS2 + BRAND_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
-  let trigger = null, triggerDrag = null, panelSession = null, updating = false;
+  let trigger = null, triggerDrag = null, stopTriggerBrand = () => {
+  }, triggerCount = null, panelSession = null, updating = false;
   const el = (tag, className, text) => {
     const node = doc.createElement(tag);
     node.className = className;
@@ -3462,8 +3588,12 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   const removeTrigger = () => {
     triggerDrag?.dispose();
     triggerDrag = null;
+    stopTriggerBrand();
+    stopTriggerBrand = () => {
+    };
     trigger?.remove();
     trigger = null;
+    triggerCount = null;
   };
   function scan() {
     if (updating) return;
@@ -3479,17 +3609,27 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         trigger = el("button", "uos-user-trigger");
         trigger.type = "button";
         trigger.style.touchAction = "none";
+        const avatar = el("span", "uos-brand-avatar");
+        avatar.setAttribute("aria-hidden", "true");
+        const copy = el("span", "uos-user-trigger-copy");
+        copy.append(el("span", "uos-user-trigger-title", "预览开场"), triggerCount = el("span", "uos-user-trigger-count"));
+        const arrow = el("span", "uos-user-trigger-arrow", "›");
+        arrow.setAttribute("aria-hidden", "true");
+        trigger.append(avatar, copy, arrow);
+        stopTriggerBrand = bindBrandImages(trigger);
         triggerDrag = createPlayerButtonDrag(trigger);
         trigger.onclick = (event) => {
           if (!triggerDrag?.suppressClick(event)) openPanel();
         };
       }
+      trigger.dataset.style = triggerStylePreference.get();
       try {
         trigger.dataset.theme = host.localStorage.getItem("uos_player_theme") || "archive";
       } catch {
       }
-      const label = `◈ 预览开场 · ${snapshot.swipeId + 1}/${snapshot.entries.length}`;
-      if (trigger.textContent !== label) trigger.textContent = label;
+      const position = `${snapshot.swipeId + 1} / ${snapshot.entries.length}`;
+      if (triggerCount && triggerCount.textContent !== position) triggerCount.textContent = position;
+      trigger.setAttribute("aria-label", `预览开场，第 ${snapshot.swipeId + 1} 个，共 ${snapshot.entries.length} 个`);
       if (trigger.dataset.floating !== "true" && (trigger.nextElementSibling !== first || trigger.parentNode !== first.parentNode)) {
         first.before(trigger);
         triggerDrag.restore();
@@ -3538,6 +3678,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const backgroundControl = createThemeBackgroundController(panel, "--uos-user-background", doc.defaultView, { service: backgroundService });
     void backgroundControl.setTheme(panel.dataset.theme);
     session.own(() => backgroundControl.close());
+    const brand = createBrandMark(el);
+    panel.append(brand.element);
     const head = el("div", "uos-user-head"), heading = el("div"), kicker = el("span", "uos-user-kicker", THEME_CAPTIONS[panel.dataset.theme]);
     const headerArt = el("span", "uos-user-header-ornament");
     headerArt.setAttribute("aria-hidden", "true");
@@ -3579,6 +3721,22 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const { settings, button: settingsButton } = settingsLayout;
     tools.append(settingsButton);
     session.own(() => settingsLayout.close());
+    const floatingStyle = el("label", "uos-user-floating-style");
+    const floatingStyleSelect = el("select");
+    floatingStyleSelect.setAttribute("aria-label", "悬浮窗样式");
+    for (const [value, label] of [["simple", "简洁版"], ["mascot", "看板娘版"]]) {
+      const option = el("option", "", label);
+      option.value = value;
+      floatingStyleSelect.append(option);
+    }
+    floatingStyleSelect.value = triggerStylePreference.get();
+    const floatingStyleHint = el("small", "", "简洁版显示标题和编号；看板娘版会随主题更换造型。");
+    floatingStyle.append(el("span", "uos-user-floating-style-title", "悬浮窗样式"), floatingStyleSelect, floatingStyleHint);
+    floatingStyleSelect.onchange = () => {
+      const result = triggerStylePreference.set(floatingStyleSelect.value);
+      if (trigger) trigger.dataset.style = result.value;
+      floatingStyleHint.textContent = result.saved ? "简洁版显示标题和编号；看板娘版会随主题更换造型。" : "浏览器未能保存偏好，本次运行仍会立即切换。";
+    };
     const character = host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
     const authorConfig = (character?.data || character)?.extensions?.[KEY] || {};
     const layoutKey = `uos_player_layout_${snapshot.avatar}`;
@@ -4130,7 +4288,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: panel.dataset.theme, manual: blindBox.rangeMode() === "manual" });
       blindRangeTrigger.textContent = blindBox.rangeSummary();
       results.textContent = favoriteUI.onlyFavorites() || query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
-      if (!visible) list.append(el("p", "uos-user-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
+      if (!visible) list.append(createMascotNote(el, "search", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。", "uos-user-empty").element);
     }
     updatePeople();
     renderCards();
@@ -4138,10 +4296,15 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     mark.append(footerVersion);
     const stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
     session.own(stopUpdateControl);
-    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings });
+    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings, floatingStyle });
+    const welcome = createMascotNote(el, "welcome", "按需要展开一项设置，修改后使用该项的保存按钮。");
+    settings.querySelector(".uos-user-settings-intro").replaceWith(welcome.element);
+    session.own(welcome.dispose);
     panel.append(head, tools, settings, search, results, list, status, mark);
     overlay.append(panel);
     (doc.body || doc.documentElement).append(overlay);
+    const stopBrandImages = bindBrandImages(panel);
+    session.own(stopBrandImages);
     const active = overlay;
     const restorePlayerDraft = () => {
       if (!playerBaseline) return;
@@ -5329,6 +5492,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(max-width:600px){.uos-masthead{padding-top:0;margin-bottom:16px;padding-bottom:16px}.uos .uos-masthead h1{font-size:26px;margin-top:9px}.uos .uos-masthead .uos-intro{font-size:13px;margin-bottom:14px}.uos .uos-masthead .uos-actions{margin-left:0;width:100%}.uos-masthead .uos-version-badge{margin-left:auto}.uos-masthead .uos-header-ornament{width:48px;height:48px}}
 
 
+
 .uos[data-layout=gallery] .uos-grid,.uos-user-panel[data-layout=gallery] .uos-user-list{grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));align-items:start}
 .uos[data-layout=gallery] .uos-card-shell .uos-cover{height:auto;aspect-ratio:16/9}
 .uos-user-panel[data-layout=gallery] .uos-user-default-cover{height:auto;aspect-ratio:16/9}
@@ -5457,16 +5621,52 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(max-width:480px){:is(.uos,.uos-user-panel) .uos-blind-trigger{min-height:84px;gap:7px;padding:8px 10px 8px 4px!important;border-radius:14px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:60px;height:64px;--uos-fan-step:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:35px;height:52px}:is(.uos,.uos-user-panel) .uos-blind-trigger-title{font-size:16px!important;letter-spacing:.05em!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-hint{font-size:11px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 7px;gap:3px;font-size:10px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:16px}}
 @media(max-width:360px){:is(.uos,.uos-user-panel) .uos-blind-trigger{gap:5px;padding-right:8px!important}:is(.uos,.uos-user-panel) .uos-blind-trigger-art{width:48px;height:60px;--uos-fan-step:5px}:is(.uos,.uos-user-panel) .uos-blind-trigger .uos-blind-art{width:30px;height:46px}:is(.uos,.uos-user-panel) .uos-blind-trigger-action{padding:6px 5px;gap:2px;font-size:9px}:is(.uos,.uos-user-panel) .uos-blind-trigger-arrow{font-size:14px}}
 @media(prefers-reduced-motion:reduce){:is(.uos,.uos-user-panel) .uos-blind-trigger,:is(.uos,.uos-user-panel) .uos-blind-trigger *,:is(.uos,.uos-user-panel) .uos-blind-trigger::after{animation:none!important;transition:none!important}}
+
+
+.uos-brand{display:flex;align-items:center;gap:12px;max-width:100%;margin:0 0 16px;box-sizing:border-box;pointer-events:none}
+.uos-masthead .uos-brand{padding-right:64px}
+.uos-brand-avatar{display:block;flex:none;width:76px;height:70px;filter:drop-shadow(0 2px 3px #0002);background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@354db09485df9c48356bc484ede26f5e07b118a4/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat}
+.uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
+.uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
+.uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
+.uos-user-panel .uos-brand{margin-bottom:12px}
+.uos-user-panel .uos-brand-avatar{width:64px;height:59px}
+.uos-user-head>div:first-child{min-width:0;flex:1}
+.uos-mascot-note{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,var(--surface));color:var(--muted);font:13px/1.7 system-ui,"Noto Sans SC",sans-serif;box-sizing:border-box;min-width:0}
+.uos-mascot-note-avatar{display:block;flex:none;width:94px;height:86px;background-color:transparent;background-image:var(--uos-theme-mascot-image,url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@354db09485df9c48356bc484ede26f5e07b118a4/assets/brand/theme-mascots.webp"));background-size:400% 500%;background-position:var(--uos-mascot-position,0% 0%);background-repeat:no-repeat;filter:drop-shadow(0 2px 3px #0002)}
+.uos-mascot-note-copy{min-width:0;overflow-wrap:anywhere}
+.uos .uos-search-empty.uos-mascot-note::before{display:none}
+.uos-search-empty.uos-mascot-note,.uos-user-empty.uos-mascot-note{grid-column:1/-1;margin:10px 0;min-height:112px}
+@media(max-width:600px){.uos-mascot-note{padding:12px;gap:10px;font-size:12px}.uos-mascot-note-avatar{width:76px;height:70px}}
+@media(max-width:600px){.uos-brand{gap:10px;margin-bottom:12px}.uos-brand-avatar,.uos-user-panel .uos-brand-avatar{width:58px;height:53px}.uos-brand-copy strong{font-size:13px;letter-spacing:.04em}.uos-brand-copy small{font-size:10px;letter-spacing:.04em}}
+.uos[data-theme="archive"] .uos-brand-avatar,.uos-user-panel[data-theme="archive"] .uos-brand-avatar,.uos-user-trigger[data-theme="archive"] .uos-brand-avatar,.uos[data-theme="archive"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="archive"] .uos-mascot-note-avatar{--uos-mascot-position:0% 0%}
+.uos[data-theme="neon"] .uos-brand-avatar,.uos-user-panel[data-theme="neon"] .uos-brand-avatar,.uos-user-trigger[data-theme="neon"] .uos-brand-avatar,.uos[data-theme="neon"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="neon"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 0%}
+.uos[data-theme="paper"] .uos-brand-avatar,.uos-user-panel[data-theme="paper"] .uos-brand-avatar,.uos-user-trigger[data-theme="paper"] .uos-brand-avatar,.uos[data-theme="paper"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="paper"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 0%}
+.uos[data-theme="noir"] .uos-brand-avatar,.uos-user-panel[data-theme="noir"] .uos-brand-avatar,.uos-user-trigger[data-theme="noir"] .uos-brand-avatar,.uos[data-theme="noir"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="noir"] .uos-mascot-note-avatar{--uos-mascot-position:100% 0%}
+.uos[data-theme="meadow"] .uos-brand-avatar,.uos-user-panel[data-theme="meadow"] .uos-brand-avatar,.uos-user-trigger[data-theme="meadow"] .uos-brand-avatar,.uos[data-theme="meadow"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="meadow"] .uos-mascot-note-avatar{--uos-mascot-position:0% 25%}
+.uos[data-theme="ancient"] .uos-brand-avatar,.uos-user-panel[data-theme="ancient"] .uos-brand-avatar,.uos-user-trigger[data-theme="ancient"] .uos-brand-avatar,.uos[data-theme="ancient"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="ancient"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 25%}
+.uos[data-theme="starmap"] .uos-brand-avatar,.uos-user-panel[data-theme="starmap"] .uos-brand-avatar,.uos-user-trigger[data-theme="starmap"] .uos-brand-avatar,.uos[data-theme="starmap"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="starmap"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 25%}
+.uos[data-theme="rose"] .uos-brand-avatar,.uos-user-panel[data-theme="rose"] .uos-brand-avatar,.uos-user-trigger[data-theme="rose"] .uos-brand-avatar,.uos[data-theme="rose"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="rose"] .uos-mascot-note-avatar{--uos-mascot-position:100% 25%}
+.uos[data-theme="wasteland"] .uos-brand-avatar,.uos-user-panel[data-theme="wasteland"] .uos-brand-avatar,.uos-user-trigger[data-theme="wasteland"] .uos-brand-avatar,.uos[data-theme="wasteland"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="wasteland"] .uos-mascot-note-avatar{--uos-mascot-position:0% 50%}
+.uos[data-theme="deepsea"] .uos-brand-avatar,.uos-user-panel[data-theme="deepsea"] .uos-brand-avatar,.uos-user-trigger[data-theme="deepsea"] .uos-brand-avatar,.uos[data-theme="deepsea"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="deepsea"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 50%}
+.uos[data-theme="amber"] .uos-brand-avatar,.uos-user-panel[data-theme="amber"] .uos-brand-avatar,.uos-user-trigger[data-theme="amber"] .uos-brand-avatar,.uos[data-theme="amber"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="amber"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 50%}
+.uos[data-theme="theatre"] .uos-brand-avatar,.uos-user-panel[data-theme="theatre"] .uos-brand-avatar,.uos-user-trigger[data-theme="theatre"] .uos-brand-avatar,.uos[data-theme="theatre"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="theatre"] .uos-mascot-note-avatar{--uos-mascot-position:100% 50%}
+.uos[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-brand-avatar,.uos-user-trigger[data-theme="lasttrain"] .uos-brand-avatar,.uos[data-theme="lasttrain"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="lasttrain"] .uos-mascot-note-avatar{--uos-mascot-position:0% 75%}
+.uos[data-theme="aurora"] .uos-brand-avatar,.uos-user-panel[data-theme="aurora"] .uos-brand-avatar,.uos-user-trigger[data-theme="aurora"] .uos-brand-avatar,.uos[data-theme="aurora"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="aurora"] .uos-mascot-note-avatar{--uos-mascot-position:33.33333333333333% 75%}
+.uos[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-brand-avatar,.uos-user-trigger[data-theme="glasshouse"] .uos-brand-avatar,.uos[data-theme="glasshouse"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="glasshouse"] .uos-mascot-note-avatar{--uos-mascot-position:66.66666666666666% 75%}
+.uos[data-theme="japan"] .uos-brand-avatar,.uos-user-panel[data-theme="japan"] .uos-brand-avatar,.uos-user-trigger[data-theme="japan"] .uos-brand-avatar,.uos[data-theme="japan"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="japan"] .uos-mascot-note-avatar{--uos-mascot-position:100% 75%}
+.uos[data-theme="school"] .uos-brand-avatar,.uos-user-panel[data-theme="school"] .uos-brand-avatar,.uos-user-trigger[data-theme="school"] .uos-brand-avatar,.uos[data-theme="school"] .uos-mascot-note-avatar,.uos-user-panel[data-theme="school"] .uos-mascot-note-avatar{--uos-mascot-position:0% 100%}
+img[data-uos-mascot-loader]{display:none!important}
 `;
 
 // src/author-template.js
 function buildAuthorHtml(config, greetingCount) {
   const css = AUTHOR_CSS;
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style id="uos-css">${css}</style></head><body>
-<main class="uos" data-uos data-background-mode="remote" data-theme="archive"><div class="uos-background-art" aria-hidden="true"></div><header class="uos-masthead"><span class="uos-header-ornament" aria-hidden="true"></span><span class="uos-kicker">STORY INDEX</span><h1 data-title></h1><p class="uos-intro" data-subtitle></p><div class="uos-top"><p class="uos-opening-count" data-opening-count></p><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div><p class="uos-status uos-top-status" data-top-status role="status"></p></header><section class="uos-player" data-player hidden aria-label="开场音乐播放器"><div class="uos-player-head"><span class="uos-player-record" aria-hidden="true"></span><div class="uos-player-meta"><span class="uos-player-kicker">SOUNDTRACK · 开场音乐</span><strong data-music-title></strong></div><div class="uos-player-controls"><button type="button" data-skip="-10" aria-label="快退10秒">↶</button><button type="button" data-play aria-label="播放">▶</button><button type="button" data-skip="10" aria-label="快进10秒">↷</button></div></div><div class="uos-player-track"><input type="range" data-seek min="0" max="1000" value="0" aria-label="音乐播放进度"><span data-clock>0:00 / 0:00</span></div><div class="uos-lyrics" data-lyrics>♫</div><audio preload="metadata"></audio></section><div class="uos-grid" data-grid></div>
+<main class="uos" data-uos data-background-mode="remote" data-theme="archive"><div class="uos-background-art" aria-hidden="true"></div><header class="uos-masthead">${brandMarkMarkup()}<span class="uos-header-ornament" aria-hidden="true"></span><span class="uos-kicker">STORY INDEX</span><h1 data-title></h1><p class="uos-intro" data-subtitle></p><div class="uos-top"><p class="uos-opening-count" data-opening-count></p><div class="uos-actions"><button type="button" class="uos-icon" data-theme-button aria-label="切换主题">◈ 主题</button><button type="button" class="uos-icon" data-settings-button aria-label="作者设置">⚙ 设置</button></div></div><p class="uos-status uos-top-status" data-top-status role="status"></p></header><section class="uos-player" data-player hidden aria-label="开场音乐播放器"><div class="uos-player-head"><span class="uos-player-record" aria-hidden="true"></span><div class="uos-player-meta"><span class="uos-player-kicker">SOUNDTRACK · 开场音乐</span><strong data-music-title></strong></div><div class="uos-player-controls"><button type="button" data-skip="-10" aria-label="快退10秒">↶</button><button type="button" data-play aria-label="播放">▶</button><button type="button" data-skip="10" aria-label="快进10秒">↷</button></div></div><div class="uos-player-track"><input type="range" data-seek min="0" max="1000" value="0" aria-label="音乐播放进度"><span data-clock>0:00 / 0:00</span></div><div class="uos-lyrics" data-lyrics>♫</div><audio preload="metadata"></audio></section><div class="uos-grid" data-grid></div>
 <p class="uos-footer">选择后进入对应的正式开场。也可使用酒馆首条消息的翻页箭头。当前聊天开始后不能重新选择。</p><div class="uos-status" data-status role="status"></div>
 <div class="uos-dialog" data-theme-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>切换主题</h2><button type="button" class="uos-icon" data-close="[data-theme-dialog]">关闭</button></div><div class="uos-theme-grid" data-theme-grid></div></div></div>
-<div class="uos-dialog" data-settings-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>作者设置</h2><button type="button" class="uos-icon" data-close="[data-settings-dialog]">关闭</button></div><nav class="uos-tabs" aria-label="设置分类"><button type="button" data-tab="openings" aria-selected="true"><span class="uos-tab-art" data-tab-art="openings" aria-hidden="true"></span>开场白</button><button type="button" data-tab="worldbooks" aria-selected="false"><span class="uos-tab-art" data-tab-art="worldbooks" aria-hidden="true"></span>世界书</button><button type="button" data-tab="bgm" aria-selected="false"><span class="uos-tab-art" data-tab-art="bgm" aria-hidden="true"></span>BGM</button><button type="button" data-tab="diagnostics" aria-selected="false"><span class="uos-tab-art" data-tab-art="diagnostics" aria-hidden="true"></span>制卡检查</button></nav><section data-tab-panel="openings"><p class="uos-help">已读取 ${greetingCount} 条正式开场。修改后点击下方保存，并从酒馆导出更新的角色卡。</p><div data-settings-fields></div></section><section data-tab-panel="worldbooks" hidden><p class="uos-help">为每个开场预设角色世界书的条目开关。预设保存在角色卡配置中；未配置的开场不会改动世界书。</p><div data-worldbook-presets></div></section><section data-tab-panel="bgm" hidden><p class="uos-help">上传音乐和 LRC/TXT 歌词。文件会在选择页预览，保存后随角色卡导出。</p><div data-bgm-fields></div><div class="uos-empty-music" data-bgm-empty aria-hidden="true" hidden></div><p class="uos-help">音频内嵌会增加角色卡体积。请确认分享权利；可在 https://www.gequhai.com/ 查找曲目。</p></section><section data-tab-panel="diagnostics" hidden><p class="uos-help">根据当前酒馆中的角色数据检查。修改设置后请先保存，再从酒馆导出角色卡；玩家仍需安装并启用酒馆助手。</p><div data-diagnostics></div></section><div class="uos-settings-savebar"><button type="button" class="uos-save" data-save>保存到角色卡</button><p class="uos-help" data-save-state role="status"></p></div></div></div>
+<div class="uos-dialog" data-settings-dialog hidden><div class="uos-sheet"><div class="uos-sheet-head"><h2>作者设置</h2><button type="button" class="uos-icon" data-close="[data-settings-dialog]">关闭</button></div>${mascotNoteMarkup("welcome", "从下面选择一项设置，修改完成后保存到角色卡。")}<nav class="uos-tabs" aria-label="设置分类"><button type="button" data-tab="openings" aria-selected="true"><span class="uos-tab-art" data-tab-art="openings" aria-hidden="true"></span>开场白</button><button type="button" data-tab="worldbooks" aria-selected="false"><span class="uos-tab-art" data-tab-art="worldbooks" aria-hidden="true"></span>世界书</button><button type="button" data-tab="bgm" aria-selected="false"><span class="uos-tab-art" data-tab-art="bgm" aria-hidden="true"></span>BGM</button><button type="button" data-tab="diagnostics" aria-selected="false"><span class="uos-tab-art" data-tab-art="diagnostics" aria-hidden="true"></span>制卡检查</button></nav><section data-tab-panel="openings"><p class="uos-help">已读取 ${greetingCount} 条正式开场。修改后点击下方保存，并从酒馆导出更新的角色卡。</p><div data-settings-fields></div></section><section data-tab-panel="worldbooks" hidden><p class="uos-help">为每个开场预设角色世界书的条目开关。预设保存在角色卡配置中；未配置的开场不会改动世界书。</p><div data-worldbook-presets></div></section><section data-tab-panel="bgm" hidden><p class="uos-help">上传音乐和 LRC/TXT 歌词。文件会在选择页预览，保存后随角色卡导出。</p><div data-bgm-fields></div><div class="uos-empty-music" data-bgm-empty aria-hidden="true" hidden></div><p class="uos-help">音频内嵌会增加角色卡体积。请确认分享权利；可在 https://www.gequhai.com/ 查找曲目。</p></section><section data-tab-panel="diagnostics" hidden><p class="uos-help">根据当前酒馆中的角色数据检查。修改设置后请先保存，再从酒馆导出角色卡；玩家仍需安装并启用酒馆助手。</p><div data-diagnostics></div></section><div class="uos-settings-savebar"><button type="button" class="uos-save" data-save>保存到角色卡</button><p class="uos-help" data-save-state role="status"></p></div></div></div>
 </main><script type="application/json" id="uos-seed">${JSON.stringify(config).replace(/</g, "\\u003c")}<\/script></body></html>`;
 }
 
@@ -5522,7 +5722,7 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
   const grid = root.querySelector("[data-grid]");
   grid.replaceChildren();
   groups.render(model.items, grid, (entry, target) => target.append(createAuthorOpeningCard({ el, entry, index: entry.id, body: entry.body, host })));
-  if (!model.items.length) grid.append(el("p", "uos-search-empty", "暂无开场，请先在角色卡中添加备用开场。"));
+  if (!model.items.length) grid.append(createMascotNote(el, "search", "暂无开场，请先在角色卡中添加备用开场。", "uos-search-empty").element);
   const music = model.music || {};
   root.querySelector("[data-player]").hidden = !music.enabled;
   root.querySelector("[data-music-title]").textContent = music.title || "开场音乐";
@@ -5564,7 +5764,8 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
   tools.append(phone, desktop);
   const stage = el("div", "uos-page-preview-stage");
   element.append(summary, el("p", "uos-help", "编辑时自动同步；预览只用于查看，点击保存后写入角色卡。"), tools, stage);
-  let width = 390, frame = null, background = null, groups = null, timer = null, observer = null, disposed = false;
+  let width = 390, frame = null, background = null, groups = null, timer = null, observer = null, disposed = false, stopMascot = () => {
+  };
   const controls = () => {
     phone.setAttribute("aria-pressed", String(width === 390));
     desktop.setAttribute("aria-pressed", String(width === 900));
@@ -5595,6 +5796,7 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
     previewDoc.head.append(style);
     const root = previewDoc.querySelector("[data-uos]");
     root.inert = true;
+    stopMascot = bindBrandImages(root);
     groups = createOpeningGroupRenderer({ el: (tag, cls = "", text) => {
       const node = previewDoc.createElement(tag);
       if (cls) node.className = cls;
@@ -5652,6 +5854,7 @@ function createAuthorPagePreview({ doc, readModel, host, backgroundService, watc
     watch?.removeEventListener("change", refresh);
     view.removeEventListener("resize", fit);
     observer?.disconnect();
+    stopMascot();
     background?.close();
     frame?.remove();
     element.remove();
@@ -5762,10 +5965,12 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     delete root.dataset.uosMounted;
   }
   root.__uosDispose?.();
+  const stopMascot = bindBrandImages(root);
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
   let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox;
   let previewItems = [], allDrawItems = [];
   root.__uosDispose = () => {
+    stopMascot();
     blindBox?.dispose();
     favoriteUI?.dispose();
     pagePreview?.dispose();
@@ -5831,7 +6036,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     if (list) renderWorldbookPeopleList(doc, list, worldbookPeople, worldbookDiagnostics);
   }
   const stored = character()?.data?.extensions?.[KEY2] ?? character()?.extensions?.[KEY2];
-  let config = normalize(stored || seed);
+  let config = normalize2(stored || seed);
   let draft = null;
   let displayTheme = localTheme() || config.theme;
   let portaled = [];
@@ -5926,7 +6131,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     status,
     confirmPresetDelete
   });
-  function normalize(input) {
+  function normalize2(input) {
     const x = input && typeof input === "object" ? input : {};
     const worldbookConfig = migrateWorldbookPresetAssignments(x.entries, x.worldbookPresets);
     return {
@@ -6008,7 +6213,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     if (!draft) return false;
     if (worldbookEditor.hasUnsaved() || pendingSettingsTasks > 0) return true;
     try {
-      return settingsDraftBaseline !== null && JSON.stringify(normalize({ ...draft, theme: displayTheme })) !== settingsDraftBaseline;
+      return settingsDraftBaseline !== null && JSON.stringify(normalize2({ ...draft, theme: displayTheme })) !== settingsDraftBaseline;
     } catch {
       return true;
     }
@@ -6363,7 +6568,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       grid.before(result);
     }
     result.textContent = favoriteUI.onlyFavorites() || query || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${items.length} 个开场` : `${items.length} 个开场 · 点击卡片进入`;
-    if (!visible) grid.append(el("p", "uos-search-empty", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。"));
+    if (!visible) grid.append(createMascotNote(el, "search", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。", "uos-search-empty").element);
     renderMusic(config.music);
     const actions = root.querySelector(".uos-actions");
     if (actions && !actions.querySelector(".uos-version-badge")) actions.append(el("small", "uos-version-badge", `v${VERSION2}`));
@@ -6495,7 +6700,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const dlg = showSheet("[data-settings-dialog]");
     if (!dlg) return;
     ensureUpdateSettings(dlg);
-    draft || (draft = normalize(config));
+    draft || (draft = normalize2(config));
     pagePreview?.dispose();
     const manuallyEditedNames = /* @__PURE__ */ new Set(), fields = $("[data-settings-fields]");
     fields.replaceChildren();
@@ -6524,7 +6729,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       backgroundService,
       readModel: () => {
         if (draft !== previewDraft || root.isConnected === false || character()?.avatar !== previewAvatar || context()?.characterId !== previewCharacterId) return null;
-        const settings = normalize({ ...draft, theme: displayTheme, entries: draft.entries.map((entry, i) => {
+        const settings = normalize2({ ...draft, theme: displayTheme, entries: draft.entries.map((entry, i) => {
           if (manuallyEditedNames.has(i) || typeof config.entries[i]?.names === "string") return entry;
           const { names, ...automatic } = entry;
           return automatic;
@@ -6704,7 +6909,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       dlg.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b === button)));
       dlg.querySelectorAll("[data-tab-panel]").forEach((panel) => panel.hidden = panel.dataset.tabPanel !== button.dataset.tab);
     });
-    settingsDraftBaseline = JSON.stringify(normalize({ ...draft, theme: displayTheme }));
+    settingsDraftBaseline = JSON.stringify(normalize2({ ...draft, theme: displayTheme }));
     saveSettingsToCard = async ({ closeOnSuccess = true, commitPresetDraft = false } = {}) => {
       if (pendingSettingsTasks > 0) {
         status("文件仍在处理，请稍候后再保存。");
@@ -6751,7 +6956,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         if (!same(saved, saveData)) throw Error("角色卡复核未找到刚保存的设置，请重新打开角色卡检查");
         if (context()?.characterId !== saveCharacterId || character()?.avatar !== card.avatar) throw Error("原角色卡已保存，但当前角色已切换，请重新打开设置");
         await c.writeExtensionField(saveCharacterId, KEY2, saveData);
-        config = normalize(saveData);
+        config = normalize2(saveData);
         draft = null;
         settingsDraftBaseline = null;
         worldbookEditor.reset();
