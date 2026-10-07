@@ -94,8 +94,8 @@ test('failed roster storage leaves editor open and previous choices intact',asyn
 test('single and bulk confirmations remove pending labels, survive reload/save and cancel discards changes',async()=>{
   const f=setup(),read=async()=>({people:[{name:'甲',trusted:false,sources:['资料A']},{name:'乙',trusted:false,sources:['资料B']}],warnings:[]}),e=editorFixture(f,read);
   await e.editor.open();await tick();let input=e.keep('甲'),row=input.parent;assert.equal(input.dataset.peoplePending,'true');row.querySelector('button').onclick();assert.equal(input.dataset.peoplePending,'false');assert.equal(row.querySelector('span').textContent,'甲');assert.equal(input.checked,true);
-  e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('甲').dataset.peoplePending,'false');e.button('确认全部待确认').onclick();assert.equal(e.keep('乙').dataset.peoplePending,'false');e.button('取消').onclick();assert.equal(f.map.has('uos_opening_cast_v1_draft.png'),false);
-  await e.editor.open();await tick();e.button('确认全部待确认').onclick();e.button('保存并重新识别').onclick();assert.ok(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).confirmed.includes('甲'));
+  e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('甲').dataset.peoplePending,'false');e.button('确认已勾选人物').onclick();assert.equal(e.keep('乙').dataset.peoplePending,'false');e.button('取消').onclick();assert.equal(f.map.has('uos_opening_cast_v1_draft.png'),false);
+  await e.editor.open();await tick();e.button('确认已勾选人物').onclick();e.button('保存并重新识别').onclick();assert.ok(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).confirmed.includes('甲'));
   await e.editor.open();await tick();assert.equal(e.keep('甲').dataset.peoplePending,'false');assert.equal(e.keep('甲').parent.querySelector('span').textContent,'甲');e.editor.dispose();
 });
 test('search and pending filter do not alter selections; bulk cleanup and restore are saveable draft actions',async()=>{
@@ -105,4 +105,14 @@ test('search and pending filter do not alter selections; bulk cleanup and restor
   e.button('移除待确认').onclick();assert.equal(e.keep('误识别').checked,false);e.button('保存并重新识别').onclick();assert.ok(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).excluded.includes('误识别'));
   await e.editor.open();await tick();e.button('恢复自动识别').onclick();e.button('取消').onclick();assert.equal(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).managed,true);
   await e.editor.open();await tick();e.button('恢复自动识别').onclick();e.button('保存并重新识别').onclick();assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')),{managed:false,confirmed:[],excluded:[],added:[]});e.editor.dispose();
+});
+
+test('bulk confirmation acts only on checked people, including hidden selections, and never rechecks excluded candidates',async()=>{
+  const f=setup(),e=editorFixture(f,async()=>({people:[{name:'甲',trusted:false},{name:'乙',trusted:false},{name:'丙',trusted:true}],warnings:[]}));await e.editor.open();await tick();
+  e.keep('乙').checked=false;e.keep('丙').checked=false;
+  const search=e.dialog().querySelector('[data-people-search]');search.value='乙';search.oninput();assert.equal(e.keep('甲').parent.hidden,true);
+  e.button('确认已勾选人物').onclick();assert.equal(e.keep('甲').checked,true);assert.equal(e.keep('甲').dataset.peoplePending,'false');assert.equal(e.keep('甲').parent.querySelector('span').textContent,'甲');
+  assert.equal(e.keep('乙').checked,false);assert.equal(e.keep('乙').dataset.peoplePending,'true');assert.equal(e.keep('乙').parent.querySelector('span').textContent,'乙（待确认）');assert.equal(e.keep('丙').checked,false);
+  e.button('保存并重新识别').onclick();const roster=JSON.parse(f.map.get('uos_opening_cast_v1_draft.png'));assert.ok(roster.confirmed.includes('甲'));assert.ok(!roster.confirmed.includes('乙'));assert.ok(roster.excluded.includes('乙'));
+  await e.editor.open();await tick();e.button('全部移除').onclick();e.button('确认已勾选人物').onclick();assert.ok(e.dialog().querySelectorAll('[data-people-keep]').every(input=>!input.checked));e.editor.dispose();
 });

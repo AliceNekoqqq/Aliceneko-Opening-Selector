@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.17-beta.4" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.5" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -316,9 +316,9 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
       for (const input of list.querySelectorAll("input")) input.checked = checked;
       updateSummary();
     };
-    const confirmPending = button("确认全部待确认", () => {
+    const confirmPending = button("确认已勾选人物", () => {
       automaticDraft = false;
-      for (const input of list.querySelectorAll("input")) input.confirmPerson?.();
+      for (const input of list.querySelectorAll("input")) if (input.checked) input.confirmPerson?.();
       updateSummary();
     });
     const all = button("全部保留", () => setChecks(true)), none = button("全部移除", () => setChecks(false)), reset = button("恢复读取名单", () => {

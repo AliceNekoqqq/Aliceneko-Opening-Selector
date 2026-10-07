@@ -32,7 +32,7 @@ export function createOpeningPeopleEditor({doc,host,getContext,readWorldbook,get
     const list=el('div');list.className='uos-people-editor-list';dialog.append(list);
     const actions=el('div');actions.className='uos-people-editor-actions';dialog.append(actions);
     const setChecks=checked=>{automaticDraft=false;for(const input of list.querySelectorAll('input'))input.checked=checked;updateSummary()};
-    const confirmPending=button('确认全部待确认',()=>{automaticDraft=false;for(const input of list.querySelectorAll('input'))input.confirmPerson?.();updateSummary()});
+    const confirmPending=button('确认已勾选人物',()=>{automaticDraft=false;for(const input of list.querySelectorAll('input'))if(input.checked)input.confirmPerson?.();updateSummary()});
     const all=button('全部保留',()=>setChecks(true)),none=button('全部移除',()=>setChecks(false)),reset=button('恢复读取名单',()=>{setChecks(true);added.value='';updateSummary()}),removePending=button('移除待确认',()=>{automaticDraft=false;for(const input of list.querySelectorAll('input'))if(input.dataset.peoplePending==='true')input.checked=false;updateSummary()}),reload=button('重新读取人物',()=>{void load(true)});actions.append(all,none,confirmPending,removePending,reset,reload);
     const label=el('label','补充人物（可修改或删除）'),added=el('textarea');added.dataset.peopleAdded='';added.setAttribute('aria-label','补充人物');added.placeholder='用顿号、逗号或换行分隔';added.maxLength=30000;added.value=roster.added.join('、');added.oninput=()=>{automaticDraft=false;updateSummary()};label.append(added);dialog.append(label);
     const footer=el('div');footer.className='uos-people-editor-actions';dialog.append(footer);
