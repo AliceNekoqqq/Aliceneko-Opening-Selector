@@ -15,14 +15,14 @@ export function inspectAuthorState(context,helper){
   const data=card.data||card,first=String(data.first_mes??card.first_mes??'');
   const greetings=data.alternate_greetings??card.alternate_greetings;
   if(!first.trimStart().startsWith(AUTHOR_MARKER))return {state:null,reason:'已加载作者脚本。请把主开场第一行改为 <UniversalOpeningSelector/>，把原主开场移到备用开场第一条，保存角色卡后新建聊天。'};
-  if(!Array.isArray(greetings)||!greetings.length)return {state:null,reason:'已识别选择器标记，但备用开场为空。请至少填写一条正式开场，保存角色卡后新建聊天。'};
+  if(greetings!=null&&!Array.isArray(greetings))return {state:null,reason:'角色卡备用开场格式异常，请检查角色卡。'};
   if(typeof helper?.getChatMessages!=='function')return {state:null,reason:'已识别角色卡设置，但酒馆助手消息接口尚未就绪。请检查酒馆助手是否启用。'};
   let message,last;
   try{message=helper.getChatMessages(0,{include_swipes:true})?.[0];last=helper.getLastMessageId?.()}catch{return {state:null,reason:'读取首条消息失败。请保存角色卡并新建聊天。'}}
   if(Number(last??0)>0||Number(message?.swipe_id)!==0)return {state:null,reason:null};
   if(message?.role!=='assistant'||!String(message.swipes?.[0]||'').includes(AUTHOR_MARKER))
     return {state:null,reason:'角色卡标记已准备好，但当前首条消息不是选择页。请保存角色卡并新建聊天。'};
-  return {state:{characterId:context.characterId,avatar:card.avatar,entries:greetings},reason:null};
+  return {state:{characterId:context.characterId,avatar:card.avatar,entries:greetings||[]},reason:null};
 }
 
 export function readAuthorState(context,helper){return inspectAuthorState(context,helper).state}

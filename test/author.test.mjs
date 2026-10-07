@@ -22,7 +22,7 @@ context.groupId=null;card.data.first_mes='普通主开场。';assert.equal(readA
 assert.match(inspectAuthorState(context,helper).reason,/主开场第一行/);
 last=1;assert.equal(inspectAuthorState(context,helper).reason,null);last=0;
 card.data.first_mes=AUTHOR_MARKER;card.data.alternate_greetings=[];
-assert.match(inspectAuthorState(context,helper).reason,/备用开场为空/);
+assert.deepEqual(inspectAuthorState(context,helper).state.entries,[],'empty author cards can create their first opening in the generator');
 import {payload,stable,runtimeVersion,pointerFile,bootstrapScript} from './release-fixture.mjs';
 const remote=fs.readFileSync('remote.js','utf8')+'\n'+authorHtml(1);
 const containsMarkup=value=>authorHtml(1).includes(value.replace(/\\+"/g,'"'));

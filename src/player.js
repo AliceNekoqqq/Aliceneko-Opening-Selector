@@ -28,6 +28,7 @@ import {OPENING_CATEGORY_CSS} from './opening-category-styles.js';
 import {OPENING_ACTION_CSS,decorateOpeningPreviewButton} from './opening-action-styles.js';
 import {bindUpdateControl} from './update-control.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
+import {createOpeningGenerator} from './opening-generator.js';
 import {createWorldbookPresetManager} from './worldbook-presets.js';
 /* Optional global Tavern Helper script for ordinary multi-greeting cards. */
 const KEY='universal_opening_selector';
@@ -290,14 +291,14 @@ export function readPlayerState(context,helper){
   if(!c || (context.groupId!=null && context.groupId!==-1) || context.characterId==null)return null;
   const data=c.data||c,first=String(data.first_mes??c.first_mes??'');
   const alternates=data.alternate_greetings??c.alternate_greetings;
-  if(!first || first.trimStart().startsWith('<UniversalOpeningSelector/>') || !Array.isArray(alternates) || !alternates.length)return null;
+  if(!first || first.trimStart().startsWith('<UniversalOpeningSelector/>') || (alternates!=null&&!Array.isArray(alternates)))return null;
   if(typeof helper?.getChatMessages!=='function' || typeof helper?.setChatMessages!=='function')return null;
   let message,last;
   try{message=helper.getChatMessages(0,{include_swipes:true})?.[0];last=helper.getLastMessageId?.()}catch{return null}
   if(last!=null && Number(last)>0)return null;
   if(message?.role!=='assistant' || !Array.isArray(message.swipes) || !message.swipes.length)return null;
-  const all=[first,...alternates],count=Math.min(all.length,message.swipes.length);
-  if(count<2)return null;
+  const all=[first,...(alternates||[])],count=Math.min(all.length,message.swipes.length);
+  if(count<1)return null;
   const settings=data.extensions?.[KEY]||{};
   const metadata=settings.entries||[],excluded=excludedTags(settings.excludedTags);
   const bodies=all.slice(0,count);
@@ -365,6 +366,12 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
+    const generator=createOpeningGenerator({doc,host,helper,getContext:()=>host.SillyTavern?.getContext?.(),mode:'player',
+      sources:()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],readWorldbook:readWorldbookPeople,getPalette:()=>panel,
+      getKnownNames:()=>[...snapshot.entries.flatMap(entry=>entry.names),...personAliases(aliasInput.value).values()],
+      beforeOpen:()=>confirmPlayerChanges(),onSaved:result=>{session.close();scan();if(state()?.avatar===snapshot.avatar){openPanel();const note=doc.querySelector('.uos-user-status');if(note)note.textContent=result.message}}});
+    session.own(()=>generator.dispose());
+    const generateOpening=el('button','uos-user-settings-button','＋ 创建新开场白');generateOpening.type='button';generateOpening.onclick=()=>{void generator.open()};tools.append(generateOpening);
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;setBlindBoxTheme(blindTrigger,select.value);void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];kicker.append(headerArt);if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
     const settingsLayout=createPlayerSettingsLayout(el);
@@ -608,8 +615,8 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       restore:restorePlayerDraft,saveCard:saveCardDraft,saveLocal:saveLocalDraft,
       isActive:()=>panelSession===session&&!session.disposed,status:message=>{status.textContent=message},
     });
-    session.setGuard(playerDraftGuard);
-    const confirmPlayerChanges=()=>session.prepareForUpdate();
+    session.setGuard({confirm:async()=>await generator.prepareForUpdate()&&playerDraftGuard.confirm(),close:()=>playerDraftGuard.close()});
+    const confirmPlayerChanges=()=>playerDraftGuard.confirm();
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();

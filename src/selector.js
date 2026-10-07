@@ -22,6 +22,7 @@ import {createOpeningCategoryFilters,createOpeningGroupRenderer} from './opening
 import {bindUpdateControl} from './update-control.js';
 import {greetingTitle,detectGreetingCollection,narrativeStart,excludedTags,isLegacyGeneratedEntry,personAliases} from './greeting-analysis.js';
 import {createWorldbookPeopleReader,renderWorldbookPeopleList,formatWorldbookPeopleStatus} from './worldbook-people.js';
+import {createOpeningGenerator} from './opening-generator.js';
 import {createWorldbookPresetManager,migrateWorldbookPresetAssignments} from './worldbook-presets.js';
 /* 红豆粉开场白选择器 / Aliceneko Opening Selector — author UI runtime. */
 export {optimizeCoverData} from './media-files.js';
@@ -43,9 +44,9 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   root.__uosDispose?.();
   const stopMascot=bindBrandImages(root);
   const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
-  let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI,blindBox;
+  let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI,blindBox,generator;
   let previewItems=[],allDrawItems=[];
-  root.__uosDispose=()=>{stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
+  root.__uosDispose=()=>{generator?.dispose();stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -90,6 +91,11 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   settingsFields=createSettingsFields({el,view:doc.defaultView||globalThis,
     getDraft:()=>draft,status,onPendingChange:count=>{pendingSettingsTasks=count}});
   const {field,fileField}=settingsFields;
+  generator=createOpeningGenerator({doc:host.document,host,helper:helper(),getContext:context,mode:'author',
+    sources:()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host],readWorldbook:readWorldbookPeople,getPalette:()=>root,
+    getKnownNames:()=>[...entries().flatMap(entry=>String(entry.names||'').split(/[、,，]/)),...personAliases(config.personAliases).values()],
+    beforeOpen:async()=>{if(activePopup){await activePopup.complete();if(activePopup)return false}return true},
+    onSaved:result=>{config=normalize(result.settings);render();status(result.message)}});
   const openingGroups=createOpeningGroupRenderer({el,gridClass:'uos-grid'});
   const previewAvatar=character()?.avatar,previewCharacterId=context()?.characterId;
   const favoritesStore=createOpeningFavorites(host,previewAvatar);
@@ -150,7 +156,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   function suggest(text,i){return infer(text,i)}
   function entries(settings=config){
     const greetings=greetingList();
-    const count=greetings.length || settings.entries.length;
+    const count=greetings.length;
     const people=detectGreetingCollection(greetings,{characterName:character()?.data?.name||character()?.name,knownNames:settings.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[]),aliases:settings.personAliases,worldbookPeople});
     return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i],settings),saved=settings.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
   }
@@ -442,13 +448,14 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   }
   $('[data-theme-button]').onclick=openThemes;
   $('[data-settings-button]').onclick=openSettings;
+  const generateButton=root.querySelector('[data-generate-opening]')||el('button','uos-icon','＋ 生成开场白');generateButton.type='button';generateButton.dataset.generateOpening='';generateButton.onclick=()=>{void generator.open()};root.querySelector('.uos-actions')?.prepend(generateButton);
   root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>activePopup?.complete(null));
   render();
   ensureUpdateSettings($('[data-settings-dialog]'));
   void refreshWorldbookPeople();
   void worldbookEditor.refresh();
   root.dataset.uosMounted = '1';
-  root.__uosPrepareForUpdate=async()=>{if(!hasUnsavedSettings())return true;await activePopup?.complete();return !hasUnsavedSettings()};
+  root.__uosPrepareForUpdate=async()=>{if(!await generator.prepareForUpdate())return false;if(!hasUnsavedSettings())return true;await activePopup?.complete();return !hasUnsavedSettings()};
   root.dataset.uosVersion = VERSION;
   return true;
 }
