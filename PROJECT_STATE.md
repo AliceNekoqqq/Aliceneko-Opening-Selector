@@ -12,7 +12,7 @@
 - 核心模块及后续产品方向见 `docs/opening-generation.md`；新增 `src/opening-generation.js`／`opening-generation-service.js`／`opening-generator.js`。真实主 API、酒馆编辑器与触摸兼容仍需用户环境验收。
 - preview 构建、运行模块版本与语法、差异空白检查通过。Node 全量 31/33 通过；两项素材固定版本测试因 Git 子进程 EPERM 未完成。新增生成规则／服务与生成窗口事件状态测试均通过；Chromium 下载失败，未执行浏览器视觉测试。
 - beta.4 preview 构建、运行模块语法与差异空白检查通过；完整 Node 回归 132/132 通过，覆盖名单约束、旧字段／别名／跨开场传播、防短名误命中、单人／批量确认、搜索／筛选／取消／恢复与生成。固定素材 fallback 校验哈希同步为远端实际固定 blob（素材与资源地址未变）。真实酒馆视觉／触摸仍待验收。
-- 上一版 beta.3 运行模块为 `fbaeb2604905d298b45103f84afc34ec8f07e4ec`；beta.4 源码提交后推进 develop 测试指针，main 正式通道不变。
+- beta.4 源码提交 `31d94fb0f2f93422b6885b2960d71604095b33d1` 已推送 develop；测试运行指针指向该不可变模块，main 正式通道不变。
 
 ## 已实现的页面标识选项（beta.1）
 - 作者可分别显示／隐藏选择页看板娘 Logo 与「红豆粉开场白选择器」大标题；新字段 `branding.mascot`／`branding.title` 与其余作者设置一并保存在角色卡扩展字段，未配置时默认为显示。
