@@ -9,7 +9,7 @@
 - 普通单开场卡也可打开玩家选择器，作者已有主开场标记但零条备用时可创建第一条。
 - 核心模块及后续产品方向见 `docs/opening-generation.md`；新增 `src/opening-generation.js`／`opening-generation-service.js`／`opening-generator.js`。真实主 API、酒馆编辑器与触摸兼容仍需用户环境验收。
 - preview 构建、运行模块版本与语法、差异空白检查通过。Node 全量 31/33 通过；两项素材固定版本测试因 Git 子进程 EPERM 未完成。新增生成规则／服务与生成窗口事件状态测试均通过；Chromium 下载失败，未执行浏览器视觉测试。
-- 上一测试版 beta.2 源码为 `60796c504ed3cc39a30fe70829b8645e212335e8`；beta.3 源码提交成功后推进测试指针，main 正式通道不变。
+- beta.3 源码提交 `fbaeb2604905d298b45103f84afc34ec8f07e4ec` 已推送 develop，测试运行指针指向该不可变模块；main 正式通道不变。
 
 ## 已实现的页面标识选项（beta.1）
 - 作者可分别显示／隐藏选择页看板娘 Logo 与「红豆粉开场白选择器」大标题；新字段 `branding.mascot`／`branding.title` 与其余作者设置一并保存在角色卡扩展字段，未配置时默认为显示。
