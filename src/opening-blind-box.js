@@ -28,9 +28,21 @@ export function setBlindBoxTheme(button,theme){
   for(let i=-1;i<=1;i++){const image=createBlindBoxArt(state.el,'card-back',theme);image.style.setProperty('--fan',i);state.art.append(image)}
 }
 export function openingBlindRangeButton(el,onOpen){const button=el('button','uos-blind-range-trigger','⚙ 卡池与抽卡设置');button.type='button';button.setAttribute('aria-label','设置抽取范围');if(onOpen)button.onclick=()=>onOpen(button);else button.disabled=true;return button}
-export function updateBlindBoxButton(button,items,{readonly=false,theme,manual=false}={}){
+export function openingBlindBoxToggle(el,box){
+  const control=el('div','uos-blind-preference'),row=el('label','uos-blind-toggle'),input=el('input');
+  input.type='checkbox';input.checked=box.enabled();input.setAttribute('aria-label','启用盲盒抽卡');
+  const hint=el('small','uos-blind-toggle-hint','立即生效，按角色保存在本机；关闭隐藏盲盒与卡池入口，原卡池保留。不随角色卡导出。');
+  row.append(input,el('span','','启用盲盒抽卡'));control.append(row,hint);
+  input.onchange=()=>{
+    if(input.isConnected===false)return;
+    const result=box.setEnabled(input.checked);input.checked=box.enabled();
+    if(result)hint.textContent=result.persisted?'已保存在本机；重新开启可继续使用原卡池。不随角色卡导出。':'浏览器未能保存，开关暂时只在当前页面有效。';
+  };
+  return control;
+}
+export function updateBlindBoxButton(button,items,{readonly=false,theme,manual=false,enabled=true}={}){
   if(theme)setBlindBoxTheme(button,theme);
-  const count=blindBoxPool(items).length;button.__uosBlindCount.textContent=count?`${count} 个开场`:'暂无候选';button.disabled=readonly||count===0;
+  const count=blindBoxPool(items).length;button.__uosBlindCount.textContent=count?`${count} 个开场`:'暂无候选';button.hidden=!enabled;button.disabled=!enabled||readonly||count===0;
   button.setAttribute('title',count?`从${manual?'手动勾选范围':'当前筛选结果'}的 ${count} 个开场中随机抽取，确认进入后才切换`:'没有可抽取的新开场，可点击「抽取范围」重新勾选');button.dataset.scope=manual?'manual':'filtered';
 }
 
@@ -52,7 +64,8 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
   }
   function open(trigger){
     if(disposed||choosing||!isActive())return false;
-    const prefs=store.read(),pool=drawRangePool(getAllItems(),getItems(),prefs).map(item=>({...item}));if(!pool.length)return false;rangePanel.close();close();
+    const prefs=store.read();if(!prefs.enabled)return false;
+    const pool=drawRangePool(getAllItems(),getItems(),prefs).map(item=>({...item}));if(!pool.length)return false;rangePanel.close();close();
     const dialog=el('dialog','uos-blind-box');dialog.setAttribute('aria-label','命运盲盒');dialog.setAttribute('aria-modal','true');
     const palette=getPalette(),computed=palette.ownerDocument.defaultView.getComputedStyle(palette);dialog.dataset.theme=palette.dataset.theme||'archive';
     const draw=themeDraw(dialog.dataset.theme);dialog.setAttribute('aria-label',`${draw.title}（命运盲盒）`);
@@ -109,5 +122,12 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
     active=session;dialog.addEventListener('keydown',session.onKey);dialog.addEventListener('cancel',event=>{event.preventDefault();if(active===session)close()});dialog.addEventListener('close',()=>{if(active===session)close()});dialog.addEventListener('click',event=>{if(active===session&&event.target===dialog)close()});
     doc.body.append(dialog);try{dialog.showModal()}catch{dialog.setAttribute('open','');dialog.setAttribute('role','dialog')}exit.focus();roll();return true;
   }
-  return {open,close,poolItems,rangeMode:()=>store.read().mode,rangeSummary(){const prefs=store.read();return `⚙ 卡池与抽卡 · ${drawRangeLabel(prefs)} · ${prefs.handSize===5?'五张':'三张'}`},openRange(trigger){if(disposed||choosing||!isActive())return false;close();return rangePanel.open(trigger)},dispose(){if(disposed)return;disposed=true;moduleHelp.dispose();close();rangePanel.dispose();style.remove()}};
+  function setEnabled(value){
+    if(disposed||choosing)return null;
+    if(!isActive()){onUnavailable();return null}
+    const result=store.set({...store.read(),enabled:value===true});
+    if(!result.prefs.enabled)close();
+    onRangeChange(result);return result;
+  }
+  return {open,close,poolItems,enabled:()=>store.read().enabled,setEnabled,rangeMode:()=>store.read().mode,rangeSummary(){const prefs=store.read();return `⚙ 卡池与抽卡 · ${drawRangeLabel(prefs)} · ${prefs.handSize===5?'五张':'三张'}`},openRange(trigger){if(disposed||choosing||!isActive()||!store.read().enabled)return false;close();return rangePanel.open(trigger)},dispose(){if(disposed)return;disposed=true;moduleHelp.dispose();close();rangePanel.dispose();style.remove()}};
 }

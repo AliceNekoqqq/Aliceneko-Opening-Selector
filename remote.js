@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.18" : "development";
+var RUNTIME_VERSION = true ? "1.0.19" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -175,17 +175,17 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
 
 // src/module-help-content.js
 var MODULE_HELP = {
-  playerSettings: { title: "玩家设置", purpose: "按需要调整显示与识别结果，保留作者默认配置。", steps: ["展开需要修改的分区。", "显示信息与识别规则使用分区内的保存按钮；外观选择会立即记住。", "关闭时如有未保存修改，可保存、放弃或返回继续编辑。"], options: [["开场显示", "修正标题、人物或显示标注。"], ["界面外观", "调整悬浮入口、看板娘 Logo 与插件大标题。"], ["识别规则／插件", "修正标签提取和别名，或检查更新。"]], buttons: [["仅保存到本机／保存到角色卡", "前者只影响本机；后者将允许分享的修正写入角色配置。"]], notes: ["人物列表有独立保存按钮，两版按角色共用本机名单。", "此页不会替换开场正文；生成新开场请使用主界面的创建入口。"] },
+  playerSettings: { title: "玩家设置", purpose: "按需要调整显示与识别结果，保留作者默认配置。", steps: ["展开需要修改的分区。", "显示信息与识别规则使用分区内的保存按钮；外观选择会立即记住。", "关闭时如有未保存修改，可保存、放弃或返回继续编辑。"], options: [["开场显示", "修正标题、人物或显示标注。"], ["界面外观", "调整悬浮入口、看板娘 Logo 与插件大标题。"], ["功能开关", "启用或关闭盲盒抽卡；立即生效，按角色保存在本机，重新开启保留卡池。"], ["识别规则／插件", "修正标签提取和别名，或检查更新。"]], buttons: [["仅保存到本机／保存到角色卡", "前者只影响本机；后者将允许分享的修正写入角色配置。"]], notes: ["人物列表有独立保存按钮，两版按角色共用本机名单。", "此页不会替换开场正文；生成新开场请使用主界面的创建入口。"] },
   titleRules: { title: "标题提取规则", purpose: "避免状态栏或辅助标签被误当作开场标题。", steps: ["查看自动标题，找出需要跳过的标签。", "填写标签名称，用逗号分隔；不用填写整段正文。", "保存后检查卡片标题和简介。"], options: [["排除标题中的 <字段>", "例如填写 SceneInfo，会在提取标题和简介时跳过该标签。"]], buttons: [["仅保存到本机／保存到角色卡", "保存玩家本机修正或作者默认规则。"]], notes: ["此设置不修改正文，也不排除人物识别中的这些标签。", "手工填写的标题优先于自动提取。"] },
   openings: { title: "开场浏览与选择", purpose: "找到想玩的故事起点，阅读后再决定是否进入。", steps: ["用搜索和人物、分组、标签筛选缩小范围。", "点击「预览完整正文」查看内容；也可通过命运盲盒随机挑选。", "确认后点击进入开场。仅浏览、收藏和抽卡不会自动切换。"], options: [["搜索与筛选", "搜索标题、人物和正文；多个筛选条件同时生效。分组折叠只隐藏列表。"], ["收藏", "点击 ☆ 收藏或取消收藏；「只看收藏」与其他筛选组合使用。"]], buttons: [["人物列表", "整理统一人物名单，影响识别、人物筛选及生成器。"], ["创建／生成开场白", "使用当前主 API 生成草稿，编辑确认后追加备用开场。"], ["预览完整正文／进入开场", "预览只阅读；进入才执行开场切换及已分配的世界书预设。"], ["主题／设置", "主题调整外观，设置修改显示、识别与作者配置。"]], notes: ["人物是全文提及匹配，回忆、标签和状态栏里的姓名也可能命中。", "收藏、抽卡偏好按角色保存在本机；作者配置需保存到角色卡。"] },
   authorSettings: { title: "作者设置", purpose: "设计选择页，并把可分享的配置保存到角色卡。", steps: ["按需要打开开场白、世界书、BGM 或制卡检查。", "编辑时可查看卡片和整页实时预览。", "完成后点击底部「保存到角色卡」，再从酒馆导出。"], options: [["开场白", "页面信息、版式、标题、简介、封面、人物、分组和标签。"], ["世界书／BGM", "为开场分配世界书预设；上传音乐及歌词。"], ["制卡检查／更新", "检查当前角色数据；查看版本与更新说明。"]], buttons: [["保存到角色卡", "写入并复核作者配置；只关掉设置不会自动保存。"], ["关闭时的保存／放弃／继续编辑", "保存写入卡片；放弃撤销本次草稿；继续编辑返回设置。"]], notes: ["世界书编辑需要先「保存预设」，再「保存到角色卡」。", "人物列表、收藏与抽卡设置有各自的本机保存方式，不随这颗保存按钮写入卡片。"] },
-  page: { title: "页面信息与版式", purpose: "让选择页符合角色卡的风格和信息层级。", steps: ["填写页面标题和导语。", "选择版式，决定是否显示看板娘与插件大标题。", "通过整页实时预览查看效果，再保存到角色卡。"], options: [["页面标题／导语", "展示在选择页顶部，说明这张卡的故事入口。"], ["看板娘 Logo／插件大标题", "两个开关独立；底部来源信息始终保留。"], ["页面版式", "改变卡片排列和信息呈现，可与任意主题搭配。"]], buttons: [["整页实时预览", "查看当前草稿的完整页面，预览内不会真正选择故事。"], ["保存到角色卡", "保存上述作者配置，导出后可分享。"]], notes: ["玩家可在本机覆盖部分界面偏好，不会改写作者默认值。"] },
+  page: { title: "页面信息与版式", purpose: "让选择页符合角色卡的风格和信息层级。", steps: ["填写页面标题和导语。", "选择版式，决定是否显示看板娘与插件大标题。", "通过整页实时预览查看效果，再保存到角色卡。"], options: [["页面标题／导语", "展示在选择页顶部，说明这张卡的故事入口。"], ["看板娘 Logo／插件大标题", "两个开关独立；底部来源信息始终保留。"], ["页面版式", "改变卡片排列和信息呈现，可与任意主题搭配。"], ["启用盲盒抽卡", "立即生效，按角色保存在本机，不随角色卡导出；关闭隐藏盲盒与卡池入口，重新开启保留原卡池。"]], buttons: [["整页实时预览", "查看当前草稿的完整页面，预览内不会真正选择故事。"], ["保存到角色卡", "保存上述作者配置，导出后可分享。"]], notes: ["玩家可在本机覆盖部分界面偏好，不会改写作者默认值。"] },
   cards: { title: "开场卡片与封面", purpose: "调整各条开场的展示信息，保留原始开场正文。", steps: ["展开想修改的开场，并查看原文及实时卡片预览。", "填写标题、简介、人物、分组和标签，调整封面。", "保存到角色卡；阅读正文使用「预览完整正文」。"], options: [["标题／简介／标注", "用于选择器展示；不会替换原始开场正文。"], ["登场人物", "留空并保存恢复自动识别；输入「无」隐藏人物。启用人物名单后，最终显示还需遵守名单。"], ["分组／筛选标签", "同名分组合并，标签供组合筛选使用。"], ["默认封面／自定义图片", "自定义图片优先；默认封面编号可固定，也可使用自动分配。"], ["取景位置", "调整图片横纵位置；只改变显示裁切，不改变原图片。"]], buttons: [["查看原开场正文", "只读查看正文，便于核对卡片信息。"], ["重新随机／居中显示", "重新选择默认封面或将显示位置恢复居中。"], ["采纳候选", "把候选填入人物字段；名单管理启用时还需在人物列表中确认。"]], notes: ["更改默认封面会清除当前自定义封面。", "折叠开场只隐藏编辑项；最终使用底部保存按钮写入角色卡。"] },
   people: { title: "人物列表", purpose: "整理实际使用的人物词表，让识别和生成共用同一份名单。", steps: ["搜索姓名或来源，必要时勾选「只看待确认」。", "勾选要保留的人物，确认身份或删除不需要的行。", "点击「保存并重新识别」立即应用；关闭或取消则放弃本次修改。"], options: [["人物勾选", "决定是否纳入名单；取消勾选仍显示该行。勾选并保存即正式确认。"], ["待确认", "身份证据不足的候选；确认后去掉括号标记，保存后正式参与识别。"], ["补充人物", "用顿号、逗号或换行添加、修改遗漏的姓名。"]], buttons: [["全选／取消全选", "只改变勾选状态，不删除人物行。"], ["确认／确认已勾选人物", "单人确认会勾选此人；批量确认只处理已勾选项，不会勾回未选人物。"], ["取消勾选待确认", "取消候选的勾选，人物行仍在。"], ["删除未勾选／删除待确认", "立即移除对应人物行；保存后重新读取或重新打开也不自动恢复。"], ["重新读取人物", "刷新绑定世界书和候选来源，保留当前取舍与删除。"], ["恢复读取名单", "恢复当前读取到的行并全选，清空补充；保存前仍可取消。"], ["恢复自动识别", "准备清除本机名单限制，点击保存后恢复传统自动识别。"]], notes: ["搜索和只看待确认只改变显示；批量操作仍作用于整份列表。", "按角色保存在本机，作者和玩家共用；不修改世界书或角色卡。保存后名单外姓名仅作候选，明确删除／排除项不会重新加入。"] },
   generation: { title: "开场白生成", purpose: "使用已配置的主 API 创作独立新开场，检查后追加备用开场。", steps: ["选择登场人物，填写故事种子、场景和核心事件。", "按需要展开更多创作选项，再点击生成。", "编辑生成正文，核对标题、人物和状态栏；确认后加入备用开场。"], options: [["人物／故事种子", "名单来自人物管理及角色资料；人物可直接修改增补。故事种子只提供创作方向。"], ["氛围／场景／关系／核心事件", "描述文风、时间地点、玩家身份及想看到的情节；留空项交由模型构思。"], ["视角／篇幅／语言", "指定叙述方式、目标长度和输出语言；实际长度受模型回复上限影响。"], ["当前预设／独立创作提示", "都调用主 API；当前预设沿用酒馆预设，独立提示减少预设对格式的干扰。"], ["结构参考／正文格式", "选已有开场并编辑参考；选择沿用结构、纯叙事或自定义格式。参考不代表此次剧情已经发生。"], ["内容限制／世界书资料", "填写必须遵守或避免的内容；世界书选项控制额外补充的有效人物资料。"]], buttons: [["生成开场白／取消生成", "生成草稿；取消只针对本次请求，等待结束前不叠加生成。"], ["草稿版本", "恢复最近五份草稿；改写会保留旧版本。"], ["按修改方向生成新版本", "先填写修改方向，再用当前正文继续调整。"], ["加入新建备用开场白", "保存正文、标题和人物；保存前检查冲突，完成后不会自动进入故事。"]], notes: ["不读取当前聊天作为剧情起点，调用使用当前主 API 配置并产生正常 API 消耗。", "选项与最近五份草稿按角色、作者／玩家模式保存在本机；新增备用开场写入角色卡，导出后可分享。"] },
   pagePreview: { title: "整页实时预览", purpose: "保存前检查当前作者草稿在电脑和手机上的完整效果。", steps: ["展开预览，切换手机或桌面宽度。", "继续编辑上方配置，预览会自动同步。", "检查后点击设置底部「保存到角色卡」。"], options: [["手机 · 390px／桌面 · 900px", "模拟两种页面宽度；窄窗口会缩放预览以容纳完整页面。"]], buttons: [["展开预览／收起预览", "打开或收起检查区域，不清除草稿。"], ["保存到角色卡", "只有保存才写入卡片；预览里的按钮不会切换故事。"]], notes: ["预览不发送消息、不应用世界书开关；不会修改当前聊天。"] },
   preview: { title: "正文预览与阅读", purpose: "完整阅读开场，调整阅读体验，再决定是否进入。", steps: ["打开预览后阅读封面、简介、人物和完整正文。", "需要时展开阅读设置，调整字号、行距或专注正文。", "用上一条／下一条比较，满意后选择此开场。"], options: [["正文字号／行距", "只影响预览阅读，偏好保存在本机。"], ["专注正文", "隐藏封面和辅助信息，保留正文；再次点击恢复。"], ["识别信息", "查看标题来源及待确认人物，帮助判断识别结果。"]], buttons: [["上一条／下一条", "在本次打开的范围内浏览，保留原始开场编号。"], ["选择此开场", "调用现有选择流程；当前开场不可重复选择。"], ["关闭预览", "返回原页面，不切换开场。"]], notes: ["正文只读；预览不会保存卡片、发送消息或自动播放音乐。", "从盲盒打开时，浏览范围使用本次抽取范围。"] },
-  blind: { title: "命运盲盒", purpose: "从当前抽取范围中随机摆出卡牌，由你选一张翻开。", steps: ["在「卡池与抽卡」设置范围、卡牌数量及演出。", "打开盲盒，洗牌结束后点击一张卡。", "阅读结果或完整正文，确认后才进入开场。"], options: [["主题演出", "使用当前主题的卡背和动画；简洁模式减少演出。"], ["候选数量", "不足三／五条时按实际数量摆出；当前开场和空正文不参与。"]], buttons: [["再抽一次", "重新抽取；候选足够时避开上次揭晓结果。"], ["预览正文", "阅读抽中的开场，仍不会自动进入。"], ["进入此开场／关闭盲盒", "进入才切换；关闭放弃本次抽取。"]], notes: ["抽取不修改原文、编号或人物名单；卡池为空时不会扩大范围。", "翻牌和进入处理中部分按钮会暂时禁用。"] },
+  blind: { title: "命运盲盒", purpose: "从当前抽取范围中随机摆出卡牌，由你选一张翻开。", steps: ["入口隐藏时，在作者设置的页面信息或玩家设置的功能开关中启用盲盒抽卡。", "在「卡池与抽卡」设置范围、卡牌数量及演出。", "打开盲盒，洗牌结束后点击一张卡。", "阅读结果或完整正文，确认后才进入开场。"], options: [["主题演出", "使用当前主题的卡背和动画；简洁模式减少演出。"], ["候选数量", "不足三／五条时按实际数量摆出；当前开场和空正文不参与。"]], buttons: [["再抽一次", "重新抽取；候选足够时避开上次揭晓结果。"], ["预览正文", "阅读抽中的开场，仍不会自动进入。"], ["进入此开场／关闭盲盒", "进入才切换；关闭放弃本次抽取。"]], notes: ["抽取不修改原文、编号或人物名单；卡池为空时不会扩大范围。", "翻牌和进入处理中部分按钮会暂时禁用。"] },
   drawSettings: { title: "卡池与抽卡设置", purpose: "管理命名卡池、候选范围和抽卡体验。", steps: ["选择沿用首页筛选，或手动勾选开场。", "需要重复使用时，填写名字并保存为新卡池。", "点击「应用抽卡设置」保存；关闭设置放弃本次修改。"], options: [["每轮摆出／演出效果", "三张或五张卡，每轮只选一张；主题演出或简洁卡牌。"], ["切换卡池／卡池名称", "选择已保存的候选集合；名字用来区分不同玩法。"], ["沿用首页筛选／手动范围", "前者跟随首页组合筛选；后者独立使用勾选结果。"], ["搜索", "查找标题、人物、分组或编号，不改变首页筛选。"]], buttons: [["保存为新卡池／更新卡池内容", "新建一个命名池，或用当前范围替换所选池内容。"], ["重命名／删除卡池", "修改名称或删除命名记录，不删除开场正文。"], ["全部勾选／全部清空／仅选当前筛选", "调整实际候选集合；当前开场与空正文不可选。"], ["应用抽卡设置", "保存本次范围、命名池和体验设置。"]], notes: ["所有设置按角色保存在本机，不随角色卡导出。", "修改范围而未更新命名池时，会脱离原池名称；空范围不会改成全卡抽取。"] },
   themes: { title: "选择主题", purpose: "切换当前选择页的颜色、背景和主题素材。", steps: ["选择喜欢的主题。", "回到列表查看卡片、看板娘和盲盒演出。"], options: [["主题", "封面与盲盒同步适配；可与任意页面版式搭配。"]], buttons: [["主题卡片／主题下拉框", "选择后立即切换，并记住本机偏好。"], ["关闭", "保留当前主题并返回原页面。"]], notes: ["主题选择不修改开场正文、人物名单或页面版式。"] },
   appearance: { title: "玩家界面外观", purpose: "设置悬浮入口和页面标识，选择后立即记住本机偏好。", steps: ["选择简洁版或看板娘版悬浮入口。", "分别设置是否显示 Logo 与插件大标题。"], options: [["简洁版／看板娘版", "简洁版显示标题和编号；看板娘版随主题更换造型。"], ["Logo／插件大标题", "独立控制两种标识；默认继承角色卡，底部来源信息保留。"]], buttons: [["外观下拉框与显示开关", "选择后立即保存，无需再按人物或标题修正的保存按钮。"]], notes: ["只影响本机显示，不改写作者默认配置或开场正文。"] },
@@ -955,6 +955,11 @@ function drawOpeningHand(pool, lastId, random = Math.random, count = 3) {
 
 // src/opening-blind-box-styles.js
 var BLIND_BOX_CONTROL_CSS = `
+:is(.uos,.uos-user-panel) :is(.uos-blind-trigger,.uos-blind-range-trigger)[hidden]{display:none!important}
+.uos-blind-preference{display:grid;gap:5px;margin:10px 0}
+.uos-blind-toggle{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;color:var(--text);font:600 14px/1.5 system-ui,sans-serif}
+.uos-blind-toggle input[type=checkbox]{appearance:auto!important;flex:none;width:20px!important;height:20px!important;margin:0!important;accent-color:var(--accent);cursor:pointer}
+.uos-blind-toggle-hint{color:var(--muted);font:400 12px/1.6 system-ui,sans-serif}
 :is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;position:relative;isolation:isolate;overflow:hidden;box-sizing:border-box;flex:1 0 100%;width:100%!important;min-width:0!important;display:flex!important;align-items:center;justify-content:flex-start;gap:12px;min-height:94px;margin:2px 0 0!important;padding:10px 18px 10px 8px!important;border:1px solid color-mix(in srgb,var(--accent) 60%,var(--line))!important;border-radius:17px!important;background:radial-gradient(ellipse at 6% 60%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 60%),linear-gradient(115deg,var(--surface),var(--bg))!important;color:var(--text)!important;font:500 13px/1.5 system-ui,sans-serif!important;text-align:left!important;cursor:pointer;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--accent) 22%,transparent),0 5px 18px color-mix(in srgb,var(--accent) 7%,transparent)!important;white-space:normal!important;transition:border-color .25s,box-shadow .25s,transform .25s!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger::before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);border-radius:11px;pointer-events:none;z-index:-1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger::after{content:"";position:absolute;inset:-60% -20%;background:linear-gradient(110deg,transparent 42%,color-mix(in srgb,var(--accent) 13%,transparent) 49%,transparent 56%);transform:translateX(-85%);animation:uos-blind-entrance-sheen 8s ease-in-out infinite;pointer-events:none;z-index:-1}
@@ -1187,7 +1192,7 @@ function normalizeDrawRange(value) {
   }
   const keys = cleanKeys(value?.keys), mode = value?.mode === "manual" ? "manual" : "filtered", selected = pools.find((pool) => pool.id === value?.activePoolId);
   const keySet = new Set(keys), matches = selected && selected.keys.length === keys.length && selected.keys.every((key) => keySet.has(key));
-  return { mode, keys, handSize: Number(value?.handSize) === 5 ? 5 : 3, performances: value?.performances !== false, pools, activePoolId: mode === "manual" && matches ? selected.id : null };
+  return { enabled: value?.enabled !== false, mode, keys, handSize: Number(value?.handSize) === 5 ? 5 : 3, performances: value?.performances !== false, pools, activePoolId: mode === "manual" && matches ? selected.id : null };
 }
 function keyedDrawItems(items) {
   const keys = openingFavoriteKeys(items.map((item) => item.body));
@@ -1491,7 +1496,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     };
     save.onclick = () => {
       if (!valid()) return;
-      const result = store.set({ mode: mode.value, keys: [...keys], handSize: hand.value, performances: show.value === "theme", pools, activePoolId: editingId });
+      const result = store.set({ ...store.read(), mode: mode.value, keys: [...keys], handSize: hand.value, performances: show.value === "theme", pools, activePoolId: editingId });
       close();
       onApply(result);
     };
@@ -1702,11 +1707,28 @@ function openingBlindRangeButton(el, onOpen) {
   else button.disabled = true;
   return button;
 }
-function updateBlindBoxButton(button, items, { readonly = false, theme, manual = false } = {}) {
+function openingBlindBoxToggle(el, box) {
+  const control = el("div", "uos-blind-preference"), row = el("label", "uos-blind-toggle"), input = el("input");
+  input.type = "checkbox";
+  input.checked = box.enabled();
+  input.setAttribute("aria-label", "启用盲盒抽卡");
+  const hint = el("small", "uos-blind-toggle-hint", "立即生效，按角色保存在本机；关闭隐藏盲盒与卡池入口，原卡池保留。不随角色卡导出。");
+  row.append(input, el("span", "", "启用盲盒抽卡"));
+  control.append(row, hint);
+  input.onchange = () => {
+    if (input.isConnected === false) return;
+    const result = box.setEnabled(input.checked);
+    input.checked = box.enabled();
+    if (result) hint.textContent = result.persisted ? "已保存在本机；重新开启可继续使用原卡池。不随角色卡导出。" : "浏览器未能保存，开关暂时只在当前页面有效。";
+  };
+  return control;
+}
+function updateBlindBoxButton(button, items, { readonly = false, theme, manual = false, enabled = true } = {}) {
   if (theme) setBlindBoxTheme(button, theme);
   const count = blindBoxPool(items).length;
   button.__uosBlindCount.textContent = count ? `${count} 个开场` : "暂无候选";
-  button.disabled = readonly || count === 0;
+  button.hidden = !enabled;
+  button.disabled = !enabled || readonly || count === 0;
   button.setAttribute("title", count ? `从${manual ? "手动勾选范围" : "当前筛选结果"}的 ${count} 个开场中随机抽取，确认进入后才切换` : "没有可抽取的新开场，可点击「抽取范围」重新勾选");
   button.dataset.scope = manual ? "manual" : "filtered";
 }
@@ -1746,7 +1768,9 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
   }
   function open(trigger) {
     if (disposed || choosing || !isActive()) return false;
-    const prefs = store.read(), pool = drawRangePool(getAllItems(), getItems(), prefs).map((item) => ({ ...item }));
+    const prefs = store.read();
+    if (!prefs.enabled) return false;
+    const pool = drawRangePool(getAllItems(), getItems(), prefs).map((item) => ({ ...item }));
     if (!pool.length) return false;
     rangePanel.close();
     close();
@@ -1956,11 +1980,22 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
     roll();
     return true;
   }
-  return { open, close, poolItems, rangeMode: () => store.read().mode, rangeSummary() {
+  function setEnabled(value) {
+    if (disposed || choosing) return null;
+    if (!isActive()) {
+      onUnavailable();
+      return null;
+    }
+    const result = store.set({ ...store.read(), enabled: value === true });
+    if (!result.prefs.enabled) close();
+    onRangeChange(result);
+    return result;
+  }
+  return { open, close, poolItems, enabled: () => store.read().enabled, setEnabled, rangeMode: () => store.read().mode, rangeSummary() {
     const prefs = store.read();
     return `⚙ 卡池与抽卡 · ${drawRangeLabel(prefs)} · ${prefs.handSize === 5 ? "五张" : "三张"}`;
   }, openRange(trigger) {
-    if (disposed || choosing || !isActive()) return false;
+    if (disposed || choosing || !isActive() || !store.read().enabled) return false;
     close();
     return rangePanel.open(trigger);
   }, dispose() {
@@ -2392,7 +2427,7 @@ function createPlayerSettingsLayout(el) {
   };
   let stopToggles = () => {
   }, closed = false;
-  function assemble({ exclusion, people, edits, labels, updates, floatingStyle, brandVisibility }) {
+  function assemble({ exclusion, people, edits, labels, updates, floatingStyle, brandVisibility, blindBoxToggle }) {
     if (closed) return;
     stopToggles();
     const sheets = [exclusion, people, edits, labels, updates];
@@ -2413,11 +2448,14 @@ function createPlayerSettingsLayout(el) {
     common.append(el("h3", "", "开场显示"), edits, labels);
     const appearance = el("section", "uos-user-settings-group");
     appearance.append(el("h3", "", "界面外观"), floatingStyle, brandVisibility);
+    const features = el("section", "uos-user-settings-group");
+    features.append(el("h3", "", "功能开关"));
+    if (blindBoxToggle) features.append(blindBoxToggle);
     const advanced = el("section", "uos-user-settings-group");
     advanced.append(el("h3", "", "识别规则"), exclusion, people);
     const system = el("section", "uos-user-settings-group");
     system.append(el("h3", "", "插件"), updates);
-    settings.replaceChildren(intro, common, appearance, advanced, system);
+    settings.replaceChildren(intro, common, appearance, ...blindBoxToggle ? [features] : [], advanced, system);
   }
   return { settings, button, assemble, close() {
     if (closed) return;
@@ -5632,7 +5670,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         card.append(choose);
         target.append(card);
       }, rows);
-      updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: panel.dataset.theme, manual: blindBox.rangeMode() === "manual" });
+      updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: panel.dataset.theme, manual: blindBox.rangeMode() === "manual", enabled: blindBox.enabled() });
+      blindRangeTrigger.hidden = !blindBox.enabled();
       blindRangeTrigger.textContent = blindBox.rangeSummary();
       results.textContent = favoriteUI.onlyFavorites() || query.value.trim() || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${snapshot.entries.length} 个开场` : `${snapshot.entries.length} 个开场`;
       if (!visible) list.append(createMascotNote(el, "search", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。", "uos-user-empty").element);
@@ -5643,7 +5682,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     mark.append(footerVersion);
     const stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
     session.own(stopUpdateControl);
-    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings, floatingStyle, brandVisibility });
+    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings, floatingStyle, brandVisibility, blindBoxToggle: openingBlindBoxToggle(el, blindBox) });
     moduleHelp.heading(settings, "playerSettings", "玩家设置");
     for (const [block, topic] of [[exclusion, "titleRules"], [personSettings, "recognition"], [edits, "playerEdits"], [labelSettings, "labels"], [updateSettings, "updates"]]) moduleHelp.attach(block.querySelector("summary"), topic);
     const appearanceHeading = [...settings.querySelectorAll("h3")].find((node) => node.textContent === "界面外观");
@@ -7067,6 +7106,11 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(max-width:600px){.uos:not([data-layout=catalog]) .uos-card-actions .uos-card-preview-button{gap:0;padding:8px!important;font-size:12px!important}.uos:not([data-layout=catalog]) .uos-card-actions :is(.uos-reading-icon,.uos-reading-arrow){display:none}}
 
 
+:is(.uos,.uos-user-panel) :is(.uos-blind-trigger,.uos-blind-range-trigger)[hidden]{display:none!important}
+.uos-blind-preference{display:grid;gap:5px;margin:10px 0}
+.uos-blind-toggle{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;color:var(--text);font:600 14px/1.5 system-ui,sans-serif}
+.uos-blind-toggle input[type=checkbox]{appearance:auto!important;flex:none;width:20px!important;height:20px!important;margin:0!important;accent-color:var(--accent);cursor:pointer}
+.uos-blind-toggle-hint{color:var(--muted);font:400 12px/1.6 system-ui,sans-serif}
 :is(.uos,.uos-user-panel) .uos-blind-trigger{appearance:none!important;position:relative;isolation:isolate;overflow:hidden;box-sizing:border-box;flex:1 0 100%;width:100%!important;min-width:0!important;display:flex!important;align-items:center;justify-content:flex-start;gap:12px;min-height:94px;margin:2px 0 0!important;padding:10px 18px 10px 8px!important;border:1px solid color-mix(in srgb,var(--accent) 60%,var(--line))!important;border-radius:17px!important;background:radial-gradient(ellipse at 6% 60%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 60%),linear-gradient(115deg,var(--surface),var(--bg))!important;color:var(--text)!important;font:500 13px/1.5 system-ui,sans-serif!important;text-align:left!important;cursor:pointer;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--accent) 22%,transparent),0 5px 18px color-mix(in srgb,var(--accent) 7%,transparent)!important;white-space:normal!important;transition:border-color .25s,box-shadow .25s,transform .25s!important}
 :is(.uos,.uos-user-panel) .uos-blind-trigger::before{content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);border-radius:11px;pointer-events:none;z-index:-1}
 :is(.uos,.uos-user-panel) .uos-blind-trigger::after{content:"";position:absolute;inset:-60% -20%;background:linear-gradient(110deg,transparent 42%,color-mix(in srgb,var(--accent) 13%,transparent) 49%,transparent 56%);transform:translateX(-85%);animation:uos-blind-entrance-sheen 8s ease-in-out infinite;pointer-events:none;z-index:-1}
@@ -7184,8 +7228,10 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
   categories.update(model.items);
   filters.append(categories.element);
   const blindTrigger = openingBlindBoxButton(el, null, model.theme);
-  updateBlindBoxButton(blindTrigger, model.items, { readonly: true, theme: model.theme });
-  filters.append(blindTrigger, openingBlindRangeButton(el));
+  updateBlindBoxButton(blindTrigger, model.items, { readonly: true, theme: model.theme, enabled: model.blindBoxEnabled !== false });
+  const blindRangeTrigger = openingBlindRangeButton(el);
+  blindRangeTrigger.hidden = model.blindBoxEnabled === false;
+  filters.append(blindTrigger, blindRangeTrigger);
   for (const select of categories.element.querySelectorAll("select")) select.disabled = true;
   let result = root.querySelector(".uos-results");
   if (!result) {
@@ -7636,6 +7682,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     getPalette: () => root,
     onRangeChange: (result) => {
       render();
+      pagePreview?.refresh();
       if (!result.persisted) status("浏览器未能保存，抽卡设置暂时只在当前页面有效。");
     },
     isActive: () => root.isConnected !== false && character()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
@@ -8066,7 +8113,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         }
       }));
     }, rows);
-    updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: displayTheme, manual: blindBox.rangeMode() === "manual" });
+    updateBlindBoxButton(blindTrigger, blindBox.poolItems(), { theme: displayTheme, manual: blindBox.rangeMode() === "manual", enabled: blindBox.enabled() });
+    blindRangeTrigger.hidden = !blindBox.enabled();
     blindRangeTrigger.textContent = blindBox.rangeSummary();
     let result = root.querySelector(".uos-results");
     if (!result) {
@@ -8243,7 +8291,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     addBrandToggle("mascot", "显示看板娘 Logo");
     addBrandToggle("title", "显示「红豆粉开场白选择器」大标题");
     brandOptions.append(el("p", "uos-help", "底部来源信息会一直保留。"));
-    pageFields.append(brandOptions);
+    pageFields.append(brandOptions, openingBlindBoxToggle(el, blindBox));
     const layoutField = el("label", "uos-layout-field"), layoutSelect = el("select");
     layoutField.append(el("span", "", "页面版式"), layoutSelect);
     layoutSelect.setAttribute("aria-label", "页面版式");
@@ -8272,7 +8320,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           return automatic;
         }) }), greetings2 = greetingList();
         const favoriteKeys = favoritesStore.keys(greetings2), savedFavorites = favoritesStore.snapshot();
-        return { ...settings, items: entries(settings).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", favoriteKey: favoriteKeys[i], favorite: savedFavorites.has(favoriteKeys[i]), names: String(entry.names || "").split(/[、，,\/]/).map((name2) => name2.trim()).filter(Boolean) })) };
+        return { ...settings, blindBoxEnabled: blindBox.enabled(), items: entries(settings).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", favoriteKey: favoriteKeys[i], favorite: savedFavorites.has(favoriteKeys[i]), names: String(entry.names || "").split(/[、，,\/]/).map((name2) => name2.trim()).filter(Boolean) })) };
       }
     });
     fields.append(pagePreview.element);

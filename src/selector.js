@@ -12,7 +12,7 @@ import {createMediaPlayer} from './media-player.js';
 import {createSettingsFields} from './settings-fields.js';
 import {renderMusicSettings} from './music-settings.js';
 import {RUNTIME_VERSION} from './version.js';
-import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
+import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,openingBlindBoxToggle,setBlindBoxTheme} from './opening-blind-box.js';
 import {createOpeningFavorites} from './opening-favorites.js';
 import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {createAuthorOpeningCard} from './author-opening-card.js';
@@ -126,7 +126,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   openingPreview=createOpeningPreview({doc:host.document,host,getItems:()=>previewItems,getPalette:()=>root,
     onChoose:async item=>{if(context()?.characterId!==previewCharacterId||character()?.avatar!==previewAvatar||root.isConnected===false){status('角色或聊天已变化，请重新打开选择器。');return}await choose(item.id)}});
   blindBox=createOpeningBlindBox({doc:host.document,host,getItems:()=>previewItems,getAllItems:()=>allDrawItems,avatar:previewAvatar,getPalette:()=>root,
-    onRangeChange:result=>{render();if(!result.persisted)status('浏览器未能保存，抽卡设置暂时只在当前页面有效。')},
+    onRangeChange:result=>{render();pagePreview?.refresh();if(!result.persisted)status('浏览器未能保存，抽卡设置暂时只在当前页面有效。')},
     isActive:()=>root.isConnected!==false&&character()?.avatar===previewAvatar&&context()?.characterId===previewCharacterId,
     onPreview:(item,trigger,pool)=>{if(!openingPreview.open(item.id,trigger,pool))status('筛选结果已变化，请重新抽取。')},
     onChoose:item=>choose(item.id),onUnavailable:()=>status('角色或聊天已变化，请重新打开选择器。'),
@@ -312,7 +312,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       target.append(createAuthorOpeningCard({el,entry,index:i,body:source,host,onChoose:choose,favoriteButton:favoriteUI.button(entry),
         onPreview:(id,button)=>{if(activePopup){status('请先关闭当前主题或设置窗口。');return}openingPreview.open(id,button)}}));
     },rows);
-    updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:displayTheme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();
+    updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:displayTheme,manual:blindBox.rangeMode()==='manual',enabled:blindBox.enabled()});blindRangeTrigger.hidden=!blindBox.enabled();blindRangeTrigger.textContent=blindBox.rangeSummary();
     let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=favoriteUI.onlyFavorites()||query||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
     if(!visible)grid.append(createMascotNote(el,'search',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-search-empty').element);
     renderMusic(config.music);
@@ -392,7 +392,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     const pageFields=el('section','uos-settings-group');pageFields.append(el('h3','','页面信息'),el('p','uos-help','先设置选择页的标题与导语，再编辑每条开场。'),field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));fields.append(pageFields);moduleHelp.attach(pageFields.querySelector('h3'),'page');
     const brandOptions=el('div','uos-branding-options');brandOptions.append(el('strong','uos-branding-title','页眉显示'));
     const addBrandToggle=(key,label)=>{const row=el('label','uos-toggle'),input=el('input');input.type='checkbox';input.checked=draft.branding[key];input.setAttribute('aria-label',label);row.append(input,el('span','',label));input.onchange=()=>{draft.branding[key]=input.checked;applyBrandVisibility(root,draft.branding);pagePreview?.refresh()};brandOptions.append(row)};
-    addBrandToggle('mascot','显示看板娘 Logo');addBrandToggle('title','显示「红豆粉开场白选择器」大标题');brandOptions.append(el('p','uos-help','底部来源信息会一直保留。'));pageFields.append(brandOptions);
+    addBrandToggle('mascot','显示看板娘 Logo');addBrandToggle('title','显示「红豆粉开场白选择器」大标题');brandOptions.append(el('p','uos-help','底部来源信息会一直保留。'));pageFields.append(brandOptions,openingBlindBoxToggle(el,blindBox));
     const layoutField=el('label','uos-layout-field'),layoutSelect=el('select');layoutField.append(el('span','','页面版式'),layoutSelect);layoutSelect.setAttribute('aria-label','页面版式');
     for(const [id,name] of OPENING_LAYOUTS){const option=el('option','',name);option.value=id;layoutSelect.append(option)}layoutSelect.value=draft.layout;
     layoutSelect.onchange=()=>{draft.layout=openingLayout(layoutSelect.value);for(const preview of fields.querySelectorAll('.uos-layout-preview'))preview.dataset.layout=draft.layout};pageFields.append(layoutField,el('p','uos-help','版式与主题可以自由搭配；原有卡片保留当前排列。'));
@@ -405,7 +405,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
           const {names,...automatic}=entry;return automatic;
         })}),greetings=greetingList();
         const favoriteKeys=favoritesStore.keys(greetings),savedFavorites=favoritesStore.snapshot();
-        return {...settings,items:entries(settings).map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',favoriteKey:favoriteKeys[i],favorite:savedFavorites.has(favoriteKeys[i]),names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}))};
+        return {...settings,blindBoxEnabled:blindBox.enabled(),items:entries(settings).map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',favoriteKey:favoriteKeys[i],favorite:savedFavorites.has(favoriteKeys[i]),names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}))};
       }});fields.append(pagePreview.element);moduleHelp.attach(pagePreview.element.querySelector('summary'),'pagePreview');
     const recognition=el('details','uos-settings-group');recognition.append(el('summary','','高级 · 标题与人物识别'),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));fields.append(recognition);moduleHelp.attach(recognition.querySelector('summary'),'titleRules');
     const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));recognition.append(personRules);moduleHelp.attach(personRules.querySelector('summary'),'recognition');

@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {blindBoxPool,drawOpening,drawOpeningHand} from '../src/opening-blind-draw.js';
 import {THEME_IDS,themeDraw} from '../src/themes.js';
-import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,setBlindBoxTheme} from '../src/opening-blind-box.js';
+import {createOpeningBlindBox,openingBlindBoxButton,openingBlindBoxToggle,updateBlindBoxButton,setBlindBoxTheme} from '../src/opening-blind-box.js';
 
 const items=()=>[{id:2,number:3,coverIndex:2,title:'雨夜',description:'<img onerror=alert(1)>',body:'第二条完整原文',coverSlot:4,coverFocus:{x:20,y:70}},{id:7,number:8,title:'重逢',body:'第七条完整原文'},{id:9,number:10,title:'当前',body:'当前正文',isCurrent:true}];
 function fixture({reduced=false,onChoose,storage,avatar}={}){
@@ -24,6 +24,33 @@ function fixture({reduced=false,onChoose,storage,avatar}={}){
   const all=(node,predicate)=>[...(predicate(node)?[node]:[]),...node.children.flatMap(child=>all(child,predicate))];
   return {doc,box,trigger,timers,effects,el,run,get dialog(){return doc.body.children[0]},get previewScope(){return previewScope},find:cls=>all(doc.body,node=>node.className===cls)[0],all:predicate=>all(doc.body,predicate),pick:(index=0)=>{const card=all(doc.body,node=>node.className==='uos-blind-card')[index];card.focus();card.onclick()},button:text=>all(doc.body,node=>node.tag==='button'&&node.textContent===text)[0],setTheme:value=>palette.dataset.theme=value,setItems:value=>pool=value,setAllItems:value=>allPool=value,deactivate:()=>alive=false};
 }
+
+test('disabling closes an active draw, blocks stale entrances and retains pools across reloads and re-enabling',()=>{
+ const values=new Map(),storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};
+ const f=fixture({storage,avatar:'switch.png'});assert.equal(f.box.enabled(),true);
+ f.box.openRange();f.find('uos-blind-pool-name').value='保留卡池';f.button('保存为新卡池').onclick();
+ f.find('uos-blind-hand-size').value='5';f.find('uos-blind-show-setting').value='simple';f.button('应用抽卡设置').onclick();
+ const key='uos_draw_range_v1_switch.png',before=JSON.parse(values.get(key));
+ const toggle=openingBlindBoxToggle(f.el,f.box),input=toggle.children[0].children[0];assert.equal(input.checked,true);
+ f.box.open(f.trigger);const late=[...f.timers.values()].map(timer=>timer.fn),oldDialog=f.dialog;
+ input.checked=false;input.onchange();assert.equal(f.box.enabled(),false);assert.equal(f.timers.size,0);assert.equal(f.doc.body.children.length,0);
+ for(const fn of late)fn();assert.equal(f.doc.body.children.length,0);assert.equal(oldDialog.isConnected,false);
+ assert.equal(f.box.open(),false);assert.equal(f.box.openRange(),false);
+ const after=JSON.parse(values.get(key));assert.deepEqual({...after,enabled:true},before);
+ const trigger=openingBlindBoxButton(f.el);updateBlindBoxButton(trigger,items(),{enabled:false});assert.equal(trigger.hidden,true);assert.equal(trigger.disabled,true);
+ const same=fixture({storage,avatar:'switch.png'}),other=fixture({storage,avatar:'other.png'});
+ assert.equal(same.box.enabled(),false);assert.equal(other.box.enabled(),true);same.box.dispose();other.box.dispose();
+ input.checked=true;input.onchange();assert.equal(f.box.enabled(),true);assert.deepEqual(JSON.parse(values.get(key)),before);
+ updateBlindBoxButton(trigger,items(),{enabled:true});assert.equal(trigger.hidden,false);assert.equal(trigger.disabled,false);assert.equal(f.box.open(),true);
+ f.box.dispose();const saved=values.get(key);input.checked=false;input.onchange();assert.equal(values.get(key),saved);
+});
+
+test('denied storage preserves the switch for the current page and old-card handlers cannot write',()=>{
+ const storage={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')}},f=fixture({storage,avatar:'switch.png'});
+ const toggle=openingBlindBoxToggle(f.el,f.box),input=toggle.children[0].children[0];input.checked=false;input.onchange();
+ assert.equal(f.box.enabled(),false);assert.match(toggle.children[1].textContent,/当前页面/);assert.equal(f.box.open(),false);
+ f.deactivate();input.checked=true;input.onchange();assert.equal(input.checked,false);assert.equal(f.box.enabled(),false);assert.equal(f.effects.at(-1).action,'unavailable');f.box.dispose();
+});
 
 test('draw pool respects caller filters, original IDs, duplicate IDs, empty bodies and current opening',()=>{
   const original=items(),copy=structuredClone(original);assert.deepEqual(blindBoxPool([original[1],original[2],{id:12,body:''},original[1]]).map(item=>item.id),[7]);

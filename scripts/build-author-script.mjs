@@ -23,7 +23,7 @@ function currentBranch(){
 }
 const branch=currentBranch();
 if(branch!==(channel==='preview'?'develop':'main'))throw Error(`${channel} build must run on ${channel==='preview'?'develop':'main'}, current branch: ${branch||'(detached)'}`);
-const version=channel==='preview'?'1.0.17-beta.11':'1.0.18';
+const version=channel==='preview'?'1.0.17-beta.11':'1.0.19';
 const pointerBranch=channel==='preview'?'develop':'main';
 const pointerFile=channel==='preview'?'scripts/runtime-ref-preview.txt':'scripts/runtime-ref.txt';
 const versionPattern=channel==='preview'?String.raw`\d+\.\d+\.\d+-beta\.\d+`:String.raw`\d+\.\d+\.\d+`;
