@@ -6,7 +6,9 @@ import {OPENING_FAVORITES_CSS} from './opening-favorites-styles.js';
 import {createPlayerPanelSession} from './player-panel-session.js';
 import {createPlayerButtonDrag} from './player-button-drag.js';
 import {BRAND_CSS,createBrandMark,createMascotNote,bindBrandImages} from './brand-mark.js';
+import {applyBrandVisibility} from './brand-visibility.js';
 import {createPlayerSettingsLayout} from './player-settings-layout.js';
+import {createPlayerBrandVisibilityPreference} from './player-brand-visibility.js';
 import {createPlayerTriggerStylePreference} from './player-trigger-style.js';
 import {unsavedPlayerGroups,createPlayerDraftGuard,showPlayerUnsavedPrompt} from './player-draft-guard.js';
 export {unsavedPlayerGroups} from './player-draft-guard.js';
@@ -249,6 +251,13 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 
 
 `;
+const PLAYER_BRAND_SETTINGS_CSS=`
+.uos-user-brand-visibility{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.uos-user-brand-visibility-title{color:var(--text);font-size:13px;font-weight:600}
+.uos-user-brand-option{display:flex;align-items:flex-start;gap:9px;color:var(--text);font-size:12px;line-height:1.55}
+.uos-user-brand-option input{width:17px;height:17px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+.uos-user-brand-visibility small{color:var(--muted);font-size:11px;line-height:1.6}
+`;
 
 export async function switchOpeningWithPreset(preset,presetManager,changeOpening){
   let transaction=null;
@@ -306,7 +315,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],()=>{const context=host.SillyTavern?.getContext?.();return context?.characters?.[context.characterId]});
-  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+BRAND_CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
+  const style=doc.createElement('style');style.dataset.uosUserStyle='';style.textContent=CSS+BRAND_CSS+PLAYER_BRAND_SETTINGS_CSS+defaultCoverStyles('.uos-user-panel')+OPENING_LAYOUT_CSS+OPENING_CATEGORY_CSS+OPENING_ACTION_CSS+OPENING_FAVORITES_CSS+BLIND_BOX_CONTROL_CSS+'\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}';(doc.head||doc.documentElement).append(style);
   let trigger=null,triggerDrag=null,stopTriggerBrand=()=>{},triggerCount=null,panelSession=null,updating=false;
   const el=(tag,className,text)=>{const node=doc.createElement(tag);node.className=className;if(text!=null)node.textContent=String(text);return node};
   const state=()=>readPlayerState(host.SillyTavern?.getContext?.(),helper);
@@ -349,7 +358,10 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     let theme='archive';try{theme=host.localStorage.getItem('uos_player_theme')||theme}catch{}
     panel.dataset.theme=THEMES.some(x=>x[0]===theme)?theme:'archive';
     const background=el('div','uos-user-background');background.setAttribute('aria-hidden','true');panel.style.setProperty('--uos-user-background',THEME_BACKGROUND_IMAGES[panel.dataset.theme]?`url("${THEME_BACKGROUND_IMAGES[panel.dataset.theme]}")`:'none');panel.append(background);const backgroundControl=createThemeBackgroundController(panel,'--uos-user-background',doc.defaultView,{service:backgroundService});void backgroundControl.setTheme(panel.dataset.theme);session.own(()=>backgroundControl.close());
-    const brand=createBrandMark(el);panel.append(brand.element);
+    const cardCharacter=host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
+    const authorConfig=(cardCharacter?.data||cardCharacter)?.extensions?.[KEY]||{};
+    const brandVisibilityPreference=createPlayerBrandVisibilityPreference(host,snapshot.avatar,authorConfig.branding);
+    const brand=createBrandMark(el);applyBrandVisibility(panel,brandVisibilityPreference.get());panel.append(brand.element);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
     const tools=el('div','uos-user-tools');
@@ -365,8 +377,10 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const floatingStyleHint=el('small','','简洁版显示标题和编号；看板娘版会随主题更换造型。');
     floatingStyle.append(el('span','uos-user-floating-style-title','悬浮窗样式'),floatingStyleSelect,floatingStyleHint);
     floatingStyleSelect.onchange=()=>{const result=triggerStylePreference.set(floatingStyleSelect.value);if(trigger)trigger.dataset.style=result.value;floatingStyleHint.textContent=result.saved?'简洁版显示标题和编号；看板娘版会随主题更换造型。':'浏览器未能保存偏好，本次运行仍会立即切换。'};
-    const character=host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
-    const authorConfig=(character?.data||character)?.extensions?.[KEY]||{};
+    const brandVisibility=el('div','uos-user-brand-visibility');brandVisibility.append(el('strong','uos-user-brand-visibility-title','页面标识'));
+    const brandVisibilityHint=el('small','','只保存在本机；初始值沿用角色卡设置。');
+    const addBrandVisibilityToggle=(key,label)=>{const row=el('label','uos-user-brand-option'),input=el('input');input.type='checkbox';input.checked=brandVisibilityPreference.get()[key];input.setAttribute('aria-label',label);row.append(input,el('span','',label));input.onchange=()=>{const result=brandVisibilityPreference.set({...brandVisibilityPreference.get(),[key]:input.checked});applyBrandVisibility(panel,result.value);brandVisibilityHint.textContent=result.saved?'已保存在本机。':'本机保存不可用，本次页面内仍会切换。'};brandVisibility.append(row)};
+    addBrandVisibilityToggle('mascot','显示看板娘 Logo');addBrandVisibilityToggle('title','显示「红豆粉开场白选择器」大标题');brandVisibility.append(brandVisibilityHint);
     const layoutKey=`uos_player_layout_${snapshot.avatar}`;let layout=authorConfig.layout;
     try{layout=host.localStorage.getItem(layoutKey)||layout}catch{}
     panel.dataset.layout=openingLayout(layout);
@@ -574,7 +588,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
     const stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});session.own(stopUpdateControl);
-    settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings,floatingStyle});
+    settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings,floatingStyle,brandVisibility});
     const welcome=createMascotNote(el,'welcome','按需要展开一项设置，修改后使用该项的保存按钮。');
     settings.querySelector('.uos-user-settings-intro').replaceWith(welcome.element);session.own(welcome.dispose);
     panel.append(head,tools,settings,search,results,list,status,mark);

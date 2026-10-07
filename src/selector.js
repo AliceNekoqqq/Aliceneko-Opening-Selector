@@ -1,5 +1,6 @@
 import {createWorldbookPresetEditor} from './worldbook-preset-editor.js';
 import {bindBrandImages,createMascotNote} from './brand-mark.js';
+import {applyBrandVisibility,normalizeBrandVisibility} from './brand-visibility.js';
 import {optimizeCoverData} from './media-files.js';
 import {createMediaPlayer} from './media-player.js';
 import {createSettingsFields} from './settings-fields.js';
@@ -115,6 +116,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       version:1, title:String(x.title||'选择故事的起点').slice(0,100),
       subtitle:String(x.subtitle||'选择一个开场，故事将从那里继续。').slice(0,400),
       theme:THEMES.some(t=>t[0]===x.theme)?x.theme:'archive',
+      branding:normalizeBrandVisibility(x.branding),
       layout:openingLayout(x.layout),
       excludedTags:String(x.excludedTags||'').slice(0,500),
       personAliases:String(x.personAliases||'').slice(0,1500),
@@ -240,7 +242,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       let closeInProgress=false;
       const cleanup=discarded=>{
         stop();viewport.removeEventListener('resize',clampWindow);original.append(sheet);portaled=[];frame.remove();activePopup=null;
-        if(selector.includes('settings')){pagePreview?.dispose();pagePreview=null;const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;worldbookEditor.reset();renderMusic(config.music);if(discarded&&hadDraft)status('未保存的设置已放弃。')}
+        if(selector.includes('settings')){pagePreview?.dispose();pagePreview=null;const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;applyBrandVisibility(root,config.branding);worldbookEditor.reset();renderMusic(config.music);if(discarded&&hadDraft)status('未保存的设置已放弃。')}
       };
       const close=async()=>{
         if(closeInProgress)return;closeInProgress=true;
@@ -264,6 +266,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   function status(message){$('[data-status]').textContent=message;const top=$('[data-top-status]');if(top)top.textContent=message;const inDialog=$('[data-save-state]');if(inDialog)inDialog.textContent=message}
   function render(){
     setTheme(displayTheme,false);
+    applyBrandVisibility(root,draft?.branding||config.branding);
     root.dataset.layout=config.layout;
     $('[data-title]').textContent=config.title;
     $('[data-subtitle]').textContent=config.subtitle==='选择一个开场，故事将从那里继续。'?'':config.subtitle;
@@ -346,6 +349,9 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     ensureUpdateSettings(dlg);
     draft ||= normalize(config);pagePreview?.dispose();const manuallyEditedNames=new Set(),fields=$('[data-settings-fields]');fields.replaceChildren();
     const pageFields=el('section','uos-settings-group');pageFields.append(el('h3','','页面信息'),el('p','uos-help','先设置选择页的标题与导语，再编辑每条开场。'),field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));fields.append(pageFields);
+    const brandOptions=el('div','uos-branding-options');brandOptions.append(el('strong','uos-branding-title','页眉显示'));
+    const addBrandToggle=(key,label)=>{const row=el('label','uos-toggle'),input=el('input');input.type='checkbox';input.checked=draft.branding[key];input.setAttribute('aria-label',label);row.append(input,el('span','',label));input.onchange=()=>{draft.branding[key]=input.checked;applyBrandVisibility(root,draft.branding);pagePreview?.refresh()};brandOptions.append(row)};
+    addBrandToggle('mascot','显示看板娘 Logo');addBrandToggle('title','显示「红豆粉开场白选择器」大标题');brandOptions.append(el('p','uos-help','底部来源信息会一直保留。'));pageFields.append(brandOptions);
     const layoutField=el('label','uos-layout-field'),layoutSelect=el('select');layoutField.append(el('span','','页面版式'),layoutSelect);layoutSelect.setAttribute('aria-label','页面版式');
     for(const [id,name] of OPENING_LAYOUTS){const option=el('option','',name);option.value=id;layoutSelect.append(option)}layoutSelect.value=draft.layout;
     layoutSelect.onchange=()=>{draft.layout=openingLayout(layoutSelect.value);for(const preview of fields.querySelectorAll('.uos-layout-preview'))preview.dataset.layout=draft.layout};pageFields.append(layoutField,el('p','uos-help','版式与主题可以自由搭配；原有卡片保留当前排列。'));

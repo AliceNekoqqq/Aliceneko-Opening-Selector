@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.16-beta.6" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.1" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -285,7 +285,7 @@ function defaultCoverSlot(identity, index, host) {
   }
   seed || (seed = temporaryCoverSeed || (temporaryCoverSeed = String(Math.random())));
   let hash = 2166136261;
-  for (const character of `${seed}|${identity}|${index}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  for (const character2 of `${seed}|${identity}|${index}`) hash = Math.imul(hash ^ character2.charCodeAt(0), 16777619);
   return (hash >>> 0) % 5 + 1;
 }
 function defaultCoverStyles(selector) {
@@ -1523,6 +1523,9 @@ var BRAND_CSS = `
 .uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
 .uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
 .uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
+.uos[data-brand-mascot="false"] .uos-brand .uos-brand-avatar,.uos-user-panel[data-brand-mascot="false"] .uos-brand .uos-brand-avatar{display:none}
+.uos[data-brand-title="false"] .uos-brand .uos-brand-copy,.uos-user-panel[data-brand-title="false"] .uos-brand .uos-brand-copy{display:none}
+.uos[data-brand-mascot="false"][data-brand-title="false"] .uos-brand,.uos-user-panel[data-brand-mascot="false"][data-brand-title="false"] .uos-brand{display:none}
 .uos-user-panel .uos-brand{margin-bottom:12px}
 .uos-user-panel .uos-brand-avatar{width:64px;height:59px}
 .uos-user-head>div:first-child{min-width:0;flex:1}
@@ -1590,6 +1593,20 @@ function createBrandMark(el) {
   return { element };
 }
 
+// src/brand-visibility.js
+function normalizeBrandVisibility(value) {
+  const input = value && typeof value === "object" ? value : {};
+  return { mascot: typeof input.mascot === "boolean" ? input.mascot : true, title: typeof input.title === "boolean" ? input.title : true };
+}
+function applyBrandVisibility(root, value) {
+  const visibility = normalizeBrandVisibility(value);
+  if (root?.dataset) {
+    root.dataset.brandMascot = String(visibility.mascot);
+    root.dataset.brandTitle = String(visibility.title);
+  }
+  return visibility;
+}
+
 // src/player-settings-layout.js
 function createPlayerSettingsLayout(el) {
   const settings = el("section", "uos-user-settings");
@@ -1606,7 +1623,7 @@ function createPlayerSettingsLayout(el) {
   };
   let stopToggles = () => {
   }, closed = false;
-  function assemble({ exclusion, people, edits, labels, updates, floatingStyle }) {
+  function assemble({ exclusion, people, edits, labels, updates, floatingStyle, brandVisibility }) {
     if (closed) return;
     stopToggles();
     const sheets = [exclusion, people, edits, labels, updates];
@@ -1626,7 +1643,7 @@ function createPlayerSettingsLayout(el) {
     const common = el("section", "uos-user-settings-group");
     common.append(el("h3", "", "开场显示"), edits, labels);
     const appearance = el("section", "uos-user-settings-group");
-    appearance.append(el("h3", "", "界面外观"), floatingStyle);
+    appearance.append(el("h3", "", "界面外观"), floatingStyle, brandVisibility);
     const advanced = el("section", "uos-user-settings-group");
     advanced.append(el("h3", "", "识别规则"), exclusion, people);
     const system = el("section", "uos-user-settings-group");
@@ -1639,6 +1656,32 @@ function createPlayerSettingsLayout(el) {
     stopToggles();
     button.onclick = null;
   } };
+}
+
+// src/player-brand-visibility.js
+var STORAGE_PREFIX = "uos_player_brand_visibility_v1_";
+function createPlayerBrandVisibilityPreference(host, avatar, defaults = {}) {
+  const fallback = normalizeBrandVisibility(defaults), key = STORAGE_PREFIX + String(avatar || "current");
+  let value = { ...fallback };
+  try {
+    const saved = JSON.parse(host?.localStorage?.getItem(key) || "null");
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) value = normalizeBrandVisibility({ ...fallback, ...saved });
+  } catch {
+  }
+  return {
+    get() {
+      return { ...value };
+    },
+    set(next) {
+      value = normalizeBrandVisibility(next);
+      try {
+        host.localStorage.setItem(key, JSON.stringify(value));
+        return { value: { ...value }, saved: true };
+      } catch {
+        return { value: { ...value }, saved: false };
+      }
+    }
+  };
 }
 
 // src/player-trigger-style.js
@@ -3497,6 +3540,13 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 
 
 `;
+var PLAYER_BRAND_SETTINGS_CSS = `
+.uos-user-brand-visibility{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.uos-user-brand-visibility-title{color:var(--text);font-size:13px;font-weight:600}
+.uos-user-brand-option{display:flex;align-items:flex-start;gap:9px;color:var(--text);font-size:12px;line-height:1.55}
+.uos-user-brand-option input{width:17px;height:17px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+.uos-user-brand-visibility small{color:var(--muted);font-size:11px;line-height:1.6}
+`;
 async function switchOpeningWithPreset(preset, presetManager, changeOpening) {
   let transaction = null;
   try {
@@ -3574,7 +3624,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS2 + BRAND_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS2 + BRAND_CSS + PLAYER_BRAND_SETTINGS_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
   let trigger = null, triggerDrag = null, stopTriggerBrand = () => {
   }, triggerCount = null, panelSession = null, updating = false;
@@ -3678,7 +3728,11 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const backgroundControl = createThemeBackgroundController(panel, "--uos-user-background", doc.defaultView, { service: backgroundService });
     void backgroundControl.setTheme(panel.dataset.theme);
     session.own(() => backgroundControl.close());
+    const cardCharacter = host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
+    const authorConfig = (cardCharacter?.data || cardCharacter)?.extensions?.[KEY] || {};
+    const brandVisibilityPreference = createPlayerBrandVisibilityPreference(host, snapshot.avatar, authorConfig.branding);
     const brand = createBrandMark(el);
+    applyBrandVisibility(panel, brandVisibilityPreference.get());
     panel.append(brand.element);
     const head = el("div", "uos-user-head"), heading = el("div"), kicker = el("span", "uos-user-kicker", THEME_CAPTIONS[panel.dataset.theme]);
     const headerArt = el("span", "uos-user-header-ornament");
@@ -3737,8 +3791,25 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       if (trigger) trigger.dataset.style = result.value;
       floatingStyleHint.textContent = result.saved ? "简洁版显示标题和编号；看板娘版会随主题更换造型。" : "浏览器未能保存偏好，本次运行仍会立即切换。";
     };
-    const character = host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId];
-    const authorConfig = (character?.data || character)?.extensions?.[KEY] || {};
+    const brandVisibility = el("div", "uos-user-brand-visibility");
+    brandVisibility.append(el("strong", "uos-user-brand-visibility-title", "页面标识"));
+    const brandVisibilityHint = el("small", "", "只保存在本机；初始值沿用角色卡设置。");
+    const addBrandVisibilityToggle = (key, label) => {
+      const row = el("label", "uos-user-brand-option"), input = el("input");
+      input.type = "checkbox";
+      input.checked = brandVisibilityPreference.get()[key];
+      input.setAttribute("aria-label", label);
+      row.append(input, el("span", "", label));
+      input.onchange = () => {
+        const result = brandVisibilityPreference.set({ ...brandVisibilityPreference.get(), [key]: input.checked });
+        applyBrandVisibility(panel, result.value);
+        brandVisibilityHint.textContent = result.saved ? "已保存在本机。" : "本机保存不可用，本次页面内仍会切换。";
+      };
+      brandVisibility.append(row);
+    };
+    addBrandVisibilityToggle("mascot", "显示看板娘 Logo");
+    addBrandVisibilityToggle("title", "显示「红豆粉开场白选择器」大标题");
+    brandVisibility.append(brandVisibilityHint);
     const layoutKey = `uos_player_layout_${snapshot.avatar}`;
     let layout = authorConfig.layout;
     try {
@@ -4296,7 +4367,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     mark.append(footerVersion);
     const stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
     session.own(stopUpdateControl);
-    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings, floatingStyle });
+    settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings, floatingStyle, brandVisibility });
     const welcome = createMascotNote(el, "welcome", "按需要展开一项设置，修改后使用该项的保存按钮。");
     settings.querySelector(".uos-user-settings-intro").replaceWith(welcome.element);
     session.own(welcome.dispose);
@@ -4389,7 +4460,7 @@ function createWorldbookPresetEditor({
   getDraft,
   entries,
   manager,
-  character,
+  character: character2,
   isConnected,
   status,
   confirmPresetDelete
@@ -4404,8 +4475,8 @@ function createWorldbookPresetEditor({
     selection.isNew = false;
   }
   async function refresh() {
-    const identity = character()?.avatar, request = ++readRequest;
-    const current = () => !closed && request === readRequest && isConnected() && character()?.avatar === identity;
+    const identity = character2()?.avatar, request = ++readRequest;
+    const current = () => !closed && request === readRequest && isConnected() && character2()?.avatar === identity;
     try {
       const result = await manager.read();
       if (!current()) return;
@@ -5150,6 +5221,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-sheet{max-height:min(88dvh,820px)}
 @media(max-width:600px){.uos-player{padding:14px}.uos-player-head{gap:9px}.uos-player-record{width:36px;height:36px}.uos-player-controls{gap:4px}.uos-player-controls button{width:28px;height:28px}.uos-player-controls [data-play]{width:36px;height:36px}.uos-player-track{gap:7px}}
 .uos-toggle{display:flex;align-items:center;gap:10px;margin:10px 0 16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font-weight:700}.uos-toggle input{width:18px;height:18px;accent-color:var(--accent)}.uos-player-controls [data-play]:disabled{opacity:.5;cursor:not-allowed}
+.uos-branding-options{margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.uos-branding-title{display:block;color:var(--accent);font-size:13px;margin-bottom:8px}.uos-branding-options .uos-toggle{margin:8px 0;padding:9px;background:transparent;font-weight:600}.uos-branding-options .uos-help{margin:4px 0 0}
 :host{font-family:system-ui,"Noto Sans SC",sans-serif}.uos-dialog{position:fixed;inset:0;box-sizing:border-box;z-index:1;pointer-events:auto;overflow:hidden}.uos-sheet{box-sizing:border-box;min-height:0;max-height:calc(100dvh - 24px);max-width:100%;overscroll-behavior:contain}.uos-dialog button,.uos-dialog input,.uos-dialog textarea{font:inherit}
 
 .uos-top-status{min-height:0;margin:10px 0 0}.uos-top-status:empty{display:none}
@@ -5492,7 +5564,6 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(max-width:600px){.uos-masthead{padding-top:0;margin-bottom:16px;padding-bottom:16px}.uos .uos-masthead h1{font-size:26px;margin-top:9px}.uos .uos-masthead .uos-intro{font-size:13px;margin-bottom:14px}.uos .uos-masthead .uos-actions{margin-left:0;width:100%}.uos-masthead .uos-version-badge{margin-left:auto}.uos-masthead .uos-header-ornament{width:48px;height:48px}}
 
 
-
 .uos[data-layout=gallery] .uos-grid,.uos-user-panel[data-layout=gallery] .uos-user-list{grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));align-items:start}
 .uos[data-layout=gallery] .uos-card-shell .uos-cover{height:auto;aspect-ratio:16/9}
 .uos-user-panel[data-layout=gallery] .uos-user-default-cover{height:auto;aspect-ratio:16/9}
@@ -5629,6 +5700,9 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
 .uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
 .uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
+.uos[data-brand-mascot="false"] .uos-brand .uos-brand-avatar,.uos-user-panel[data-brand-mascot="false"] .uos-brand .uos-brand-avatar{display:none}
+.uos[data-brand-title="false"] .uos-brand .uos-brand-copy,.uos-user-panel[data-brand-title="false"] .uos-brand .uos-brand-copy{display:none}
+.uos[data-brand-mascot="false"][data-brand-title="false"] .uos-brand,.uos-user-panel[data-brand-mascot="false"][data-brand-title="false"] .uos-brand{display:none}
 .uos-user-panel .uos-brand{margin-bottom:12px}
 .uos-user-panel .uos-brand-avatar{width:64px;height:59px}
 .uos-user-head>div:first-child{min-width:0;flex:1}
@@ -5682,6 +5756,7 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
   root.dataset.theme = model.theme;
   root.dataset.layout = model.layout;
   root.inert = true;
+  applyBrandVisibility(root, model.branding);
   root.querySelector("[data-title]").textContent = model.title;
   root.querySelector("[data-subtitle]").textContent = model.subtitle === "选择一个开场，故事将从那里继续。" ? "" : model.subtitle;
   root.querySelector("[data-opening-count]").textContent = `共 ${model.items.length} 个开场`;
@@ -6009,19 +6084,19 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     }
     return null;
   };
-  const character = () => {
+  const character2 = () => {
     const c = context();
     return c?.characters?.[c.characterId];
   };
   const readWorldbookPeople = createWorldbookPeopleReader(() => [helperApi, doc.defaultView?.TavernHelper, doc.defaultView, host.TavernHelper, host]);
-  const worldbookPresetManager = createWorldbookPresetManager(() => [helperApi, doc.defaultView?.TavernHelper, doc.defaultView, host.TavernHelper, host], character);
+  const worldbookPresetManager = createWorldbookPresetManager(() => [helperApi, doc.defaultView?.TavernHelper, doc.defaultView, host.TavernHelper, host], character2);
   let worldbookPeople = [], worldbookDiagnostics = [], worldbookMessage = "正在读取角色世界书人物名单…";
   let settingsDraftBaseline = null, pendingSettingsTasks = 0, saveSettingsToCard = async () => false;
   async function refreshWorldbookPeople(refresh = false) {
-    const card = character(), identity = card?.avatar;
+    const card = character2(), identity = card?.avatar;
     try {
       const result = await readWorldbookPeople(card, { refresh });
-      if (root.isConnected === false || character()?.avatar !== identity) return;
+      if (root.isConnected === false || character2()?.avatar !== identity) return;
       worldbookPeople = result.people;
       worldbookDiagnostics = result.diagnostics || [];
       worldbookMessage = formatWorldbookPeopleStatus(result);
@@ -6035,7 +6110,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const list = $("[data-worldbook-list]");
     if (list) renderWorldbookPeopleList(doc, list, worldbookPeople, worldbookDiagnostics);
   }
-  const stored = character()?.data?.extensions?.[KEY2] ?? character()?.extensions?.[KEY2];
+  const stored = character2()?.data?.extensions?.[KEY2] ?? character2()?.extensions?.[KEY2];
   let config = normalize2(stored || seed);
   let draft = null;
   let displayTheme = localTheme() || config.theme;
@@ -6064,13 +6139,13 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   });
   const { field, fileField } = settingsFields;
   const openingGroups = createOpeningGroupRenderer({ el, gridClass: "uos-grid" });
-  const previewAvatar = character()?.avatar, previewCharacterId = context()?.characterId;
+  const previewAvatar = character2()?.avatar, previewCharacterId = context()?.characterId;
   const favoritesStore = createOpeningFavorites(host, previewAvatar);
   favoriteUI = createOpeningFavoritesUI({
     el,
     store: favoritesStore,
     onChange: () => render(),
-    isActive: () => root.isConnected !== false && character()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
+    isActive: () => root.isConnected !== false && character2()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
     onUnavailable: () => status("浏览器未能保存，收藏暂时只在当前窗口有效。")
   });
   openingPreview = createOpeningPreview({
@@ -6079,7 +6154,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     getItems: () => previewItems,
     getPalette: () => root,
     onChoose: async (item) => {
-      if (context()?.characterId !== previewCharacterId || character()?.avatar !== previewAvatar || root.isConnected === false) {
+      if (context()?.characterId !== previewCharacterId || character2()?.avatar !== previewAvatar || root.isConnected === false) {
         status("角色或聊天已变化，请重新打开选择器。");
         return;
       }
@@ -6097,7 +6172,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       render();
       if (!result.persisted) status("浏览器未能保存，抽卡设置暂时只在当前页面有效。");
     },
-    isActive: () => root.isConnected !== false && character()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
+    isActive: () => root.isConnected !== false && character2()?.avatar === previewAvatar && context()?.characterId === previewCharacterId,
     onPreview: (item, trigger, pool) => {
       if (!openingPreview.open(item.id, trigger, pool)) status("筛选结果已变化，请重新抽取。");
     },
@@ -6126,7 +6201,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     getDraft: () => draft,
     entries,
     manager: worldbookPresetManager,
-    character,
+    character: character2,
     isConnected: () => root.isConnected !== false,
     status,
     confirmPresetDelete
@@ -6139,6 +6214,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       title: String(x.title || "选择故事的起点").slice(0, 100),
       subtitle: String(x.subtitle || "选择一个开场，故事将从那里继续。").slice(0, 400),
       theme: THEMES.some((t) => t[0] === x.theme) ? x.theme : "archive",
+      branding: normalizeBrandVisibility(x.branding),
       layout: openingLayout(x.layout),
       excludedTags: String(x.excludedTags || "").slice(0, 500),
       personAliases: String(x.personAliases || "").slice(0, 1500),
@@ -6157,7 +6233,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     };
   }
   function greetingList() {
-    const c = character();
+    const c = character2();
     const first = c?.data?.first_mes ?? c?.first_mes ?? "";
     const alts = c?.data?.alternate_greetings ?? c?.alternate_greetings ?? [];
     return String(first).includes("<UniversalOpeningSelector/>") ? alts : [];
@@ -6174,7 +6250,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   function entries(settings = config) {
     const greetings = greetingList();
     const count = greetings.length || settings.entries.length;
-    const people = detectGreetingCollection(greetings, { characterName: character()?.data?.name || character()?.name, knownNames: settings.entries.flatMap((entry) => typeof entry.names === "string" ? entry.names.split(/[、，,\/]/).map((x) => x.trim()) : []), aliases: settings.personAliases, worldbookPeople });
+    const people = detectGreetingCollection(greetings, { characterName: character2()?.data?.name || character2()?.name, knownNames: settings.entries.flatMap((entry) => typeof entry.names === "string" ? entry.names.split(/[、，,\/]/).map((x) => x.trim()) : []), aliases: settings.personAliases, worldbookPeople });
     return Array.from({ length: count }, (_, i) => {
       const generated = infer(greetings[i], i, people[i], settings), saved = settings.entries[i] || {};
       return isLegacyGeneratedEntry(greetings[i], saved, i) ? { ...generated, ...saved, title: generated.title, description: generated.description } : { ...generated, ...saved };
@@ -6182,7 +6258,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   }
   function localTheme() {
     try {
-      return host.localStorage.getItem("uos_theme_" + (character()?.avatar || character()?.name || "current"));
+      return host.localStorage.getItem("uos_theme_" + (character2()?.avatar || character2()?.name || "current"));
     } catch {
       return null;
     }
@@ -6198,7 +6274,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     syncDialogTheme();
     pagePreview?.refresh();
     if (remember) try {
-      host.localStorage.setItem("uos_theme_" + (character()?.avatar || character()?.name || "current"), value);
+      host.localStorage.setItem("uos_theme_" + (character2()?.avatar || character2()?.name || "current"), value);
     } catch {
     }
   }
@@ -6441,6 +6517,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           const hadDraft = Boolean(draft);
           draft = null;
           settingsDraftBaseline = null;
+          applyBrandVisibility(root, config.branding);
           worldbookEditor.reset();
           renderMusic(config.music);
           if (discarded && hadDraft) status("未保存的设置已放弃。");
@@ -6495,6 +6572,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   }
   function render() {
     setTheme(displayTheme, false);
+    applyBrandVisibility(root, draft?.branding || config.branding);
     root.dataset.layout = config.layout;
     $("[data-title]").textContent = config.title;
     $("[data-subtitle]").textContent = config.subtitle === "选择一个开场，故事将从那里继续。" ? "" : config.subtitle;
@@ -6607,7 +6685,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     }
     status(`正在进入第 ${target} 条开场…`);
     root.querySelectorAll(".uos-card").forEach((b) => b.disabled = true);
-    const openingCharacterId = context()?.characterId, openingAvatar = character()?.avatar;
+    const openingCharacterId = context()?.characterId, openingAvatar = character2()?.avatar;
     let worldbookChange = null;
     try {
       const presetId = entries()[target - 1]?.worldbookPresetId;
@@ -6616,7 +6694,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         status("正在应用此开场的世界书条目预设…");
         worldbookChange = await worldbookPresetManager.apply(preset);
       }
-      if (context()?.characterId !== openingCharacterId || character()?.avatar !== openingAvatar || Number(h.getLastMessageId?.() ?? 0) > 0) throw Error("角色或聊天已变化，请重新打开选择器");
+      if (context()?.characterId !== openingCharacterId || character2()?.avatar !== openingAvatar || Number(h.getLastMessageId?.() ?? 0) > 0) throw Error("角色或聊天已变化，请重新打开选择器");
       await h.setChatMessages([{ message_id: 0, swipe_id: target }], { refresh: "all" });
       const current = h.getChatMessages(0, { include_swipes: true })?.[0];
       if (current?.swipe_id !== target) throw new Error("消息页未切换");
@@ -6657,7 +6735,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     });
   }
   function diagnostics() {
-    const card = character(), data = card?.data || card || {}, ext = data.extensions || {}, greetings = greetingList();
+    const card = character2(), data = card?.data || card || {}, ext = data.extensions || {}, greetings = greetingList();
     const roleScript = Array.isArray(ext.tavern_helper?.scripts) && ext.tavern_helper.scripts.some((x) => /红豆粉开场白选择器 · (?:通用脚本|作者角色脚本)/.test(x.name || "") && x.enabled && x.export_with?.data);
     const legacy = Array.isArray(ext.regex_scripts) && ext.regex_scripts.some((x) => x.findRegex === "<UniversalOpeningSelector/>" && !x.disabled);
     const saved = Boolean(ext[KEY2]);
@@ -6707,6 +6785,25 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const pageFields = el("section", "uos-settings-group");
     pageFields.append(el("h3", "", "页面信息"), el("p", "uos-help", "先设置选择页的标题与导语，再编辑每条开场。"), field("页面标题", draft.title, (v) => draft.title = v), field("页面导语", draft.subtitle, (v) => draft.subtitle = v, true));
     fields.append(pageFields);
+    const brandOptions = el("div", "uos-branding-options");
+    brandOptions.append(el("strong", "uos-branding-title", "页眉显示"));
+    const addBrandToggle = (key, label) => {
+      const row = el("label", "uos-toggle"), input = el("input");
+      input.type = "checkbox";
+      input.checked = draft.branding[key];
+      input.setAttribute("aria-label", label);
+      row.append(input, el("span", "", label));
+      input.onchange = () => {
+        draft.branding[key] = input.checked;
+        applyBrandVisibility(root, draft.branding);
+        pagePreview?.refresh();
+      };
+      brandOptions.append(row);
+    };
+    addBrandToggle("mascot", "显示看板娘 Logo");
+    addBrandToggle("title", "显示「红豆粉开场白选择器」大标题");
+    brandOptions.append(el("p", "uos-help", "底部来源信息会一直保留。"));
+    pageFields.append(brandOptions);
     const layoutField = el("label", "uos-layout-field"), layoutSelect = el("select");
     layoutField.append(el("span", "", "页面版式"), layoutSelect);
     layoutSelect.setAttribute("aria-label", "页面版式");
@@ -6728,7 +6825,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       host,
       backgroundService,
       readModel: () => {
-        if (draft !== previewDraft || root.isConnected === false || character()?.avatar !== previewAvatar || context()?.characterId !== previewCharacterId) return null;
+        if (draft !== previewDraft || root.isConnected === false || character2()?.avatar !== previewAvatar || context()?.characterId !== previewCharacterId) return null;
         const settings = normalize2({ ...draft, theme: displayTheme, entries: draft.entries.map((entry, i) => {
           if (manuallyEditedNames.has(i) || typeof config.entries[i]?.names === "string") return entry;
           const { names, ...automatic } = entry;
@@ -6938,7 +7035,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           return rest;
         }) };
         if (typeof c.getRequestHeaders !== "function") throw Error("当前酒馆未提供保存请求接口");
-        const card = character(), saveCharacterId = c.characterId;
+        const card = character2(), saveCharacterId = c.characterId;
         if (!card?.avatar) throw Error("无法确认当前角色卡的文件名");
         const response = await host.fetch("/api/characters/merge-attributes", { method: "POST", headers: c.getRequestHeaders(), body: JSON.stringify({ avatar: card.avatar, data: { extensions: { [KEY2]: saveData } } }) });
         if (!response.ok) throw Error(`角色卡写入失败（HTTP ${response.status}），请检查卡片大小或酒馆日志`);
@@ -6954,7 +7051,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           return actual === expected;
         };
         if (!same(saved, saveData)) throw Error("角色卡复核未找到刚保存的设置，请重新打开角色卡检查");
-        if (context()?.characterId !== saveCharacterId || character()?.avatar !== card.avatar) throw Error("原角色卡已保存，但当前角色已切换，请重新打开设置");
+        if (context()?.characterId !== saveCharacterId || character2()?.avatar !== card.avatar) throw Error("原角色卡已保存，但当前角色已切换，请重新打开设置");
         await c.writeExtensionField(saveCharacterId, KEY2, saveData);
         config = normalize2(saveData);
         draft = null;

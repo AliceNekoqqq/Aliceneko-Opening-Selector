@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {bindBrandImages,brandMarkMarkup,mascotNoteMarkup} from '../src/brand-mark.js';
+import {applyBrandVisibility,normalizeBrandVisibility} from '../src/brand-visibility.js';
 import {themeAssetCandidates,BRAND_ASSET_REF} from '../src/asset-source.js';
 import {THEME_IDS} from '../src/themes.js';
 import {THEME_MASCOT_POSITIONS,BRAND_CSS} from '../src/brand-mark.js';
@@ -16,6 +17,16 @@ test('the masthead and scene notes share the theme-aware mascot sprite',()=>{
   }
   assert.match(BRAND_CSS,/\.uos-mascot-note-avatar\{[^}]*background-image:var\(--uos-theme-mascot-image/);
   assert.match(BRAND_CSS,/\.uos-search-empty\.uos-mascot-note::before\{display:none\}/);
+});
+
+test('logo and title visibility default on and can be changed independently',()=>{
+  assert.deepEqual(normalizeBrandVisibility(),{mascot:true,title:true});
+  assert.deepEqual(normalizeBrandVisibility({mascot:false,title:true}),{mascot:false,title:true});
+  const root={dataset:{}};
+  assert.deepEqual(applyBrandVisibility(root,{mascot:false,title:false}),{mascot:false,title:false});
+  assert.deepEqual(root.dataset,{brandMascot:'false',brandTitle:'false'});
+  assert.match(BRAND_CSS,/data-brand-mascot="false"/);assert.match(BRAND_CSS,/data-brand-title="false"/);
+  assert.match(brandMarkMarkup(),/uos-brand-copy/);
 });
 
 test('every theme maps to its ordered sprite cell and shared branding CSS',()=>{
