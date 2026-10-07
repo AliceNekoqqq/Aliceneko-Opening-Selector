@@ -1,18 +1,18 @@
 import {MODULE_HELP} from './module-help-content.js';
 const CSS=`dialog.uos-module-help{box-sizing:border-box;width:min(640px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.7 system-ui,sans-serif;overflow:auto;overscroll-behavior:contain;word-break:normal;overflow-wrap:anywhere}dialog.uos-module-help::backdrop{background:#0008}.uos-module-help *{box-sizing:border-box}.uos-module-help .uos-module-help-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--bg,#17252d);border-bottom:1px solid var(--line,#64748b)}.uos-module-help h2{margin:0!important;font:650 18px/1.5 system-ui,sans-serif!important;min-width:0;flex:1}.uos-module-help .uos-module-help-close{flex:none;min-height:44px;padding:8px 12px!important;border:1px solid var(--line,#64748b)!important;border-radius:8px!important;background:var(--panel,#23333b)!important;color:inherit!important;font:inherit!important;cursor:pointer}.uos-module-help .uos-module-help-body{padding:0 18px 18px}.uos-module-help p{margin:12px 0;color:var(--muted,#b7c3cc)}.uos-module-help details{margin:10px 0;border:1px solid var(--line,#64748b);border-radius:10px;padding:0 12px}.uos-module-help summary{min-height:44px;cursor:pointer;padding:10px 0;font-weight:650;color:var(--text,#f4ecda)}.uos-module-help ol{padding-left:24px;margin:6px 0 14px}.uos-module-help li{margin:7px 0}.uos-module-help dl{margin:4px 0 14px}.uos-module-help .uos-module-help-row{display:grid;grid-template-columns:minmax(100px,145px) minmax(0,1fr);gap:12px;padding:10px 0;border-top:1px solid var(--line,#64748b)}.uos-module-help dt{font-weight:650;color:var(--accent,#c99d67)}.uos-module-help dd{margin:0;color:var(--text,#f4ecda)}.uos-module-help :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}@media(max-width:480px){.uos-module-help .uos-module-help-head{padding:10px 12px}.uos-module-help .uos-module-help-body{padding:0 12px 12px}.uos-module-help .uos-module-help-row{grid-template-columns:1fr;gap:3px}}`;
 /* Read-only help; it never calls settings, save or generation services. */
-export function createModuleHelp({doc}={}){
+export function createModuleHelp({doc,getDialogDocument}={}){
   let active=null,disposed=false;
   function close(){
-    const current=active;if(!current)return;active=null;current.observer?.disconnect();current.dialog.remove();
+    const current=active;if(!current)return;active=null;for(const observer of current.observers)observer.disconnect();current.dialog.remove();
     try{if(current.trigger?.isConnected!==false)current.trigger?.focus()}catch{}
   }
   function open(topic,trigger){
-    const guide=MODULE_HELP[topic],owner=trigger?.ownerDocument||doc;if(disposed||!guide||!owner||trigger?.isConnected===false)return false;close();
+    const guide=MODULE_HELP[topic],source=trigger?.ownerDocument||doc,owner=getDialogDocument?.(source,trigger)||source;if(disposed||!guide||!owner||trigger?.isConnected===false)return false;close();
     const el=(tag,text='',className='')=>{const node=owner.createElement(tag);node.textContent=text;node.className=className;return node};
     const dialog=el('dialog','','uos-module-help');dialog.dataset.moduleHelp=topic;dialog.setAttribute('aria-label',guide.title+' · 功能说明');
     const style=el('style',CSS);dialog.append(style);
-    try{const computed=owner.defaultView?.getComputedStyle(trigger);for(const variable of ['--bg','--panel','--surface','--text','--muted','--line','--accent'])dialog.style.setProperty(variable,computed?.getPropertyValue(variable)||'')}catch{}
+    try{const computed=source.defaultView?.getComputedStyle(trigger);for(const variable of ['--bg','--panel','--surface','--text','--muted','--line','--accent'])dialog.style.setProperty(variable,computed?.getPropertyValue(variable)||'')}catch{}
     const head=el('header','','uos-module-help-head'),title=el('h2',guide.title+' · 功能说明'),exit=el('button','关闭说明','uos-module-help-close');exit.type='button';exit.onclick=close;head.append(title,exit);dialog.append(head);
     const body=el('div','','uos-module-help-body');body.append(el('p',guide.purpose));dialog.append(body);
     const section=(label,expanded=false)=>{const details=el('details'),summary=el('summary',label);details.open=expanded;details.append(summary);body.append(details);return details};
@@ -23,10 +23,15 @@ export function createModuleHelp({doc}={}){
       for(const [name,description] of rows){const row=el('div','','uos-module-help-row');row.append(el('dt',name),el('dd',description));mapping.append(row)}controls.append(mapping);
     }
     const notes=section('保存与常见误解');for(const note of guide.notes)notes.append(el('p',note));
-    const session={dialog,trigger,observer:null};active=session;
+    const session={dialog,trigger,observers:[]};active=session;
     const dismiss=()=>{if(active===session)close()};dialog.addEventListener('close',dismiss);dialog.addEventListener('cancel',event=>{event.preventDefault();event.stopPropagation?.();dismiss()});dialog.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation?.();dismiss()}});dialog.addEventListener('click',event=>{if(event.target===dialog)dismiss()});
     (owner.body||owner.documentElement).append(dialog);try{dialog.showModal()}catch{dismiss();return false}
-    const Observer=owner.defaultView?.MutationObserver;if(Observer&&trigger){session.observer=new Observer(()=>{if(trigger.isConnected===false)dismiss()});session.observer.observe(owner.documentElement||owner.body,{childList:true,subtree:true})}
+    // When portaled out of an iframe, watch both documents for removal.
+    for(const observed of new Set([source,owner])){
+      const Observer=observed?.defaultView?.MutationObserver;if(!Observer||!trigger)continue;
+      const observer=new Observer(()=>{if(trigger.isConnected===false||source.defaultView?.frameElement?.isConnected===false)dismiss()});
+      session.observers.push(observer);observer.observe(observed.documentElement||observed.body,{childList:true,subtree:true});
+    }
     exit.focus();return true;
   }
   function attach(container,topic,{before}={}){

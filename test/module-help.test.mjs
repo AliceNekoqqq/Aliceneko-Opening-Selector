@@ -69,3 +69,22 @@ test('headers reserve a readable right edge and each major page has complete exp
     for(const row of [...guide.options,...guide.buttons])assert.ok(row.length===2&&row.every(value=>typeof value==='string'&&value.length),topic);
   }
 });
+
+test('author homepage help uses the host viewport, copies source colors and watches both documents',()=>{
+  const source=documentFixture(),host=documentFixture(),frame=host.createElement('iframe');host.body.append(frame);source.defaultView.frameElement=frame;
+  source.defaultView.getComputedStyle=()=>({getPropertyValue:key=>key==='--bg'?'#abc':''});
+  const heading=source.createElement('header');source.body.append(heading);
+  const help=createModuleHelp({doc:source,getDialogDocument:owner=>owner===source?host:owner}),button=help.attach(heading,'openings');
+  button.onclick();assert.equal(source.body.querySelector('dialog'),null);
+  let reader=host.body.querySelector('dialog');assert.ok(reader);assert.equal(reader.style.values['--bg'],'#abc');
+  reader.querySelector('button').onclick();assert.equal(host.body.querySelector('dialog'),null);assert.equal(source.activeElement,button);
+  button.onclick();heading.remove();for(const observer of source.observers)if(observer.connected)observer.callback();assert.equal(host.body.querySelector('dialog'),null);
+  source.body.append(heading);button.onclick();frame.remove();for(const observer of host.observers)if(observer.connected)observer.callback();assert.equal(host.body.querySelector('dialog'),null);
+  assert.equal([...source.observers,...host.observers].every(observer=>!observer.connected),true);help.dispose();
+});
+
+test('author settings help retains its own window viewport when the homepage is portaled',()=>{
+  const source=documentFixture(),host=documentFixture(),settings=documentFixture(),heading=settings.createElement('header');settings.body.append(heading);
+  const help=createModuleHelp({doc:source,getDialogDocument:owner=>owner===source?host:owner});help.attach(heading,'authorSettings').onclick();
+  assert.equal(host.body.querySelector('dialog'),null);assert.ok(settings.body.querySelector('dialog'));help.dispose();assert.equal(settings.body.querySelector('dialog'),null);
+});

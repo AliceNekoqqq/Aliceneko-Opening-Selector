@@ -49,7 +49,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
   let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI,blindBox,generator,peopleEditor,moduleHelp;
   let previewItems=[],allDrawItems=[];
-  moduleHelp=createModuleHelp({doc});
+  moduleHelp=createModuleHelp({doc,getDialogDocument:source=>source===doc?(root.__uosHostDocument||host.document||doc):source});
   root.__uosDispose=()=>{moduleHelp?.dispose();peopleEditor?.dispose();generator?.dispose();stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;

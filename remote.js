@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.17-beta.7" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.8" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -200,13 +200,13 @@ var MODULE_HELP = {
 
 // src/module-help.js
 var CSS = `dialog.uos-module-help{box-sizing:border-box;width:min(640px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.7 system-ui,sans-serif;overflow:auto;overscroll-behavior:contain;word-break:normal;overflow-wrap:anywhere}dialog.uos-module-help::backdrop{background:#0008}.uos-module-help *{box-sizing:border-box}.uos-module-help .uos-module-help-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--bg,#17252d);border-bottom:1px solid var(--line,#64748b)}.uos-module-help h2{margin:0!important;font:650 18px/1.5 system-ui,sans-serif!important;min-width:0;flex:1}.uos-module-help .uos-module-help-close{flex:none;min-height:44px;padding:8px 12px!important;border:1px solid var(--line,#64748b)!important;border-radius:8px!important;background:var(--panel,#23333b)!important;color:inherit!important;font:inherit!important;cursor:pointer}.uos-module-help .uos-module-help-body{padding:0 18px 18px}.uos-module-help p{margin:12px 0;color:var(--muted,#b7c3cc)}.uos-module-help details{margin:10px 0;border:1px solid var(--line,#64748b);border-radius:10px;padding:0 12px}.uos-module-help summary{min-height:44px;cursor:pointer;padding:10px 0;font-weight:650;color:var(--text,#f4ecda)}.uos-module-help ol{padding-left:24px;margin:6px 0 14px}.uos-module-help li{margin:7px 0}.uos-module-help dl{margin:4px 0 14px}.uos-module-help .uos-module-help-row{display:grid;grid-template-columns:minmax(100px,145px) minmax(0,1fr);gap:12px;padding:10px 0;border-top:1px solid var(--line,#64748b)}.uos-module-help dt{font-weight:650;color:var(--accent,#c99d67)}.uos-module-help dd{margin:0;color:var(--text,#f4ecda)}.uos-module-help :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}@media(max-width:480px){.uos-module-help .uos-module-help-head{padding:10px 12px}.uos-module-help .uos-module-help-body{padding:0 12px 12px}.uos-module-help .uos-module-help-row{grid-template-columns:1fr;gap:3px}}`;
-function createModuleHelp({ doc } = {}) {
+function createModuleHelp({ doc, getDialogDocument } = {}) {
   let active = null, disposed = false;
   function close() {
     const current = active;
     if (!current) return;
     active = null;
-    current.observer?.disconnect();
+    for (const observer of current.observers) observer.disconnect();
     current.dialog.remove();
     try {
       if (current.trigger?.isConnected !== false) current.trigger?.focus();
@@ -214,7 +214,7 @@ function createModuleHelp({ doc } = {}) {
     }
   }
   function open(topic, trigger) {
-    const guide = MODULE_HELP[topic], owner = trigger?.ownerDocument || doc;
+    const guide = MODULE_HELP[topic], source = trigger?.ownerDocument || doc, owner = getDialogDocument?.(source, trigger) || source;
     if (disposed || !guide || !owner || trigger?.isConnected === false) return false;
     close();
     const el = (tag, text2 = "", className = "") => {
@@ -229,7 +229,7 @@ function createModuleHelp({ doc } = {}) {
     const style = el("style", CSS);
     dialog.append(style);
     try {
-      const computed = owner.defaultView?.getComputedStyle(trigger);
+      const computed = source.defaultView?.getComputedStyle(trigger);
       for (const variable of ["--bg", "--panel", "--surface", "--text", "--muted", "--line", "--accent"]) dialog.style.setProperty(variable, computed?.getPropertyValue(variable) || "");
     } catch {
     }
@@ -264,7 +264,7 @@ function createModuleHelp({ doc } = {}) {
     }
     const notes = section("保存与常见误解");
     for (const note of guide.notes) notes.append(el("p", note));
-    const session = { dialog, trigger, observer: null };
+    const session = { dialog, trigger, observers: [] };
     active = session;
     const dismiss = () => {
       if (active === session) close();
@@ -292,12 +292,14 @@ function createModuleHelp({ doc } = {}) {
       dismiss();
       return false;
     }
-    const Observer = owner.defaultView?.MutationObserver;
-    if (Observer && trigger) {
-      session.observer = new Observer(() => {
-        if (trigger.isConnected === false) dismiss();
+    for (const observed of /* @__PURE__ */ new Set([source, owner])) {
+      const Observer = observed?.defaultView?.MutationObserver;
+      if (!Observer || !trigger) continue;
+      const observer = new Observer(() => {
+        if (trigger.isConnected === false || source.defaultView?.frameElement?.isConnected === false) dismiss();
       });
-      session.observer.observe(owner.documentElement || owner.body, { childList: true, subtree: true });
+      session.observers.push(observer);
+      observer.observe(observed.documentElement || observed.body, { childList: true, subtree: true });
     }
     exit.focus();
     return true;
@@ -7230,7 +7232,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
   let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox, generator, peopleEditor, moduleHelp;
   let previewItems = [], allDrawItems = [];
-  moduleHelp = createModuleHelp({ doc });
+  moduleHelp = createModuleHelp({ doc, getDialogDocument: (source) => source === doc ? root.__uosHostDocument || host.document || doc : source });
   root.__uosDispose = () => {
     moduleHelp?.dispose();
     peopleEditor?.dispose();
