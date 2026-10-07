@@ -1,4 +1,5 @@
 import {buildOpeningPrompt,generationResultText,openingStamp,openingNames} from './opening-generation.js';
+import {requestCharacterCard} from './character-card-request.js';
 
 let activeRequest=null;
 const resolve=(sources,name)=>{const owner=(typeof sources==='function'?sources():sources).find(source=>typeof source?.[name]==='function');return owner?owner[name].bind(owner):null};
@@ -20,7 +21,7 @@ export function createOpeningGenerationService(sources){
         return generationResultText(result);
       }finally{if(activeRequest===job)activeRequest=null;if(request===job)request=null}
     },
-    cancel(){if(!request)return;request.cancelled=true;try{resolve(sources,'stopGenerationById')?.(request.id)}catch{}},
+    cancel(){if(!request)return;request.cancelled=true;try{Promise.resolve(resolve(sources,'stopGenerationById')?.(request.id)).catch(()=>{})}catch{}},
     close(){closed=true;this.cancel()},
   };
 }
@@ -35,7 +36,13 @@ export async function appendGeneratedOpening({host,getContext,helper,identity,mo
   if(typeof context.getRequestHeaders!=='function'||typeof host.fetch!=='function')throw Error('当前酒馆未提供角色卡保存接口。');
   if(openingStamp(card)!==expectedStamp)throw Error('备用开场已发生变化，草稿已保留；请重新打开生成器后再保存。');
   const headers=context.getRequestHeaders();
-  const read=async()=>{const response=await host.fetch('/api/characters/get',{method:'POST',headers,body:JSON.stringify({avatar_url:identity.avatar})});if(!response.ok)throw Error(`角色卡读取失败（HTTP ${response.status}）`);return response.json()};
+  const read=async()=>{
+    const response=await requestCharacterCard(host,'/api/characters/get',{
+      method:'POST',headers,body:JSON.stringify({avatar_url:identity.avatar}),
+    },{readJson:true});
+    if(!response.ok)throw Error(`角色卡读取失败（HTTP ${response.status}）`);
+    return response.data;
+  };
   const latest=await read(),data=dataOf(latest),first=String(data.first_mes??latest.first_mes??'');
   if(openingStamp(latest)!==expectedStamp)throw Error('服务器上的开场已变化，未覆盖；请重新打开生成器后再保存。');
   const author=first.trimStart().startsWith('<UniversalOpeningSelector/>');if(author!==(mode==='author'))throw Error('角色卡模式已变化，请重新打开生成器。');
@@ -48,8 +55,9 @@ export async function appendGeneratedOpening({host,getContext,helper,identity,mo
   entries[index]={title:String(title||`新开场 ${index+1}`).trim().slice(0,100),names:openingNames(names).join('、')};
   const settings={...existing,entries};
   // Recheck after asynchronous read. Never write to a newly selected character.
-  if(getContext()?.characterId!==identity.characterId||getContext()?.characters?.[identity.characterId]?.avatar!==identity.avatar||openingStamp(card)!==expectedStamp)throw Error('角色或备用开场已变化，未写入。');
-  const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers,body:JSON.stringify({avatar:identity.avatar,data:{alternate_greetings:alternates,extensions:{[key]:settings}}})});
+  const current=getContext(),currentCard=current?.characters?.[identity.characterId];
+  if(current?.characterId!==identity.characterId||currentCard?.avatar!==identity.avatar||openingStamp(currentCard)!==expectedStamp)throw Error('角色或备用开场已变化，未写入。');
+  const response=await requestCharacterCard(host,'/api/characters/merge-attributes',{method:'POST',headers,body:JSON.stringify({avatar:identity.avatar,data:{alternate_greetings:alternates,extensions:{[key]:settings}}})});
   if(!response.ok)throw Error(`备用开场写入失败（HTTP ${response.status}），草稿已保留。`);
   let verified;
   try{verified=dataOf(await read())}catch{throw Error('写入请求已提交，但复核失败；请检查角色卡是否已添加，草稿仍保留。')}

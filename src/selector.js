@@ -1,4 +1,7 @@
 import {createModuleHelp} from './module-help.js';
+import {createLatestRequest} from './latest-request.js';
+import {createAuthorPopupSession} from './author-popup-session.js';
+import {requestCharacterCard} from './character-card-request.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createWorldbookPresetEditor} from './worldbook-preset-editor.js';
@@ -14,7 +17,7 @@ import {createOpeningFavorites} from './opening-favorites.js';
 import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
 import {createAuthorOpeningCard} from './author-opening-card.js';
 import {createAuthorPagePreview} from './author-page-preview.js';
-import {createThemeBackgroundController} from './theme-backgrounds.js';
+import {createThemeBackgroundController,createThemeBackgroundService} from './theme-backgrounds.js';
 import {THEMES} from './themes.js';
 import {defaultCoverStyles} from './default-covers.js';
 import {OPENING_LAYOUTS,openingLayout,coverPresentation,applyOpeningCover} from './opening-presentation.js';
@@ -46,11 +49,19 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   }
   root.__uosDispose?.();
   const stopMascot=bindBrandImages(root);
+  const ownsBackgroundService=!backgroundService;
+  backgroundService ||= createThemeBackgroundService(doc.defaultView);
   const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
+  let themePreviewControllers=[];
+  function closeThemePreviews(){
+    themePreviewControllers.forEach(controller=>controller.close());themePreviewControllers=[];
+  }
   let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI,blindBox,generator,peopleEditor,moduleHelp;
+  let disposed=false,activePopup=null,cancelSettingsPrompt=()=>{},cancelPresetDelete=()=>{};
+  const worldbookRequests=createLatestRequest();
   let previewItems=[],allDrawItems=[];
   moduleHelp=createModuleHelp({doc,getDialogDocument:source=>source===doc?(root.__uosHostDocument||host.document||doc):source});
-  root.__uosDispose=()=>{moduleHelp?.dispose();peopleEditor?.dispose();generator?.dispose();stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
+  root.__uosDispose=()=>{if(disposed)return;disposed=true;activePopup?.dispose();closeThemePreviews();moduleHelp?.dispose();peopleEditor?.dispose();generator?.dispose();stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();if(ownsBackgroundService)backgroundService.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -73,12 +84,15 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host]);
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host],character);
   let worldbookPeople=[],worldbookDiagnostics=[],worldbookMessage='正在读取角色世界书人物名单…';
-  let settingsDraftBaseline=null,pendingSettingsTasks=0,saveSettingsToCard=async()=>false;
+  let settingsDraftBaseline=null,pendingSettingsTasks=0,settingsSaving=false,saveSettingsToCard=async()=>false;
   async function refreshWorldbookPeople(refresh=false){
-    const card=character(),identity=card?.avatar;
-    try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
+    const card=character(),identity=card?.avatar,id=context()?.characterId;
+    const isCurrent=worldbookRequests.begin(()=>!disposed&&root.isConnected!==false
+      &&context()?.characterId===id&&character()?.avatar===identity);
+    if(!isCurrent())return;
+    try{const result=await readWorldbookPeople(card,{refresh});if(!isCurrent())return;
       worldbookPeople=result.people;worldbookDiagnostics=result.diagnostics||[];worldbookMessage=formatWorldbookPeopleStatus(result);render();
-    }catch{worldbookMessage='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
+    }catch{if(!isCurrent())return;worldbookMessage='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
     pagePreview?.refresh();
     const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,applyPeopleRoster(worldbookPeople,readPeopleRoster(host,character()?.avatar)),worldbookDiagnostics);
   }
@@ -87,7 +101,6 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   let draft = null;
   let displayTheme = localTheme() || config.theme;
   let portaled = [];
-  let activePopup = null;
   const $ = (s, base=root) => base.querySelector(s) || (base === root ? portaled.find(x=>x.matches(s)) || portaled.map(x=>x.querySelector(s)).find(Boolean) : null);
   const el = (tag, cls, content) => { const n=doc.createElement(tag); if(cls)n.className=cls; if(content!=null)n.textContent=String(content); return n; };
   mediaPlayer=createMediaPlayer(root,{status});
@@ -189,7 +202,8 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       const description=frameDoc.createElement('p');description.id='uos-unsaved-description';description.textContent='这些设置还没有写入角色卡。';description.style.cssText='margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.5';
       const actions=frameDoc.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px';
       let settled=false;const buttons=[];
-      const finish=value=>{if(settled)return;settled=true;frameDoc.removeEventListener('keydown',onKeyDown,true);overlay.remove();try{previous?.focus?.()}catch{}resolve(value)};
+      const finish=value=>{if(settled)return;settled=true;cancelSettingsPrompt=()=>{};frameDoc.removeEventListener('keydown',onKeyDown,true);overlay.remove();try{previous?.focus?.()}catch{}resolve(value)};
+      cancelSettingsPrompt=()=>finish('stay');
       const makeButton=(label,className,value)=>{const button=frameDoc.createElement('button');button.type='button';button.className=className;button.textContent=label;button.onclick=()=>finish(value);buttons.push(button);actions.append(button);return button};
       const save=makeButton('保存并关闭','uos-save','save');makeButton('放弃更改','uos-icon','discard');makeButton('继续编辑','uos-icon','stay');
       const onKeyDown=event=>{
@@ -213,7 +227,8 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       const text=frameDoc.createElement('p');text.textContent='删除预设“'+name+'”？已分配的开场也会清空。';
       const actions=frameDoc.createElement('div');actions.style.cssText='display:flex;justify-content:flex-end;gap:8px';
       const cancel=frameDoc.createElement('button'),remove=frameDoc.createElement('button');cancel.type=remove.type='button';cancel.className='uos-icon';remove.className='uos-save';cancel.textContent='取消';remove.textContent='删除预设';
-      let settled=false;const finish=value=>{if(settled)return;settled=true;dialog.remove();resolve(value)};
+      let settled=false;const finish=value=>{if(settled)return;settled=true;cancelPresetDelete=()=>{};dialog.remove();resolve(value)};
+      cancelPresetDelete=()=>finish(false);
       cancel.onclick=()=>finish(false);remove.onclick=()=>finish(true);
       dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false)});
       dialog.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();finish(false)}});
@@ -223,7 +238,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     });
   }
   function showSheet(selector){
-    if(activePopup && !activePopup.frame?.isConnected){pagePreview?.dispose();pagePreview=null;activePopup.original.append(activePopup.sheet);activePopup=null;portaled=[]}
+    if(activePopup && !activePopup.frame?.isConnected)activePopup.dispose();
     if(activePopup){status('弹窗已打开，请先关闭当前窗口。');return null}
     const original=$(selector),sheet=original?.querySelector('.uos-sheet');
     if(!sheet){status('设置界面尚未就绪，请刷新页面重试。');return null}
@@ -246,34 +261,26 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       frameDoc.open();frameDoc.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}</style><style>${css}</style><style>html,body{background:transparent!important;color-scheme:normal!important}.uos-dialog{display:block!important;position:static!important;width:100%!important;height:100%!important;padding:0!important;overflow:hidden!important;background:transparent!important}.uos-sheet{width:100%!important;height:100%!important;max-height:100%!important;max-width:100%!important;overflow:auto!important;box-shadow:none!important}.uos-sheet-head{position:sticky;top:-20px;z-index:2;background:var(--bg);padding:8px 0;cursor:grab;touch-action:none;user-select:none}.uos-sheet-head:active{cursor:grabbing}.uos-sheet-head button{cursor:pointer;touch-action:auto}.uos-save{position:sticky;bottom:0;z-index:2;box-shadow:0 0 0 8px var(--bg)}body[data-kind="theme"] .uos-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:600px){.uos-sheet{border-radius:16px!important;padding:16px!important}.uos-sheet-head{top:-16px}}</style></head><body data-kind="${kind}"><div class="uos-dialog" data-uos-overlay></div></body></html>`);frameDoc.close();
       const overlay=frameDoc.querySelector('[data-uos-overlay]');overlay.append(sheet);
       portaled=[sheet];syncDialogTheme();
-      const drag=sheet.querySelector('.uos-sheet-head');
-      let origin=null;
-      const move=e=>{if(!origin)return;const left=Math.max(0,Math.min(viewport.innerWidth-frame.offsetWidth,origin.left+e.screenX-origin.x));const top=Math.max(0,Math.min(viewport.innerHeight-frame.offsetHeight,origin.top+e.screenY-origin.y));frame.style.setProperty('left',`${left}px`,'important');frame.style.setProperty('top',`${top}px`,'important')};
-      const stop=()=>{origin=null;drag?.removeEventListener('pointermove',move);drag?.removeEventListener('pointerup',stop)};
-      drag?.addEventListener('pointerdown',e=>{if(e.target.closest('button,input,textarea,select,a'))return;origin={x:e.screenX,y:e.screenY,left:frame.offsetLeft,top:frame.offsetTop};drag.setPointerCapture(e.pointerId);drag.addEventListener('pointermove',move);drag.addEventListener('pointerup',stop);e.preventDefault()});
-      const clampWindow=()=>{frame.style.setProperty('left',`${Math.max(0,Math.min(viewport.innerWidth-frame.offsetWidth,frame.offsetLeft))}px`,'important');frame.style.setProperty('top',`${Math.max(0,Math.min(viewport.innerHeight-frame.offsetHeight,frame.offsetTop))}px`,'important')};
-      viewport.addEventListener('resize',clampWindow);
-      let closeInProgress=false;
-      const cleanup=discarded=>{
-        stop();viewport.removeEventListener('resize',clampWindow);original.append(sheet);portaled=[];frame.remove();activePopup=null;
-        moduleHelp.close();if(selector.includes('settings')){pagePreview?.dispose();pagePreview=null;const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;applyBrandVisibility(root,config.branding);worldbookEditor.reset();renderMusic(config.music);if(discarded&&hadDraft)status('未保存的设置已放弃。')}
-      };
-      const close=async()=>{
-        if(closeInProgress)return;closeInProgress=true;
-        if(selector.includes('settings')&&hasUnsavedSettings()){
-          const choice=await showUnsavedSettingsPrompt(frameDoc,sheet);
-          if(choice==='stay'){closeInProgress=false;return}
-          if(choice==='save'){
-            const saved=await saveSettingsToCard({closeOnSuccess:false,commitPresetDraft:true});
-            if(!saved){closeInProgress=false;return}
-            cleanup(false);return;
+      activePopup=createAuthorPopupSession({
+        frame,sheet,isActive:()=>!disposed,
+        canClose:()=>{if(settingsSaving){status('正在保存角色卡，请等待完成。');return false}return true},
+        hasUnsaved:()=>selector.includes('settings')&&hasUnsavedSettings(),
+        prompt:()=>showUnsavedSettingsPrompt(frameDoc,sheet),
+        save:()=>saveSettingsToCard({closeOnSuccess:false,commitPresetDraft:true}),
+        cancelPrompt:()=>{cancelSettingsPrompt();cancelPresetDelete()},
+        onError:error=>status(`关闭窗口失败：${error.message||error}`),
+        onCleanup:discarded=>{
+          if(kind==='theme')closeThemePreviews();
+          original.append(sheet);portaled=[];frame.remove();activePopup=null;
+          moduleHelp.close();
+          if(selector.includes('settings')){
+            pagePreview?.dispose();pagePreview=null;
+            const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;
+            applyBrandVisibility(root,config.branding);worldbookEditor.reset();renderMusic(config.music);
+            if(discarded&&hadDraft)status('未保存的设置已放弃。');
           }
-          cleanup(true);return;
-        }
-        cleanup(false);
-      };
-      activePopup={complete:close,frame,original,sheet};
-      frameDoc.addEventListener('keydown',e=>{if(e.key==='Escape'&&!frameDoc.querySelector('[data-uos-unsaved-prompt]')){e.preventDefault();void close()}});
+        },
+      });
     }catch(e){original.append(sheet);portaled=[];frame.remove();activePopup=null;status(`弹窗打开失败：${e.message||e}`);return null}
     return sheet;
   }
@@ -337,7 +344,25 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       status(`切换失败：${e?.message||e}${rollbackMessage}。可使用首条消息翻页箭头。`);root.querySelectorAll('.uos-card').forEach(b=>b.disabled=false)
     }
   }
-  function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;moduleHelp.attach(dlg.querySelector('.uos-sheet-head'),'themes',{before:dlg.querySelector('[data-close]')});const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice');b.type='button';b.setAttribute('aria-label',`切换到${name}`);b.setAttribute('aria-pressed',String(id===displayTheme));const swatch=el('span','uos-theme-swatch');swatch.dataset.theme=id;swatch.append(el('span','uos-theme-swatch-cover','01'),el('span','uos-theme-swatch-lines','Aa · 故事开场'));const icon=el('span','uos-theme-swatch-art');icon.dataset.theme=id;icon.setAttribute('aria-hidden','true');swatch.append(icon);b.append(swatch,el('span','',name));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
+  function openThemes(){
+    const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;
+    moduleHelp.attach(dlg.querySelector('.uos-sheet-head'),'themes',{before:dlg.querySelector('[data-close]')});
+    closeThemePreviews();
+    const grid=$('[data-theme-grid]');grid.replaceChildren();
+    for(const [id,name] of THEMES){
+      const button=el('button','uos-theme-choice');button.type='button';
+      button.setAttribute('aria-label',`切换到${name}`);
+      button.setAttribute('aria-pressed',String(id===displayTheme));
+      const swatch=el('span','uos-theme-swatch');swatch.dataset.theme=id;
+      swatch.setAttribute('aria-hidden','true');
+      swatch.append(el('span','uos-theme-swatch-cover','01'),el('span','uos-theme-swatch-lines','Aa · 故事开场'));
+      const icon=el('span','uos-theme-swatch-art');icon.dataset.theme=id;swatch.append(icon);
+      const preview=createThemeBackgroundController(swatch,'--uos-theme-preview-bg',doc.defaultView,{service:backgroundService});
+      themePreviewControllers.push(preview);void preview.setTheme(id);
+      button.append(swatch,el('span','',name));
+      button.onclick=()=>{setTheme(id);void activePopup?.complete()};grid.append(button);
+    }
+  }
   function diagnostics(){
     const card=character(),data=card?.data||card||{},ext=data.extensions||{},greetings=greetingList();
     const roleScript=Array.isArray(ext.tavern_helper?.scripts)&&ext.tavern_helper.scripts.some(x=>/红豆粉开场白选择器 · (?:通用脚本|作者角色脚本)/.test(x.name||'')&&x.enabled&&x.export_with?.data);
@@ -421,6 +446,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     });
     settingsDraftBaseline=JSON.stringify(normalize({...draft,theme:displayTheme}));
     saveSettingsToCard=async({closeOnSuccess=true,commitPresetDraft=false}={})=>{
+      if(settingsSaving||disposed||!draft)return false;
       if(pendingSettingsTasks>0){status('文件仍在处理，请稍候后再保存。');return false}
       if(worldbookEditor.hasUnsaved()){
         if(!commitPresetDraft){status('当前预设尚未保存；请先点「保存预设」或「撤销修改」。');return false}
@@ -428,6 +454,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       }
       const c=context();if(!c || c.characterId==null || !c.writeExtensionField){status('无法写入角色卡：请在支持角色卡扩展字段的酒馆中编辑。');return false}
       const button=$('[data-save]'),controls=[...dlg.querySelectorAll('input,textarea,select,button')],disabled=controls.map(control=>control.disabled);controls.forEach(control=>control.disabled=true);button.textContent='正在保存…';
+      settingsSaving=true;let savedClose=false;
       try{
         const saveData={...draft,theme:displayTheme,entries:draft.entries.slice(0,greetingList().length).map((entry,i)=>{
           const {nameSuggestions,...saved}=entry;
@@ -438,21 +465,26 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
         // only logged. Verify persistence before reporting export readiness.
         if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');
         const card=character(),saveCharacterId=c.characterId;if(!card?.avatar)throw Error('无法确认当前角色卡的文件名');
-        const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:saveData}}})});
+        const response=await requestCharacterCard(host,'/api/characters/merge-attributes',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:saveData}}})});
         if(!response.ok)throw Error(`角色卡写入失败（HTTP ${response.status}），请检查卡片大小或酒馆日志`);
-        const verified=await host.fetch('/api/characters/get',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar_url:card.avatar})});
+        const verified=await requestCharacterCard(host,'/api/characters/get',{method:'POST',headers:c.getRequestHeaders(),body:JSON.stringify({avatar_url:card.avatar})},{readJson:true});
         if(!verified.ok)throw Error(`角色卡复核失败（HTTP ${verified.status}），请重新打开角色卡检查保存结果`);
-        const persisted=await verified.json();
+        const persisted=verified.data;
         const saved=persisted?.data?.extensions?.[KEY]??persisted?.extensions?.[KEY];
         const same=(actual,expected)=>{if(expected&&typeof expected==='object'){if(!actual||typeof actual!=='object')return false;return Object.keys(expected).every(key=>same(actual[key],expected[key]))}return actual===expected};
         if(!same(saved,saveData))throw Error('角色卡复核未找到刚保存的设置，请重新打开角色卡检查');
-        if(context()?.characterId!==saveCharacterId||character()?.avatar!==card.avatar)throw Error('原角色卡已保存，但当前角色已切换，请重新打开设置');
+        if(disposed||context()?.characterId!==saveCharacterId||character()!==card)throw Error('原角色卡已保存，但当前角色或窗口已变化，请重新打开设置');
         await c.writeExtensionField(saveCharacterId,KEY,saveData);
+        if(disposed||context()?.characterId!==saveCharacterId||character()!==card)throw Error('原角色卡已保存，但当前角色或窗口已变化，请重新打开设置');
         config=normalize(saveData);draft=null;settingsDraftBaseline=null;worldbookEditor.reset();render();status('已保存并复核角色卡。导出角色卡时会带上配置和素材。');
-        if(closeOnSuccess)void activePopup?.complete(null);
+        savedClose=closeOnSuccess;
         return true;
       }catch(e){status(`保存失败：${e.message||e}`);return false}
-      finally{controls.forEach((control,index)=>{if(control.isConnected)control.disabled=disabled[index]});button.textContent='保存到角色卡'}
+      finally{
+        settingsSaving=false;
+        controls.forEach((control,index)=>{if(control.isConnected)control.disabled=disabled[index]});button.textContent='保存到角色卡';
+        if(savedClose&&!disposed)void activePopup?.complete();
+      }
     };
     $('[data-save]').onclick=()=>{void saveSettingsToCard()};
   }
@@ -468,7 +500,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   void refreshWorldbookPeople();
   void worldbookEditor.refresh();
   root.dataset.uosMounted = '1';
-  root.__uosPrepareForUpdate=async()=>{moduleHelp.close();peopleEditor?.close();if(!await generator.prepareForUpdate())return false;if(!hasUnsavedSettings())return true;await activePopup?.complete();return !hasUnsavedSettings()};
+  root.__uosPrepareForUpdate=async()=>{moduleHelp.close();peopleEditor?.close();if(settingsSaving){status('正在保存角色卡，请等待完成。');return false}if(!await generator.prepareForUpdate())return false;if(!hasUnsavedSettings())return true;await activePopup?.complete();return !hasUnsavedSettings()};
   root.dataset.uosVersion = VERSION;
   return true;
 }

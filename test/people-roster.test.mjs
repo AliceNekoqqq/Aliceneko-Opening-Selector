@@ -1,10 +1,23 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {normalizePeopleRoster,applyPeopleRoster,filterRosterNames} from '../src/people-roster-rules.js';
+import {normalizePeopleRoster,applyPeopleRoster,filterRosterNames,validatePeopleRoster} from '../src/people-roster-rules.js';
+import {writePeopleRoster} from '../src/opening-people.js';
 import {detectGreetingCollection} from '../src/greeting-analysis.js';
 import {resolveDisplayEntry} from '../src/player.js';
 const people=[{name:'林安',trusted:true},{name:'楚泽',trusted:true,aliases:['哥哥']},{name:'陈清',trusted:false}];
 const roster=normalizePeopleRoster({managed:true,confirmed:['林安','陈清'],excluded:['楚泽'],added:[]});
+test('oversized effective roster unions reject before storage; duplicates and readded names do not inflate counts',()=>{
+  const names=Array.from({length:501},(_,i)=>`人物${i}`);let writes=0;
+  const host={localStorage:{setItem(){writes++}}};
+  for(const key of ['confirmed','excluded','added','deleted']){
+    assert.throws(()=>writePeopleRoster(host,'a',{managed:true,[key]:names}),/501 位.*500 位/);
+  }
+  assert.equal(writes,0);
+  assert.throws(()=>validatePeopleRoster({managed:true,confirmed:names.slice(0,300),added:names.slice(300)}),/保留人物.*501/);
+  assert.throws(()=>validatePeopleRoster({excluded:names.slice(0,300),deleted:names.slice(300)}),/排除人物.*501/);
+  assert.equal(validatePeopleRoster({managed:true,confirmed:[...names.slice(0,500),...names.slice(0,500)]}).confirmed.length,500);
+  assert.equal(validatePeopleRoster({excluded:names,added:names.slice(0,1)}).excluded.length,500);
+});
 test('removed names cannot return through identities, manual metadata, aliases, card names or propagation',()=>{
   for(const body of ['姓名：楚泽\n楚泽推开门。','楚泽推开门。','哥哥推开门。','<楚泽>“来吧。”</楚泽>']){
     const result=detectGreetingCollection([body],{worldbookPeople:people,knownNames:['楚泽'],aliases:'楚泽=哥哥',characterName:'楚泽',peopleRoster:roster})[0];

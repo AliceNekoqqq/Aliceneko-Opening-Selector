@@ -29,9 +29,19 @@ function setup({storage,readWorldbook,generate}={}){
     readWorldbook:readWorldbook||(async()=>({people:[{name:'林安',trusted:true,sources:[]}],worldbooks:[],warnings:[]})),onSaved:value=>saved.push(value)});
   const dialog=()=>doc.body.querySelector('dialog'),field=name=>dialog().querySelector(`[data-generation-field="${name}"]`),button=text=>dialog().querySelectorAll('button').find(node=>node.textContent===text);
   const fill=(name,value)=>{field(name).value=value;field(name).oninput()};
-  return {api,doc,dialog,field,button,fill,map,calls,card,saved,context};
+  return {api,doc,dialog,field,button,fill,map,calls,card,saved,context,host};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('unloading the generator during a card write keeps its draft and prevents a late interface callback',async()=>{
+  const f=setup();await f.api.open();await tick();await f.button('生成开场白').onclick();
+  const fetch=f.host.fetch;let release;
+  f.host.fetch=async(url,options)=>{if(url.endsWith('/merge-attributes'))await new Promise(resolve=>{release=resolve});return fetch(url,options)};
+  const saving=f.button('加入新建备用开场白').onclick();await tick();assert.equal(typeof release,'function');
+  f.api.dispose();release();await saving;
+  assert.equal(f.dialog(),null);assert.equal(f.saved.length,0);
+  assert.equal(JSON.parse(f.map.get('uos_opening_generator_v1_player_draft.png')).versions.length,1);
+});
 
 test('workshop generates, edits, refines, restores earlier draft and appends on confirmation',async()=>{
   const f=setup();await f.api.open();await tick();
@@ -89,6 +99,17 @@ test('roster preserves more than 24 exclusions and rejects switched character sa
 test('failed roster storage leaves editor open and previous choices intact',async()=>{
   const f=setup();const editor=createOpeningPeopleEditor({doc:f.doc,host:{localStorage:{getItem:()=>null,setItem(){throw Error('quota')}}},getContext:()=>f.context,readWorldbook:async()=>({people:[],warnings:[]})});
   await editor.open();await tick();const dialog=f.doc.body.querySelector('[data-people-editor]');dialog.querySelector('[data-people-added]').value='乔乔';dialog.querySelectorAll('button').find(node=>node.textContent==='保存并重新识别').onclick();assert.ok(f.doc.body.querySelector('[data-people-editor]'));assert.equal(dialog.querySelector('[data-people-added]').value,'乔乔');editor.dispose();
+});
+test('roster limit errors keep the full input and old storage until corrected',async()=>{
+  const f=setup(),e=editorFixture(f,async()=>({people:[],warnings:[]}));
+  await e.editor.open();await tick();
+  const names=Array.from({length:501},(_,i)=>`人物${i}`).join('、');
+  e.added().value=names;e.added().oninput();e.button('保存并重新识别').onclick();
+  assert.ok(e.dialog());assert.equal(e.added().value,names);assert.equal(f.map.has('uos_opening_cast_v1_draft.png'),false);
+  assert.match(e.dialog().querySelector('[data-people-summary]').textContent,/补充 501 位/);
+  assert.ok(e.dialog().querySelectorAll('p').some(node=>/最多 500 位/.test(node.textContent)));
+  e.added().value='乔乔';e.button('保存并重新识别').onclick();assert.equal(e.dialog(),null);
+  assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).added,['乔乔']);
 });
 
 test('single and bulk confirmations remove pending labels, survive reload/save and cancel discards changes',async()=>{

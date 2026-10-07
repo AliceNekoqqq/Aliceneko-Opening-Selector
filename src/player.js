@@ -1,4 +1,8 @@
 import {createModuleHelp} from './module-help.js';
+import {savePlayerCardSettings} from './player-card-settings.js';
+import {createPlayerOverrideStore} from './player-override-store.js';
+import {openingStamp} from './opening-generation.js';
+import {createLatestRequest} from './latest-request.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
@@ -315,6 +319,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   // Script replacement rebinds the helper API even if the same version runs again.
   doc.__uosPlayer?.close?.();
   const host=doc.defaultView||globalThis;
+  const overrideStore=createPlayerOverrideStore(host);
   const triggerStylePreference=createPlayerTriggerStylePreference(host);
   const helper=helperApi||host.TavernHelper||host;
   const readWorldbookPeople=createWorldbookPeopleReader(()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host]);
@@ -349,6 +354,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
   }
   function openPanel(){
     const snapshot=state();if(!snapshot)return;
+    const settingsOpeningStamp=openingStamp(host.SillyTavern?.getContext?.()?.characters?.[snapshot.characterId]);
     const storageKey=labelKey(snapshot);let customLabels={};
     try{const saved=JSON.parse(host.localStorage.getItem(storageKey));if(saved && typeof saved==='object' && !Array.isArray(saved))customLabels=saved}catch{}
     closePanel(true);
@@ -419,29 +425,18 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const blindRangeTrigger=openingBlindRangeButton(el,button=>blindBox.openRange(button));
     const authorExcluded=excludedTags(authorConfig.excludedTags);
     const editKey=labelKey(snapshot).replace('_labels_','_edits_');
-    let localEdits={};try{const saved=JSON.parse(host.localStorage.getItem(editKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localEdits=saved}catch{}
+    let localEdits={};try{const saved=JSON.parse(overrideStore.read(editKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localEdits=saved}catch{}
     const exclusionKey=`uos_player_excluded_${snapshot.avatar}`;
-    let localExcluded=[];try{localExcluded=excludedTags(host.localStorage.getItem(exclusionKey))}catch{}
+    let localExcluded=excludedTags(overrideStore.read(exclusionKey));
     let playerBaseline=null,markPlayerSaved=()=>{},persistPlayerGroup=()=>false;
     const exclusion=el('details','uos-user-label-settings');exclusion.append(el('summary','','排除标题中的 <字段>'));
     const hint=el('p','','填写标签名，用逗号隔开，例如：状态, 时间, 角色档案。只影响标题提取，不影响人物识别和完整原文。');exclusion.append(hint);
     if(authorExcluded.length)exclusion.append(el('p','',`作者预设：${authorExcluded.join('、')}`));
     const exclusionInput=el('input');exclusionInput.type='text';exclusionInput.value=localExcluded.join(', ');exclusionInput.placeholder='例如：状态, 时间';exclusionInput.setAttribute('aria-label','要排除的尖括号字段');exclusion.append(exclusionInput);
     const saveExclusion=el('button','','保存排除字段');saveExclusion.type='button';saveExclusion.onclick=()=>persistPlayerGroup('exclusion');exclusion.append(saveExclusion);
-    const saveAuthor=el('button','','保存到角色卡（作者）');saveAuthor.type='button';saveAuthor.onclick=async()=>{
-      const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
-      if(!card?.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return}
-      saveAuthor.disabled=true;try{
-        const data=card.data||card,original=data.extensions?.[KEY]||{};
-        const next={...original,excludedTags:excludedTags(exclusionInput.value).join(',')};
-        const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
-        if(!response.ok)throw Error(`HTTP ${response.status}`);
-        await context.writeExtensionField(snapshot.characterId,KEY,next);
-        authorExcluded.splice(0,authorExcluded.length,...excludedTags(next.excludedTags));markPlayerSaved('exclusion');renderCards();status.textContent='已写入角色卡，请从酒馆重新导出后分享。';
-      }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`}finally{saveAuthor.disabled=false}
-    };exclusion.append(saveAuthor);status.setAttribute('role','status');
+    const saveAuthor=el('button','','保存到角色卡（作者）');saveAuthor.type='button';saveAuthor.onclick=()=>saveCardDraft(['exclusion']);exclusion.append(saveAuthor);status.setAttribute('role','status');
     const personKey=`uos_player_person_rules_${snapshot.avatar}`;
-    let localPersonRules={};try{const saved=JSON.parse(host.localStorage.getItem(personKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localPersonRules=saved}catch{}
+    let localPersonRules={};try{const saved=JSON.parse(overrideStore.read(personKey));if(saved&&typeof saved==='object'&&!Array.isArray(saved))localPersonRules=saved}catch{}
     const personSettings=el('details','uos-user-label-settings');personSettings.append(el('summary','','人物识别规则'));
     let worldbookPeople=[];
     const worldbookList=el('ul');
@@ -454,23 +449,12 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     function updatePeople(){
       const conflicts=personAliases([authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';')).conflicts;conflictNote.textContent=conflicts.length?`重复别名未参与匹配：${conflicts.join('、')}。请只保留一个归属。`:'';
       const known=[...authorEntries.flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[]),...Object.values(localEdits).flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[])];
-      const detected=detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{characterName:character?.data?.name||character?.name,knownNames:known,aliases:[authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';'),worldbookPeople,peopleRoster:readPeopleRoster(host,snapshot.avatar)});
+      const detected=detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{characterName:cardCharacter?.data?.name||cardCharacter?.name,knownNames:known,aliases:[authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';'),worldbookPeople,peopleRoster:readPeopleRoster(host,snapshot.avatar)});
       snapshot.entries.forEach((entry,i)=>{entry.names=detected[i].names;entry.nameEvidence=detected[i].evidence;entry.nameSuggestions=detected[i].suggestions});
       for(const {entry,namesInput,candidates} of editFields){namesInput.placeholder=entry.names.join('、')||'未识别，可填写姓名';candidates.replaceChildren();if(entry.nameSuggestions.length){candidates.append(el('span','','待确认：'));for(const name of entry.nameSuggestions){const button=el('button','',name);button.type='button';button.onclick=()=>{namesInput.value=[...new Set([...parseNames(namesInput.value),name])].join('、');status.textContent='已填入候选人物，请保存修正。'};candidates.append(button)}}}
     }
     const saveLocalPeople=el('button','','仅保存到本机');saveLocalPeople.type='button';saveLocalPeople.onclick=()=>persistPlayerGroup('people');personSettings.append(saveLocalPeople);
-    const saveCardPeople=el('button','','保存到角色卡（作者）');saveCardPeople.type='button';saveCardPeople.onclick=async()=>{
-      const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
-      if(!card?.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return}
-      saveCardPeople.disabled=true;try{
-        const original=(card.data||card).extensions?.[KEY]||{};
-        const next={...original,personAliases:aliasInput.value.slice(0,1500)};delete next.excludedPersonTags;
-        const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
-        if(!response.ok)throw Error(`HTTP ${response.status}`);
-        await context.writeExtensionField(snapshot.characterId,KEY,next);
-        authorConfig.personAliases=next.personAliases;localPersonRules={};try{host.localStorage.removeItem(personKey)}catch{}markPlayerSaved('people');updatePeople();renderCards();status.textContent='人物识别规则已写入角色卡；重新导出后即可分享。';
-      }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`}finally{saveCardPeople.disabled=false}
-    };personSettings.append(saveCardPeople);
+    const saveCardPeople=el('button','','保存到角色卡（作者）');saveCardPeople.type='button';saveCardPeople.onclick=()=>saveCardDraft(['people']);personSettings.append(saveCardPeople);
     const edits=el('details','uos-user-label-settings');edits.append(el('summary','','修正标题和登场人物'));
     const editFields=[];
     for(const entry of snapshot.entries){
@@ -486,22 +470,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       const names=namesInput.value.trim();return [entry.index,{title:titleInput.value.trim().slice(0,100),...(names?{names:names==='无'?'':names.slice(0,200)}:{})}];
     }));
     const saveEdits=el('button','','仅保存到本机');saveEdits.type='button';saveEdits.onclick=()=>persistPlayerGroup('edits');edits.append(saveEdits);
-    const saveCardEdits=el('button','','保存到角色卡（作者）');saveCardEdits.type='button';saveCardEdits.onclick=async()=>{
-      const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
-      if(!card?.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return}
-      saveCardEdits.disabled=true;try{
-        const original=(card.data||card).extensions?.[KEY]||{},values=collectEdits();
-        const next={...original,entries:snapshot.entries.map((entry,i)=>{
-          const saved={...original.entries?.[i]};if(values[i].title)saved.title=values[i].title;else delete saved.title;
-          if(Object.hasOwn(values[i],'names'))saved.names=values[i].names;else delete saved.names;
-          return saved;
-        })};
-        const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
-        if(!response.ok)throw Error(`HTTP ${response.status}`);
-        await context.writeExtensionField(snapshot.characterId,KEY,next);
-        authorEntries.splice(0,authorEntries.length,...next.entries);localEdits={};try{host.localStorage.removeItem(editKey)}catch{}markPlayerSaved('edits');updatePeople();renderCards();status.textContent='修正已写入角色卡；重新导出后即可分享。';
-      }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`}finally{saveCardEdits.disabled=false}
-    };edits.append(saveCardEdits);
+    const saveCardEdits=el('button','','保存到角色卡（作者）');saveCardEdits.type='button';saveCardEdits.onclick=()=>saveCardDraft(['edits']);edits.append(saveCardEdits);
     const labelSettings=el('details','uos-user-label-settings');labelSettings.append(el('summary','','自定义开场标签（仅保存在本机）'));
     const labelInputs=[],labelTexts=[];
     for(const entry of snapshot.entries){const field=el('label');field.append(el('span','',`第 ${entry.index+1} 条开场`));
@@ -518,36 +487,58 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     markPlayerSaved=group=>{if(playerBaseline)playerBaseline[group]=readPlayerDraft()[group]};
     persistPlayerGroup=group=>{
       try{
-        if(group==='exclusion'){const next=excludedTags(exclusionInput.value);host.localStorage.setItem(exclusionKey,next.join(','));localExcluded=next;renderCards();status.textContent='排除字段已保存在本机。'}
-        else if(group==='people'){const next={personAliases:aliasInput.value.slice(0,1500)};host.localStorage.setItem(personKey,JSON.stringify(next));localPersonRules=next;updatePeople();renderCards();status.textContent='人物识别规则已保存在本机。'}
-        else if(group==='edits'){const next=collectEdits();host.localStorage.setItem(editKey,JSON.stringify(next));localEdits=next;updatePeople();renderCards();status.textContent='修正已保存在本机。'}
+        if(group==='exclusion'){const next=excludedTags(exclusionInput.value);overrideStore.write(exclusionKey,next.join(','));localExcluded=next;renderCards();status.textContent='排除字段已保存在本机。'}
+        else if(group==='people'){const next={personAliases:aliasInput.value.slice(0,1500)};overrideStore.write(personKey,JSON.stringify(next));localPersonRules=next;updatePeople();renderCards();status.textContent='人物识别规则已保存在本机。'}
+        else if(group==='edits'){const next=collectEdits();overrideStore.write(editKey,JSON.stringify(next));localEdits=next;updatePeople();renderCards();status.textContent='修正已保存在本机。'}
         else if(group==='labels'){const next={};for(const entry of snapshot.entries){const value=labelInputs[entry.index].value.trim().slice(0,60);if(value&&value!==entry.label)next[entry.index]=value}if(Object.keys(next).length)host.localStorage.setItem(storageKey,JSON.stringify(next));else host.localStorage.removeItem(storageKey);customLabels=next;renderCards();status.textContent='标签已保存在本机。'}
         else return false;
         markPlayerSaved(group);return true;
       }catch(error){status.textContent=`本机保存失败：${error?.message||error}`;return false}
     };
     const saveLocalDraft=groups=>{for(const group of groups)if(!persistPlayerGroup(group))return false;return true};
+    let cardSaving=false;
     const saveCardDraft=async groups=>{
-      const cardGroups=groups.filter(group=>['exclusion','people','edits'].includes(group));
-      if(cardGroups.length){
-        const context=host.SillyTavern?.getContext?.(),card=context?.characters?.[snapshot.characterId];
-        if(!card?.avatar||card.avatar!==snapshot.avatar||typeof context?.getRequestHeaders!=='function'||typeof context?.writeExtensionField!=='function'){status.textContent='当前环境无法写入角色卡。';return false}
-        try{
-          const original=(card.data||card).extensions?.[KEY]||{},next={...original};
-          if(cardGroups.includes('exclusion'))next.excludedTags=excludedTags(exclusionInput.value).join(',');
-          if(cardGroups.includes('people')){next.personAliases=aliasInput.value.slice(0,1500);delete next.excludedPersonTags}
-          if(cardGroups.includes('edits')){const values=collectEdits();next.entries=snapshot.entries.map((entry,i)=>{const saved={...(original.entries?.[i]||{})};if(values[i].title)saved.title=values[i].title;else delete saved.title;if(Object.hasOwn(values[i],'names'))saved.names=values[i].names;else delete saved.names;return saved})}
-          const response=await host.fetch('/api/characters/merge-attributes',{method:'POST',headers:context.getRequestHeaders(),body:JSON.stringify({avatar:card.avatar,data:{extensions:{[KEY]:next}}})});
-          if(!response.ok)throw Error(`HTTP ${response.status}`);
-          await context.writeExtensionField(snapshot.characterId,KEY,next);
-          if(cardGroups.includes('exclusion')){authorExcluded.splice(0,authorExcluded.length,...excludedTags(next.excludedTags));authorConfig.excludedTags=next.excludedTags;markPlayerSaved('exclusion')}
-          if(cardGroups.includes('people')){authorConfig.personAliases=next.personAliases;localPersonRules={};try{host.localStorage.removeItem(personKey)}catch{}markPlayerSaved('people')}
-          if(cardGroups.includes('edits')){authorEntries.splice(0,authorEntries.length,...next.entries);localEdits={};try{host.localStorage.removeItem(editKey)}catch{}markPlayerSaved('edits')}
-          updatePeople();renderCards();status.textContent='已写入角色卡，请从酒馆重新导出后分享。';
-        }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`;return false}
+      if(cardSaving)return false;
+      cardSaving=true;
+      const controls=[...panel.querySelectorAll('input,textarea,select,button')],disabled=controls.map(control=>control.disabled);
+      controls.forEach(control=>control.disabled=true);
+      try{
+        const cardGroups=groups.filter(group=>['exclusion','people','edits'].includes(group));
+        if(cardGroups.length){
+          try{
+            const changes={};
+            if(cardGroups.includes('exclusion'))changes.excludedTags=excludedTags(exclusionInput.value).join(',');
+            if(cardGroups.includes('people'))changes.personAliases=aliasInput.value.slice(0,1500);
+            if(cardGroups.includes('edits'))changes.edits=collectEdits();
+            const next=await savePlayerCardSettings({
+              host,getContext:()=>host.SillyTavern?.getContext?.(),identity:snapshot,
+              expectedStamp:settingsOpeningStamp,isActive:()=>panelSession===session&&!session.disposed,changes,
+            });
+            if(cardGroups.includes('exclusion')){
+              authorExcluded.splice(0,authorExcluded.length,...excludedTags(next.excludedTags));
+              localExcluded=[];overrideStore.clear(exclusionKey);
+              authorConfig.excludedTags=next.excludedTags;markPlayerSaved('exclusion');
+            }
+            if(cardGroups.includes('people')){
+              authorConfig.personAliases=next.personAliases;authorConfig.excludedPersonTags='';localPersonRules={};
+              overrideStore.clear(personKey);
+              markPlayerSaved('people');
+            }
+            if(cardGroups.includes('edits')){
+              authorEntries.splice(0,authorEntries.length,...next.entries);localEdits={};
+              overrideStore.clear(editKey);
+              markPlayerSaved('edits');
+            }
+            updatePeople();renderCards();
+            status.textContent='已写入并复核角色卡，请从酒馆重新导出后分享。'+overrideCleanupWarning();
+          }catch(error){status.textContent=`保存到角色卡失败：${error?.message||error}`;return false}
+        }
+        if(groups.includes('labels')&&!persistPlayerGroup('labels'))return false;
+        return true;
+      }finally{
+        cardSaving=false;
+        controls.forEach((control,index)=>{control.disabled=disabled[index]});
       }
-      if(groups.includes('labels')&&!persistPlayerGroup('labels'))return false;
-      return true;
     };
     const search=el('div','uos-user-search'),query=el('input'),person=el('select');query.type='search';query.placeholder='搜索标题、人物或开场正文';query.setAttribute('aria-label','搜索开场');person.setAttribute('aria-label','按人物筛选');search.append(query,person);
     const results=el('p','uos-user-results');results.setAttribute('role','status');
@@ -614,6 +605,12 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     panel.append(head,tools,settings,search,results,list,status,mark);
     overlay.append(panel);(doc.body||doc.documentElement).append(overlay);
     const stopBrandImages=bindBrandImages(panel);session.own(stopBrandImages);
+    function overrideCleanupWarning(){
+      const failed=[['排除字段',exclusionKey],['人物规则',personKey],['开场修正',editKey]]
+        .filter(([,key])=>overrideStore.hasPending(key)).map(([label])=>label);
+      return failed.length?` 本机旧覆盖尚未清除：${failed.join('、')}。本次运行已忽略旧值；重新载入脚本后可能恢复，请允许本机存储后再打开选择器。`:'';
+    }
+    if(overrideCleanupWarning())status.textContent=overrideCleanupWarning().trim();
     const active=overlay;
     const restorePlayerDraft=()=>{
       if(!playerBaseline)return;
@@ -628,14 +625,22 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       restore:restorePlayerDraft,saveCard:saveCardDraft,saveLocal:saveLocalDraft,
       isActive:()=>panelSession===session&&!session.disposed,status:message=>{status.textContent=message},
     });
-    session.setGuard({confirm:async()=>{moduleHelp.close();peopleEditor.close();return await generator.prepareForUpdate()&&playerDraftGuard.confirm()},close:()=>playerDraftGuard.close()});
+    session.setGuard({confirm:async()=>{if(cardSaving){status.textContent='正在保存角色卡，请等待完成。';return false}moduleHelp.close();peopleEditor.close();return await generator.prepareForUpdate()&&playerDraftGuard.confirm()},close:()=>playerDraftGuard.close()});
     const confirmPlayerChanges=()=>playerDraftGuard.confirm();
+    const worldbookRequests=createLatestRequest();session.own(()=>worldbookRequests.invalidate());
     async function refreshWorldbook(refresh=false){
+      const isCurrent=worldbookRequests.begin(()=>{
+        const current=host.SillyTavern?.getContext?.();
+        return panelSession===session&&!session.disposed&&current?.characterId===snapshot.characterId
+          &&current?.characters?.[snapshot.characterId]?.avatar===snapshot.avatar;
+      });
+      if(!isCurrent())return;
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
-      try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
-        if(panelSession!==session||session.disposed||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
+      try{const result=await readWorldbookPeople(cardCharacter,{refresh});
+        if(!isCurrent())return;
         worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,applyPeopleRoster(worldbookPeople,readPeopleRoster(host,snapshot.avatar)),result.diagnostics);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
-      }catch{if(panelSession===session&&!session.disposed)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
+      }catch{if(isCurrent())worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
+      finally{if(isCurrent())reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();
     try{session.show(close)}catch(error){console.warn('[Aliceneko Opening Selector] 弹窗无法打开',error)}

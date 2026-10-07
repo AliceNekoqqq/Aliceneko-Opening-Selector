@@ -33,6 +33,11 @@
 | src/worldbook-preset-editor.js | 作者预设编辑会话、条目筛选与开场分配；通过接口参与保存 |
 | src/player-draft-guard.js | 玩家未保存确认、保存决策、重复提示保护与提示取消 |
 | src/player-panel-session.js | 单个玩家弹窗的显示、关闭保护、资源归属与一次性清理 |
+| src/author-popup-session.js | 作者 iframe 弹窗拖动、关闭决策、外部移除观察与事件清理；通过回调参与草稿保存 |
+| src/player-card-settings.js | 玩家所选设置组的最新服务器读取、开场冲突检测、写入复核与本机同步；不持有 UI 草稿 |
+| src/character-card-request.js | 三条写卡路径共用的网络／JSON 等待上限与客户端超时中止；不自动重试提交 |
+| src/player-override-store.js | 玩家本机覆盖读取／保存、写卡后的清理回退与失败会话记忆；不负责远端保存 |
+| src/latest-request.js | 共用最新读取序号；成功、错误及完成状态均由调用方验证角色／会话有效性 |
 | src/player-settings-layout.js | 玩家设置分组、入口显隐与折叠联动；不处理保存 |
 | src/selector.js / src/player.js / src/author.js | 作者界面、玩家界面、作者标记与生命周期 |
 | src/author-template.js / src/selector.css | 可阅读的页面模板与作者样式源码 |
@@ -72,6 +77,10 @@ media-player.js 只负责播放器 DOM 与音频事件，music-settings.js 只�
 玩家未保存流程由 player-draft-guard.js 管理，通过回调读取差异、请求确认、保存到本机／角色卡或恢复输入；不持有第二份设置数据。关闭保护与开场切换、更新前检查复用同一个 confirm。面板结束会取消提示、解绑按键；旧确认结果不能关闭新面板。
 
 玩家主界面只持有当前 panelSession，每个会话独立持有自己的 dialog、背景控制器、更新控件、设置布局和草稿保护。关闭／原生 close／打开失败都走同一清理路径，先取消提示、解绑监听，再移除 dialog；旧 close 事件和旧切换完成回调只结束所属会话。更新前检查复用草稿保护，不立即移除窗口。
+玩家写卡按钮与关闭时的批量保存共用 saveCardDraft，UI 负责锁定控件与提交成功后的草稿决策；player-card-settings.js 先读取服务器最新配置，只修改选择的组，保持其他配置与开场 metadata，检查原开场指纹并在写后复核，再允许本机同步。HTTP 成功不能单独确认保存；复核失败提示请求可能已提交。跨设备／插件竞争仍受服务端非原子接口限制。
+写卡后通过 player-override-store.js 清理所选组的旧本机覆盖；删除失败写空值，两者均失败时本次运行忽略旧值、提示并重试。该会话记忆不改变“仅保存到本机”需成功写入的规则，不能在禁止存储时保证跨重载持久化。character-card-request.js 将三条写卡路径的每次网络／JSON 等待限定为 60 秒，超时不自动重试，也不声称已撤销服务器写入；界面保留编辑并由原 finally 解除保存保护。
+作者弹窗保持原来的宿主 iframe 与拖动行为，由 author-popup-session.js 管理监听、关闭等待与强制清理；selector.js 通过回调持有唯一草稿。保存期间阻止重入、关闭及更新；成功后解除保护再关闭。外部 iframe 移除或作者卸载结束未保存／删除预设提示，迟到决策不再操作界面。
+人物名单读取保持防御性 500 项限制；写入前 validatePeopleRoster 校验完整去重后的每类名单及合并结果，超限拒绝写入并保留编辑。编辑器不先截断用户输入再验证，名单容量不影响既有删除／取消勾选／确认语义。
 player-settings-layout.js 接收已有设置节点，维持「开场显示／识别规则／插件」分组和单项展开行为；字段、数据与保存回调仍由玩家业务代码管理。重新组装和关闭均移除旧折叠监听。
 
 ## 验证与下一步

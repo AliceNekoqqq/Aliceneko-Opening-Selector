@@ -131,6 +131,7 @@ export function createOpeningGenerator({doc,host,sources,getContext,helper,readW
       if(pending||saving||!body.value.trim())return;saveCandidate();capture();persist();saving=true;updateButtons();setStatus('正在追加并复核角色卡…');
       try{
         const result=await appendGeneratedOpening({host,getContext,helper,identity,mode,expectedStamp:stamp,body:body.value,title:title.value,names:names.value});
+        if(closed)return;
         versions=[];selected=0;persist();finish();onSaved(result);
       }catch(error){setStatus(`保存未完成：${error?.message||error}`)}finally{saving=false;if(!closed)updateButtons()}
     }

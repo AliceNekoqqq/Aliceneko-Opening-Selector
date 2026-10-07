@@ -60,3 +60,21 @@ test('changed card, server conflict, duplicate and failed verification preserve 
   const duplicate=fixture();duplicate.input.body='原备用';await assert.rejects(appendGeneratedOpening(duplicate.input),/已有相同正文/);assert.equal(duplicate.writes(),0);
   const failed=fixture();failed.input.host.fetch=async url=>url.endsWith('/get')?{ok:true,json:async()=>structuredClone(failed.card)}:{ok:true};await assert.rejects(appendGeneratedOpening(failed.input),/复核结果不一致/);assert.deepEqual(failed.card.data.alternate_greetings,['原备用']);
 });
+
+test('replacing a card object during server read cannot bypass the opening conflict check',async()=>{
+  const f=fixture(),fetch=f.input.host.fetch;
+  f.input.host.fetch=async(url,options)=>{
+    const response=await fetch(url,options);
+    if(url.endsWith('/get')){const replacement=structuredClone(f.card);replacement.data.alternate_greetings.push('并发修改');f.context.characters[0]=replacement}
+    return response;
+  };
+  await assert.rejects(appendGeneratedOpening(f.input),/角色或备用开场已变化/);
+  assert.equal(f.writes(),0);assert.deepEqual(f.context.characters[0].data.alternate_greetings,['原备用','并发修改']);
+});
+
+test('a rejected asynchronous cancellation does not leak a rejection or accept the cancelled response',async()=>{
+  let complete;
+  const service=createOpeningGenerationService(()=>[{generate:()=>new Promise(resolve=>{complete=resolve}),stopGenerationById:async()=>{throw Error('取消接口失败')}}]);
+  const pending=service.generate({},{});service.cancel();await new Promise(resolve=>setImmediate(resolve));complete('迟到正文');
+  await assert.rejects(pending,/已取消/);service.close();
+});
