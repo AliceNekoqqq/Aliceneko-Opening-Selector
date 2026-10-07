@@ -1,3 +1,4 @@
+import {createModuleHelp} from './module-help.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createWorldbookPresetEditor} from './worldbook-preset-editor.js';
@@ -46,9 +47,10 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   root.__uosDispose?.();
   const stopMascot=bindBrandImages(root);
   const backgroundControl=createThemeBackgroundController(root,'--uos-theme-bg-active',doc.defaultView,{service:backgroundService});
-  let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI,blindBox,generator,peopleEditor;
+  let mediaPlayer,settingsFields,worldbookEditor,openingPreview,pagePreview,favoriteUI,blindBox,generator,peopleEditor,moduleHelp;
   let previewItems=[],allDrawItems=[];
-  root.__uosDispose=()=>{peopleEditor?.dispose();generator?.dispose();stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
+  moduleHelp=createModuleHelp({doc});
+  root.__uosDispose=()=>{moduleHelp?.dispose();peopleEditor?.dispose();generator?.dispose();stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -254,7 +256,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       let closeInProgress=false;
       const cleanup=discarded=>{
         stop();viewport.removeEventListener('resize',clampWindow);original.append(sheet);portaled=[];frame.remove();activePopup=null;
-        if(selector.includes('settings')){pagePreview?.dispose();pagePreview=null;const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;applyBrandVisibility(root,config.branding);worldbookEditor.reset();renderMusic(config.music);if(discarded&&hadDraft)status('未保存的设置已放弃。')}
+        moduleHelp.close();if(selector.includes('settings')){pagePreview?.dispose();pagePreview=null;const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;applyBrandVisibility(root,config.branding);worldbookEditor.reset();renderMusic(config.music);if(discarded&&hadDraft)status('未保存的设置已放弃。')}
       };
       const close=async()=>{
         if(closeInProgress)return;closeInProgress=true;
@@ -335,7 +337,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       status(`切换失败：${e?.message||e}${rollbackMessage}。可使用首条消息翻页箭头。`);root.querySelectorAll('.uos-card').forEach(b=>b.disabled=false)
     }
   }
-  function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice');b.type='button';b.setAttribute('aria-label',`切换到${name}`);b.setAttribute('aria-pressed',String(id===displayTheme));const swatch=el('span','uos-theme-swatch');swatch.dataset.theme=id;swatch.append(el('span','uos-theme-swatch-cover','01'),el('span','uos-theme-swatch-lines','Aa · 故事开场'));const icon=el('span','uos-theme-swatch-art');icon.dataset.theme=id;icon.setAttribute('aria-hidden','true');swatch.append(icon);b.append(swatch,el('span','',name));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
+  function openThemes(){const dlg=showSheet('[data-theme-dialog]');if(!dlg)return;moduleHelp.attach(dlg.querySelector('.uos-sheet-head'),'themes',{before:dlg.querySelector('[data-close]')});const grid=$('[data-theme-grid]');grid.replaceChildren();THEMES.forEach(([id,name])=>{const b=el('button','uos-theme-choice');b.type='button';b.setAttribute('aria-label',`切换到${name}`);b.setAttribute('aria-pressed',String(id===displayTheme));const swatch=el('span','uos-theme-swatch');swatch.dataset.theme=id;swatch.append(el('span','uos-theme-swatch-cover','01'),el('span','uos-theme-swatch-lines','Aa · 故事开场'));const icon=el('span','uos-theme-swatch-art');icon.dataset.theme=id;icon.setAttribute('aria-hidden','true');swatch.append(icon);b.append(swatch,el('span','',name));b.onclick=()=>{setTheme(id);activePopup?.complete(null)};grid.append(b)});}
   function diagnostics(){
     const card=character(),data=card?.data||card||{},ext=data.extensions||{},greetings=greetingList();
     const roleScript=Array.isArray(ext.tavern_helper?.scripts)&&ext.tavern_helper.scripts.some(x=>/红豆粉开场白选择器 · (?:通用脚本|作者角色脚本)/.test(x.name||'')&&x.enabled&&x.export_with?.data);
@@ -359,8 +361,10 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   function openSettings(){
     const dlg=showSheet('[data-settings-dialog]');if(!dlg)return;
     ensureUpdateSettings(dlg);
+    moduleHelp.attach(dlg.querySelector('.uos-sheet-head'),'authorSettings',{before:dlg.querySelector('[data-close]')});
+    for(const [tab,topic,title] of [['openings','cards','开场白设置'],['worldbooks','worldbooks','世界书预设'],['bgm','music','BGM 与歌词'],['diagnostics','diagnostics','制卡检查'],['updates','updates','插件更新']]){const panel=dlg.querySelector(`[data-tab-panel="${tab}"]`);if(panel&&!panel.querySelector(`[data-module-help-heading="${topic}"]`))moduleHelp.heading(panel,topic,title)}
     draft ||= normalize(config);pagePreview?.dispose();const manuallyEditedNames=new Set(),fields=$('[data-settings-fields]');fields.replaceChildren();
-    const pageFields=el('section','uos-settings-group');pageFields.append(el('h3','','页面信息'),el('p','uos-help','先设置选择页的标题与导语，再编辑每条开场。'),field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));fields.append(pageFields);
+    const pageFields=el('section','uos-settings-group');pageFields.append(el('h3','','页面信息'),el('p','uos-help','先设置选择页的标题与导语，再编辑每条开场。'),field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));fields.append(pageFields);moduleHelp.attach(pageFields.querySelector('h3'),'page');
     const brandOptions=el('div','uos-branding-options');brandOptions.append(el('strong','uos-branding-title','页眉显示'));
     const addBrandToggle=(key,label)=>{const row=el('label','uos-toggle'),input=el('input');input.type='checkbox';input.checked=draft.branding[key];input.setAttribute('aria-label',label);row.append(input,el('span','',label));input.onchange=()=>{draft.branding[key]=input.checked;applyBrandVisibility(root,draft.branding);pagePreview?.refresh()};brandOptions.append(row)};
     addBrandToggle('mascot','显示看板娘 Logo');addBrandToggle('title','显示「红豆粉开场白选择器」大标题');brandOptions.append(el('p','uos-help','底部来源信息会一直保留。'));pageFields.append(brandOptions);
@@ -377,13 +381,13 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
         })}),greetings=greetingList();
         const favoriteKeys=favoritesStore.keys(greetings),savedFavorites=favoritesStore.snapshot();
         return {...settings,items:entries(settings).map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',favoriteKey:favoriteKeys[i],favorite:savedFavorites.has(favoriteKeys[i]),names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}))};
-      }});fields.append(pagePreview.element);
-    const recognition=el('details','uos-settings-group');recognition.append(el('summary','','高级 · 标题与人物识别'),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));fields.append(recognition);
-    const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));recognition.append(personRules);
+      }});fields.append(pagePreview.element);moduleHelp.attach(pagePreview.element.querySelector('summary'),'pagePreview');
+    const recognition=el('details','uos-settings-group');recognition.append(el('summary','','高级 · 标题与人物识别'),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));fields.append(recognition);moduleHelp.attach(recognition.querySelector('summary'),'titleRules');
+    const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));recognition.append(personRules);moduleHelp.attach(personRules.querySelector('summary'),'recognition');
     const worldbookList=el('ul');worldbookList.dataset.worldbookList='';renderWorldbookPeopleList(doc,worldbookList,applyPeopleRoster(worldbookPeople,readPeopleRoster(host,character()?.avatar)),worldbookDiagnostics);
     const aliasWarning=el('p','uos-help');aliasWarning.textContent=personAliases(draft.personAliases).conflicts.length?`重复别名未参与匹配：${personAliases(draft.personAliases).conflicts.join('、')}。请只保留一个归属。`:'';personRules.append(aliasWarning);
     const worldbookNote=el('p','uos-help',worldbookMessage);worldbookNote.dataset.worldbookStatus='';const reloadWorldbook=el('button','uos-icon','重新读取世界书');reloadWorldbook.type='button';reloadWorldbook.onclick=async()=>{reloadWorldbook.disabled=true;await refreshWorldbookPeople(true);reloadWorldbook.disabled=false};personRules.append(worldbookNote,worldbookList,reloadWorldbook,el('p','uos-help','仅读取角色绑定的世界书，明确姓名参与全文匹配，包含所有标签。普通触发关键词需手动确认；缺少明确姓名证据的标题、台词署名和人物标签先列为候选。'),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>{draft.personAliases=v;aliasWarning.textContent=personAliases(v).conflicts.length?`重复别名未参与匹配：${personAliases(v).conflicts.join('、')}。请只保留一个归属。`:''},true));
-    const list=el('div','uos-settings-entries');list.append(el('h3','','开场卡片'),el('p','uos-help','展开要修改的开场。收起只隐藏编辑项，不会清除修改。'));fields.append(list);
+    const list=el('div','uos-settings-entries');list.append(el('h3','','开场卡片'),el('p','uos-help','展开要修改的开场。收起只隐藏编辑项，不会清除修改。'));fields.append(list);moduleHelp.attach(list.querySelector('h3'),'cards');
     const greetings=greetingList();const items=entries();items.forEach((entry,i)=>{
       draft.entries[i]={...entry,...draft.entries[i]};entry=draft.entries[i];const box=el('details','uos-entry uos-settings-entry');box.open=i===0;const entryHeading=el('summary','',`第 ${i+1} 条 · ${entry.title||'未命名开场'}`);box.append(entryHeading);box.addEventListener('toggle',()=>{if(box.open)for(const other of list.querySelectorAll('.uos-settings-entry'))if(other!==box)other.open=false});
       if(greetings[i]){const source=el('details','uos-source');source.append(el('summary','','查看原开场正文'),el('pre','',greetings[i]));box.append(source)}
@@ -456,13 +460,14 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   $('[data-settings-button]').onclick=openSettings;
   const generateButton=root.querySelector('[data-generate-opening]')||el('button','uos-icon','＋ 生成开场白');generateButton.type='button';generateButton.dataset.generateOpening='';generateButton.onclick=()=>{void generator.open()};root.querySelector('.uos-actions')?.prepend(generateButton);
   const peopleButton=el('button','uos-icon','人物列表');peopleButton.type='button';peopleButton.dataset.peopleList='';peopleButton.onclick=()=>{void peopleEditor.open()};root.querySelector('.uos-actions')?.prepend(peopleButton);
+  moduleHelp.attach(root.querySelector('.uos-actions'),'openings');
   root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>activePopup?.complete(null));
   render();
   ensureUpdateSettings($('[data-settings-dialog]'));
   void refreshWorldbookPeople();
   void worldbookEditor.refresh();
   root.dataset.uosMounted = '1';
-  root.__uosPrepareForUpdate=async()=>{peopleEditor?.close();if(!await generator.prepareForUpdate())return false;if(!hasUnsavedSettings())return true;await activePopup?.complete();return !hasUnsavedSettings()};
+  root.__uosPrepareForUpdate=async()=>{moduleHelp.close();peopleEditor?.close();if(!await generator.prepareForUpdate())return false;if(!hasUnsavedSettings())return true;await activePopup?.complete();return !hasUnsavedSettings()};
   root.dataset.uosVersion = VERSION;
   return true;
 }

@@ -1,3 +1,4 @@
+import {createModuleHelp} from './module-help.js';
 import {rosterNames,readPeopleRoster,writePeopleRoster} from './opening-people.js';
 const CSS=`.uos-people-editor{box-sizing:border-box;width:min(660px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif}.uos-people-editor::backdrop{background:#0009}.uos-people-editor h2{margin:0 0 8px}.uos-people-editor p{color:var(--muted,#b7c3cc)}.uos-people-editor-actions,.uos-people-editor-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-people-editor-list{max-height:40dvh;overflow:auto}.uos-people-editor-list label{padding:6px 10px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-people-editor [hidden]{display:none!important}.uos-people-editor input[type=search]{box-sizing:border-box;width:100%;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor small{color:var(--muted,#b7c3cc);overflow-wrap:anywhere}.uos-people-editor textarea{box-sizing:border-box;width:100%;min-height:90px;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor button{padding:8px 12px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:inherit;cursor:pointer;font:inherit}.uos-people-editor button:disabled{opacity:.5;cursor:default}.uos-people-editor :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}`;
 export function createOpeningPeopleEditor({doc,host,getContext,readWorldbook,getKnownNames=()=>[],getSuggestedNames=()=>[],getPalette,beforeOpen=async()=>true,onSaved=()=>{}}){
@@ -10,12 +11,13 @@ export function createOpeningPeopleEditor({doc,host,getContext,readWorldbook,get
     const active=()=>{const current=getContext();return !closed&&current?.characterId===id&&current?.characters?.[id]?.avatar===avatar};
     const el=(tag,text='')=>{const node=doc.createElement(tag);node.textContent=text;return node};
     const dialog=el('dialog');dialog.className='uos-people-editor';dialog.dataset.peopleEditor='';dialog.setAttribute('aria-label','人物列表');
-    const style=el('style',CSS);dialog.append(style);
+    const moduleHelp=createModuleHelp({doc});const style=el('style',CSS);dialog.append(style);
     const palette=getPalette?.();if(palette){const computed=host.getComputedStyle(palette);for(const name of ['--bg','--panel','--text','--muted','--accent','--line'])dialog.style.setProperty(name,computed.getPropertyValue(name))}
     const previousFocus=doc.activeElement;
-    const close=()=>{if(closed)return;closed=true;dialog.remove();if(session?.dialog===dialog)session=null;try{previousFocus?.focus()}catch{}};
+    const close=()=>{if(closed)return;closed=true;moduleHelp.dispose();dialog.remove();if(session?.dialog===dialog)session=null;try{previousFocus?.focus()}catch{}};
     const button=(text,fn)=>{const node=el('button',text);node.type='button';node.onclick=fn;return node};
-    dialog.append(el('h2','人物列表'),el('p','勾选决定人物是否参与识别；取消勾选仍保留人物行，删除则立即隐藏人物行。勾选并保存即确认身份；此后只按保留的人物及有效别名识别，名单外人物只列为待确认。作者版、玩家版与生成器共用。'),el('p','按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。'));
+    const head=el('div');head.style.cssText='display:flex;align-items:center;gap:8px';head.append(el('h2','人物列表'));moduleHelp.attach(head,'people');dialog.append(head);
+    dialog.append(el('p','勾选决定人物是否参与识别；取消勾选仍保留人物行，删除则立即隐藏人物行。勾选并保存即确认身份；此后只按保留的人物及有效别名识别，名单外人物只列为待确认。作者版、玩家版与生成器共用。'),el('p','按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。'));
     const status=el('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');dialog.append(status);
     const search=el('input');search.type='search';search.placeholder='搜索人物或来源';search.setAttribute('aria-label','搜索人物列表');search.dataset.peopleSearch='';dialog.append(search);
     const pendingLabel=el('label'),pendingOnly=el('input');pendingOnly.type='checkbox';pendingOnly.checked=false;pendingOnly.dataset.peoplePendingOnly='';pendingOnly.setAttribute('aria-label','只看待确认');pendingLabel.append(pendingOnly,el('span','只看待确认'));dialog.append(pendingLabel);

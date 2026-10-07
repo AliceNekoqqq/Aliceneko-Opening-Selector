@@ -1,3 +1,4 @@
+import {createModuleHelp} from './module-help.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
@@ -367,6 +368,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const brand=createBrandMark(el);applyBrandVisibility(panel,brandVisibilityPreference.get());panel.append(brand.element);
     const head=el('div','uos-user-head'),heading=el('div'),kicker=el('span','uos-user-kicker',THEME_CAPTIONS[panel.dataset.theme]);const headerArt=el('span','uos-user-header-ornament');headerArt.setAttribute('aria-hidden','true');kicker.append(headerArt);heading.append(kicker,el('h2','','选择故事的起点'),el('p','',`共 ${snapshot.entries.length} 个开场 · 预览后选择进入`));
     const close=el('button','uos-user-close','关闭');close.type='button';close.onclick=()=>{void session.requestClose()};const versionBadge=el('small','uos-user-version-badge',`v${VERSION}`);head.append(heading,versionBadge,close);
+    const moduleHelp=createModuleHelp({doc});session.own(()=>moduleHelp.dispose());moduleHelp.attach(head,'openings',{before:close});
     const tools=el('div','uos-user-tools');
     const generator=createOpeningGenerator({doc,host,helper,getContext:()=>host.SillyTavern?.getContext?.(),mode:'player',
       sources:()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],readWorldbook:readWorldbookPeople,getPalette:()=>panel,
@@ -604,6 +606,9 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
     const stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});session.own(stopUpdateControl);
     settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings,floatingStyle,brandVisibility});
+    moduleHelp.heading(settings,'playerSettings','玩家设置');
+    for(const [block,topic] of [[exclusion,'titleRules'],[personSettings,'recognition'],[edits,'playerEdits'],[labelSettings,'labels'],[updateSettings,'updates']])moduleHelp.attach(block.querySelector('summary'),topic);
+    const appearanceHeading=[...settings.querySelectorAll('h3')].find(node=>node.textContent==='界面外观');moduleHelp.attach(appearanceHeading,'appearance');
     const welcome=createMascotNote(el,'welcome','按需要展开一项设置，修改后使用该项的保存按钮。');
     settings.querySelector('.uos-user-settings-intro').replaceWith(welcome.element);session.own(welcome.dispose);
     panel.append(head,tools,settings,search,results,list,status,mark);
@@ -623,7 +628,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       restore:restorePlayerDraft,saveCard:saveCardDraft,saveLocal:saveLocalDraft,
       isActive:()=>panelSession===session&&!session.disposed,status:message=>{status.textContent=message},
     });
-    session.setGuard({confirm:async()=>{peopleEditor.close();return await generator.prepareForUpdate()&&playerDraftGuard.confirm()},close:()=>playerDraftGuard.close()});
+    session.setGuard({confirm:async()=>{moduleHelp.close();peopleEditor.close();return await generator.prepareForUpdate()&&playerDraftGuard.confirm()},close:()=>playerDraftGuard.close()});
     const confirmPlayerChanges=()=>playerDraftGuard.confirm();
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';

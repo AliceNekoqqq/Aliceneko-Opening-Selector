@@ -1,3 +1,4 @@
+import {createModuleHelp} from './module-help.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {OPENING_SEEDS,openingNames,openingStamp,normalizeGenerationOptions,selectedWorldbookContext,buildOpeningPrompt} from './opening-generation.js';
 import {createOpeningGenerationService,appendGeneratedOpening} from './opening-generation-service.js';
@@ -23,12 +24,12 @@ export function createOpeningGenerator({doc,host,sources,getContext,helper,readW
     let options=normalizeGenerationOptions(restored.options),versions=(Array.isArray(restored.versions)?restored.versions:[]).filter(item=>typeof item?.body==='string').slice(-5).map(item=>({body:item.body.slice(0,50000),title:String(item.title||'').slice(0,100),names:openingNames(item.names)}));
     let selected=Math.max(0,Math.min(versions.length-1,Math.trunc(Number(restored.selected))||0)),worldbookResult=null,worldbookTask=null,loadingWorldbook=false,cancelBeforeRequest=false,pending=false,saving=false,closed=false,storageSaved=true;
     const service=createOpeningGenerationService(sources),dialog=doc.createElement('dialog');dialog.className='uos-generator';dialog.dataset.openingGenerator=mode;dialog.setAttribute('aria-labelledby','uos-generator-title');
-    const style=doc.createElement('style');style.textContent=CSS;dialog.append(style);
+    const moduleHelp=createModuleHelp({doc});const style=doc.createElement('style');style.textContent=CSS;dialog.append(style);
     const palette=getPalette?.();if(palette){const computed=host.getComputedStyle(palette);for(const name of ['--bg','--panel','--text','--muted','--accent','--line'])dialog.style.setProperty(name,computed.getPropertyValue(name))}
     const el=(tag,text='',className='')=>{const node=doc.createElement(tag);node.className=className;node.textContent=text;return node};
     const button=(text,fn,className='')=>{const node=el('button',text,className);node.type='button';node.onclick=fn;return node};
     const heading=el('h2',mode==='author'?'辅助创作开场白':'创建新开场白');heading.id='uos-generator-title';
-    const close=button('关闭',()=>requestClose()),head=el('header','','uos-generator-head');head.append(heading,close);dialog.append(head);
+    const close=button('关闭',()=>requestClose()),head=el('header','','uos-generator-head');head.append(heading,close);moduleHelp.attach(head,'generation',{before:close});dialog.append(head);
     const main=el('div','','uos-generator-main');dialog.append(main);
     const status=el('p','','uos-generator-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
     const setStatus=text=>{status.textContent=text+(!storageSaved?'\n本机草稿保存不可用，请复制正文留存。':'')};
@@ -134,7 +135,7 @@ export function createOpeningGenerator({doc,host,sources,getContext,helper,readW
       }catch(error){setStatus(`保存未完成：${error?.message||error}`)}finally{saving=false;if(!closed)updateButtons()}
     }
     const previousFocus=doc.activeElement;
-    function finish(){if(closed)return;closed=true;service.close();dialog.remove();if(session?.dialog===dialog)session=null;try{previousFocus?.focus()}catch{}}
+    function finish(){if(closed)return;closed=true;moduleHelp.dispose();service.close();dialog.remove();if(session?.dialog===dialog)session=null;try{previousFocus?.focus()}catch{}}
     function requestClose(){
       if(saving)return false;capture();saveCandidate();persist();
       if(!storageSaved&&versions.some(item=>item.body.trim())){setStatus('草稿未能保存在本机，请先复制正文。复制后可使用下方「仍然关闭」。');if(!main.querySelector('[data-force-close]')){const force=button('仍然关闭',finish);force.dataset.forceClose='';main.append(force)}return false}

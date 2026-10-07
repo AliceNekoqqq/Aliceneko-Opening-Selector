@@ -1,3 +1,4 @@
+import {createModuleHelp} from './module-help.js';
 import {blindBoxPool,drawOpeningHand} from './opening-blind-draw.js';
 import {BLIND_BOX_DIALOG_CSS} from './opening-blind-box-styles.js';
 import {defaultCoverStyles} from './default-covers.js';
@@ -34,12 +35,14 @@ export function updateBlindBoxButton(button,items,{readonly=false,theme,manual=f
 }
 
 export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllItems=getItems,getPalette,avatar,isActive=()=>true,onPreview,onChoose,onRangeChange=()=>{},onUnavailable=()=>{},onError=()=>{},random=Math.random}){
+  const moduleHelp=createModuleHelp({doc});
   let disposed=false,active=null,lastId=null,choosing=false;
   const store=createOpeningDrawRange(host,avatar),clock=host||globalThis,style=doc.createElement('style');style.dataset.uosBlindStyle='';style.textContent=BLIND_BOX_DIALOG_CSS+BLIND_PERFORMANCE_CSS+DRAW_RANGE_CSS+defaultCoverStyles('.uos-blind-box');(doc.head||doc.documentElement).append(style);
   const el=(tag,cls='',text)=>{const node=doc.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=String(text);return node};
   const rangePanel=createDrawRangePanel({doc,el,store,getAllItems,getFilteredItems:getItems,getPalette,isActive,onUnavailable,onApply:result=>onRangeChange(result)});
   const poolItems=()=>drawRangePool(getAllItems(),getItems(),store.read());
   function close(){
+    moduleHelp.close();
     rangePanel.close();
     const current=active;if(!current)return;active=null;
     for(const timer of current.timers)clock.clearTimeout(timer);current.timers.clear();
@@ -55,7 +58,7 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
     const draw=themeDraw(dialog.dataset.theme);dialog.setAttribute('aria-label',`${draw.title}（命运盲盒）`);
     for(const key of ['--bg','--surface','--text','--muted','--accent','--line'])dialog.style.setProperty(key,computed.getPropertyValue(key)||computed.getPropertyValue('--panel'));
     const header=el('div','uos-blind-header'),heading=el('div'),exit=el('button','','关闭盲盒');exit.type='button';exit.onclick=()=>{if(active?.dialog===dialog)close()};
-    heading.append(el('p','uos-blind-kicker','随机故事 · 命运盲盒'),el('h2','uos-blind-heading',draw.title));header.append(heading,exit);
+    heading.append(el('p','uos-blind-kicker','随机故事 · 命运盲盒'),el('h2','uos-blind-heading',draw.title));header.append(heading,exit);const helpButton=moduleHelp.attach(header,'blind',{before:exit});
     const stage=el('div','uos-blind-stage'),deck=el('div','uos-blind-deck'),result=el('div','uos-blind-result');dialog.dataset.show=prefs.performances&&!reducedMotion()?'on':'off';
     stage.append(createBlindPerformance(el,dialog.dataset.theme,dialog.dataset.show==='on'),deck);
     const status=el('p','uos-blind-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
@@ -100,11 +103,11 @@ export function createOpeningBlindBox({doc,host=doc.defaultView,getItems,getAllI
     session.onKey=event=>{
       if(disposed||active!==session)return;
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();return}
-      if(event.key==='Tab'){const controls=[exit,...cards,reroll,preview,choose].filter(button=>!button.disabled),first=controls[0],last=controls.at(-1);
+      if(event.key==='Tab'){const controls=[helpButton,exit,...cards,reroll,preview,choose].filter(button=>!button.disabled),first=controls[0],last=controls.at(-1);
         if(event.shiftKey&&doc.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&doc.activeElement===last){event.preventDefault();first.focus()}}
     };
     active=session;dialog.addEventListener('keydown',session.onKey);dialog.addEventListener('cancel',event=>{event.preventDefault();if(active===session)close()});dialog.addEventListener('close',()=>{if(active===session)close()});dialog.addEventListener('click',event=>{if(active===session&&event.target===dialog)close()});
     doc.body.append(dialog);try{dialog.showModal()}catch{dialog.setAttribute('open','');dialog.setAttribute('role','dialog')}exit.focus();roll();return true;
   }
-  return {open,close,poolItems,rangeMode:()=>store.read().mode,rangeSummary(){const prefs=store.read();return `⚙ 卡池与抽卡 · ${drawRangeLabel(prefs)} · ${prefs.handSize===5?'五张':'三张'}`},openRange(trigger){if(disposed||choosing||!isActive())return false;close();return rangePanel.open(trigger)},dispose(){if(disposed)return;disposed=true;close();rangePanel.dispose();style.remove()}};
+  return {open,close,poolItems,rangeMode:()=>store.read().mode,rangeSummary(){const prefs=store.read();return `⚙ 卡池与抽卡 · ${drawRangeLabel(prefs)} · ${prefs.handSize===5?'五张':'三张'}`},openRange(trigger){if(disposed||choosing||!isActive())return false;close();return rangePanel.open(trigger)},dispose(){if(disposed)return;disposed=true;moduleHelp.dispose();close();rangePanel.dispose();style.remove()}};
 }

@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.17-beta.6" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.7" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -173,6 +173,187 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
   };
 }
 
+// src/module-help-content.js
+var MODULE_HELP = {
+  playerSettings: { title: "玩家设置", purpose: "按需要调整显示与识别结果，保留作者默认配置。", steps: ["展开需要修改的分区。", "显示信息与识别规则使用分区内的保存按钮；外观选择会立即记住。", "关闭时如有未保存修改，可保存、放弃或返回继续编辑。"], options: [["开场显示", "修正标题、人物或显示标注。"], ["界面外观", "调整悬浮入口、看板娘 Logo 与插件大标题。"], ["识别规则／插件", "修正标签提取和别名，或检查更新。"]], buttons: [["仅保存到本机／保存到角色卡", "前者只影响本机；后者将允许分享的修正写入角色配置。"]], notes: ["人物列表有独立保存按钮，两版按角色共用本机名单。", "此页不会替换开场正文；生成新开场请使用主界面的创建入口。"] },
+  titleRules: { title: "标题提取规则", purpose: "避免状态栏或辅助标签被误当作开场标题。", steps: ["查看自动标题，找出需要跳过的标签。", "填写标签名称，用逗号分隔；不用填写整段正文。", "保存后检查卡片标题和简介。"], options: [["排除标题中的 <字段>", "例如填写 SceneInfo，会在提取标题和简介时跳过该标签。"]], buttons: [["仅保存到本机／保存到角色卡", "保存玩家本机修正或作者默认规则。"]], notes: ["此设置不修改正文，也不排除人物识别中的这些标签。", "手工填写的标题优先于自动提取。"] },
+  openings: { title: "开场浏览与选择", purpose: "找到想玩的故事起点，阅读后再决定是否进入。", steps: ["用搜索和人物、分组、标签筛选缩小范围。", "点击「预览完整正文」查看内容；也可通过命运盲盒随机挑选。", "确认后点击进入开场。仅浏览、收藏和抽卡不会自动切换。"], options: [["搜索与筛选", "搜索标题、人物和正文；多个筛选条件同时生效。分组折叠只隐藏列表。"], ["收藏", "点击 ☆ 收藏或取消收藏；「只看收藏」与其他筛选组合使用。"]], buttons: [["人物列表", "整理统一人物名单，影响识别、人物筛选及生成器。"], ["创建／生成开场白", "使用当前主 API 生成草稿，编辑确认后追加备用开场。"], ["预览完整正文／进入开场", "预览只阅读；进入才执行开场切换及已分配的世界书预设。"], ["主题／设置", "主题调整外观，设置修改显示、识别与作者配置。"]], notes: ["人物是全文提及匹配，回忆、标签和状态栏里的姓名也可能命中。", "收藏、抽卡偏好按角色保存在本机；作者配置需保存到角色卡。"] },
+  authorSettings: { title: "作者设置", purpose: "设计选择页，并把可分享的配置保存到角色卡。", steps: ["按需要打开开场白、世界书、BGM 或制卡检查。", "编辑时可查看卡片和整页实时预览。", "完成后点击底部「保存到角色卡」，再从酒馆导出。"], options: [["开场白", "页面信息、版式、标题、简介、封面、人物、分组和标签。"], ["世界书／BGM", "为开场分配世界书预设；上传音乐及歌词。"], ["制卡检查／更新", "检查当前角色数据；查看版本与更新说明。"]], buttons: [["保存到角色卡", "写入并复核作者配置；只关掉设置不会自动保存。"], ["关闭时的保存／放弃／继续编辑", "保存写入卡片；放弃撤销本次草稿；继续编辑返回设置。"]], notes: ["世界书编辑需要先「保存预设」，再「保存到角色卡」。", "人物列表、收藏与抽卡设置有各自的本机保存方式，不随这颗保存按钮写入卡片。"] },
+  page: { title: "页面信息与版式", purpose: "让选择页符合角色卡的风格和信息层级。", steps: ["填写页面标题和导语。", "选择版式，决定是否显示看板娘与插件大标题。", "通过整页实时预览查看效果，再保存到角色卡。"], options: [["页面标题／导语", "展示在选择页顶部，说明这张卡的故事入口。"], ["看板娘 Logo／插件大标题", "两个开关独立；底部来源信息始终保留。"], ["页面版式", "改变卡片排列和信息呈现，可与任意主题搭配。"]], buttons: [["整页实时预览", "查看当前草稿的完整页面，预览内不会真正选择故事。"], ["保存到角色卡", "保存上述作者配置，导出后可分享。"]], notes: ["玩家可在本机覆盖部分界面偏好，不会改写作者默认值。"] },
+  cards: { title: "开场卡片与封面", purpose: "调整各条开场的展示信息，保留原始开场正文。", steps: ["展开想修改的开场，并查看原文及实时卡片预览。", "填写标题、简介、人物、分组和标签，调整封面。", "保存到角色卡；阅读正文使用「预览完整正文」。"], options: [["标题／简介／标注", "用于选择器展示；不会替换原始开场正文。"], ["登场人物", "留空并保存恢复自动识别；输入「无」隐藏人物。启用人物名单后，最终显示还需遵守名单。"], ["分组／筛选标签", "同名分组合并，标签供组合筛选使用。"], ["默认封面／自定义图片", "自定义图片优先；默认封面编号可固定，也可使用自动分配。"], ["取景位置", "调整图片横纵位置；只改变显示裁切，不改变原图片。"]], buttons: [["查看原开场正文", "只读查看正文，便于核对卡片信息。"], ["重新随机／居中显示", "重新选择默认封面或将显示位置恢复居中。"], ["采纳候选", "把候选填入人物字段；名单管理启用时还需在人物列表中确认。"]], notes: ["更改默认封面会清除当前自定义封面。", "折叠开场只隐藏编辑项；最终使用底部保存按钮写入角色卡。"] },
+  people: { title: "人物列表", purpose: "整理实际使用的人物词表，让识别和生成共用同一份名单。", steps: ["搜索姓名或来源，必要时勾选「只看待确认」。", "勾选要保留的人物，确认身份或删除不需要的行。", "点击「保存并重新识别」立即应用；关闭或取消则放弃本次修改。"], options: [["人物勾选", "决定是否纳入名单；取消勾选仍显示该行。勾选并保存即正式确认。"], ["待确认", "身份证据不足的候选；确认后去掉括号标记，保存后正式参与识别。"], ["补充人物", "用顿号、逗号或换行添加、修改遗漏的姓名。"]], buttons: [["全选／取消全选", "只改变勾选状态，不删除人物行。"], ["确认／确认已勾选人物", "单人确认会勾选此人；批量确认只处理已勾选项，不会勾回未选人物。"], ["取消勾选待确认", "取消候选的勾选，人物行仍在。"], ["删除未勾选／删除待确认", "立即移除对应人物行；保存后重新读取或重新打开也不自动恢复。"], ["重新读取人物", "刷新绑定世界书和候选来源，保留当前取舍与删除。"], ["恢复读取名单", "恢复当前读取到的行并全选，清空补充；保存前仍可取消。"], ["恢复自动识别", "准备清除本机名单限制，点击保存后恢复传统自动识别。"]], notes: ["搜索和只看待确认只改变显示；批量操作仍作用于整份列表。", "按角色保存在本机，作者和玩家共用；不修改世界书或角色卡。保存后名单外姓名仅作候选，明确删除／排除项不会重新加入。"] },
+  generation: { title: "开场白生成", purpose: "使用已配置的主 API 创作独立新开场，检查后追加备用开场。", steps: ["选择登场人物，填写故事种子、场景和核心事件。", "按需要展开更多创作选项，再点击生成。", "编辑生成正文，核对标题、人物和状态栏；确认后加入备用开场。"], options: [["人物／故事种子", "名单来自人物管理及角色资料；人物可直接修改增补。故事种子只提供创作方向。"], ["氛围／场景／关系／核心事件", "描述文风、时间地点、玩家身份及想看到的情节；留空项交由模型构思。"], ["视角／篇幅／语言", "指定叙述方式、目标长度和输出语言；实际长度受模型回复上限影响。"], ["当前预设／独立创作提示", "都调用主 API；当前预设沿用酒馆预设，独立提示减少预设对格式的干扰。"], ["结构参考／正文格式", "选已有开场并编辑参考；选择沿用结构、纯叙事或自定义格式。参考不代表此次剧情已经发生。"], ["内容限制／世界书资料", "填写必须遵守或避免的内容；世界书选项控制额外补充的有效人物资料。"]], buttons: [["生成开场白／取消生成", "生成草稿；取消只针对本次请求，等待结束前不叠加生成。"], ["草稿版本", "恢复最近五份草稿；改写会保留旧版本。"], ["按修改方向生成新版本", "先填写修改方向，再用当前正文继续调整。"], ["加入新建备用开场白", "保存正文、标题和人物；保存前检查冲突，完成后不会自动进入故事。"]], notes: ["不读取当前聊天作为剧情起点，调用使用当前主 API 配置并产生正常 API 消耗。", "选项与最近五份草稿按角色、作者／玩家模式保存在本机；新增备用开场写入角色卡，导出后可分享。"] },
+  pagePreview: { title: "整页实时预览", purpose: "保存前检查当前作者草稿在电脑和手机上的完整效果。", steps: ["展开预览，切换手机或桌面宽度。", "继续编辑上方配置，预览会自动同步。", "检查后点击设置底部「保存到角色卡」。"], options: [["手机 · 390px／桌面 · 900px", "模拟两种页面宽度；窄窗口会缩放预览以容纳完整页面。"]], buttons: [["展开预览／收起预览", "打开或收起检查区域，不清除草稿。"], ["保存到角色卡", "只有保存才写入卡片；预览里的按钮不会切换故事。"]], notes: ["预览不发送消息、不应用世界书开关；不会修改当前聊天。"] },
+  preview: { title: "正文预览与阅读", purpose: "完整阅读开场，调整阅读体验，再决定是否进入。", steps: ["打开预览后阅读封面、简介、人物和完整正文。", "需要时展开阅读设置，调整字号、行距或专注正文。", "用上一条／下一条比较，满意后选择此开场。"], options: [["正文字号／行距", "只影响预览阅读，偏好保存在本机。"], ["专注正文", "隐藏封面和辅助信息，保留正文；再次点击恢复。"], ["识别信息", "查看标题来源及待确认人物，帮助判断识别结果。"]], buttons: [["上一条／下一条", "在本次打开的范围内浏览，保留原始开场编号。"], ["选择此开场", "调用现有选择流程；当前开场不可重复选择。"], ["关闭预览", "返回原页面，不切换开场。"]], notes: ["正文只读；预览不会保存卡片、发送消息或自动播放音乐。", "从盲盒打开时，浏览范围使用本次抽取范围。"] },
+  blind: { title: "命运盲盒", purpose: "从当前抽取范围中随机摆出卡牌，由你选一张翻开。", steps: ["在「卡池与抽卡」设置范围、卡牌数量及演出。", "打开盲盒，洗牌结束后点击一张卡。", "阅读结果或完整正文，确认后才进入开场。"], options: [["主题演出", "使用当前主题的卡背和动画；简洁模式减少演出。"], ["候选数量", "不足三／五条时按实际数量摆出；当前开场和空正文不参与。"]], buttons: [["再抽一次", "重新抽取；候选足够时避开上次揭晓结果。"], ["预览正文", "阅读抽中的开场，仍不会自动进入。"], ["进入此开场／关闭盲盒", "进入才切换；关闭放弃本次抽取。"]], notes: ["抽取不修改原文、编号或人物名单；卡池为空时不会扩大范围。", "翻牌和进入处理中部分按钮会暂时禁用。"] },
+  drawSettings: { title: "卡池与抽卡设置", purpose: "管理命名卡池、候选范围和抽卡体验。", steps: ["选择沿用首页筛选，或手动勾选开场。", "需要重复使用时，填写名字并保存为新卡池。", "点击「应用抽卡设置」保存；关闭设置放弃本次修改。"], options: [["每轮摆出／演出效果", "三张或五张卡，每轮只选一张；主题演出或简洁卡牌。"], ["切换卡池／卡池名称", "选择已保存的候选集合；名字用来区分不同玩法。"], ["沿用首页筛选／手动范围", "前者跟随首页组合筛选；后者独立使用勾选结果。"], ["搜索", "查找标题、人物、分组或编号，不改变首页筛选。"]], buttons: [["保存为新卡池／更新卡池内容", "新建一个命名池，或用当前范围替换所选池内容。"], ["重命名／删除卡池", "修改名称或删除命名记录，不删除开场正文。"], ["全部勾选／全部清空／仅选当前筛选", "调整实际候选集合；当前开场与空正文不可选。"], ["应用抽卡设置", "保存本次范围、命名池和体验设置。"]], notes: ["所有设置按角色保存在本机，不随角色卡导出。", "修改范围而未更新命名池时，会脱离原池名称；空范围不会改成全卡抽取。"] },
+  themes: { title: "选择主题", purpose: "切换当前选择页的颜色、背景和主题素材。", steps: ["选择喜欢的主题。", "回到列表查看卡片、看板娘和盲盒演出。"], options: [["主题", "封面与盲盒同步适配；可与任意页面版式搭配。"]], buttons: [["主题卡片／主题下拉框", "选择后立即切换，并记住本机偏好。"], ["关闭", "保留当前主题并返回原页面。"]], notes: ["主题选择不修改开场正文、人物名单或页面版式。"] },
+  appearance: { title: "玩家界面外观", purpose: "设置悬浮入口和页面标识，选择后立即记住本机偏好。", steps: ["选择简洁版或看板娘版悬浮入口。", "分别设置是否显示 Logo 与插件大标题。"], options: [["简洁版／看板娘版", "简洁版显示标题和编号；看板娘版随主题更换造型。"], ["Logo／插件大标题", "独立控制两种标识；默认继承角色卡，底部来源信息保留。"]], buttons: [["外观下拉框与显示开关", "选择后立即保存，无需再按人物或标题修正的保存按钮。"]], notes: ["只影响本机显示，不改写作者默认配置或开场正文。"] },
+  recognition: { title: "标题与人物识别规则", purpose: "纠正自动提取结果，并设置可靠的姓名与别名。", steps: ["优先在「人物列表」确认、取舍统一名单。", "标题提取错误时，填写需要排除的标签名。", "别名混淆时，逐行设置姓名与别名并保存。"], options: [["排除标题中的 <字段>", "只影响标题和简介的提取，不会排除正文中的人物匹配。"], ["人物与别名", "每行一人，如「林安=小林,安安」；相同别名归属多人时停止自动匹配。"], ["重新读取世界书", "刷新角色绑定世界书的姓名资料，不读取无关全局书。"]], buttons: [["保存到本机／保存到角色卡", "玩家可选择本机修正或写卡分享；作者修改需保存到角色卡。"], ["人物列表", "已保存名单会约束最终识别和显示；名单外人物需先确认。"]], notes: ["全文提及不等于实际出场；标签、回忆、注释里的名字也可能命中。", "旧人物字段不会自动删除，但启用名单后显示仍遵守名单。"] },
+  playerEdits: { title: "修正标题和登场人物", purpose: "为各条开场修正展示标题与人物。", steps: ["找到对应开场，参考自动识别提示。", "填写标题或人物；人物留空恢复自动，输入「无」隐藏。", "选择保存到本机或角色卡。"], options: [["标题", "只改变选择器展示标题，原始开场正文保持不变。"], ["人物／待确认候选", "手工填写姓名；启用人物名单后，需先将姓名纳入已确认名单。"]], buttons: [["候选姓名按钮", "把姓名填入人物输入框，仍需保存修正。"], ["仅保存到本机", "只影响当前设备上的该角色。"], ["保存到角色卡", "将修正写入角色配置，重新导出后分享。"]], notes: ["玩家本机修正优先于作者默认值；最终显示仍遵守人物名单。"] },
+  labels: { title: "自定义开场标签", purpose: "给各条开场添加便于浏览的显示标注。", steps: ["填写对应开场的标注文字。", "保存后回到列表核对。"], options: [["开场标签", "替换卡片的显示标注，不等同于作者设置中的筛选标签。"]], buttons: [["保存标签", "将标注保存在本机；清空后恢复原有标注。"]], notes: ["不修改正文，按当前角色与开场列表保存在本机。"] },
+  worldbooks: { title: "世界书预设", purpose: "为不同开场保存条目开关组合，进入时自动应用。", steps: ["新建或选择预设，填写名称并勾选条目。", "点击「保存预设」，再为各条开场分配预设。", "最后点击「保存到角色卡」。"], options: [["条目勾选", "记录此预设中的启用／停用状态，不立即改变酒馆当前世界书。"], ["搜索", "筛选条目名称、注释与关键词，批量按钮作用于搜索结果。"], ["开场分配／不切换", "选择进入该开场时应用的预设；不切换会保留当前世界书开关。"]], buttons: [["新建预设／保存预设", "创建并确认预设草稿；之后仍需保存角色卡。"], ["复制当前世界书开关", "将当前开关复制进预设草稿，不立即切换条目。"], ["复制预设／删除预设／撤销修改", "复制另一个配置、删除记录或放弃当前预设草稿。"], ["启用／停用搜索结果", "批量记录匹配条目的预设状态。"], ["刷新", "重新读取角色绑定世界书及条目。"]], notes: ["只操作角色绑定的世界书；读取不完整时不能继续编辑相应预设。", "预设与分配保存于角色卡配置；用户真正进入开场时才应用条目开关。"] },
+  music: { title: "BGM 与歌词", purpose: "为选择页配置音乐及歌词，供玩家浏览时播放。", steps: ["启用 BGM，填写音乐标题并上传音频。", "需要时上传 LRC 或 TXT 歌词，在选择页试听。", "保存到角色卡后导出分享。"], options: [["启用 BGM 播放器", "决定是否显示播放器；已上传音频不会因关闭开关而清除。"], ["音乐标题／音频", "填写显示名称，上传音乐文件；内嵌音频会增加卡体积。"], ["LRC／TXT 歌词", "LRC 可按时间显示，TXT 为普通文本歌词。"]], buttons: [["播放／快退／快进／进度条", "控制选择页播放器；快退和快进每次十秒。"], ["移除音乐", "清除音乐及歌词草稿，保存后生效。"]], notes: ["音乐和歌词随作者配置保存在角色卡中；请使用有权分享的内容。"] },
+  diagnostics: { title: "制卡检查", purpose: "检查当前角色的选择器配置是否准备好分享。", steps: ["先保存当前设置，再打开制卡检查。", "根据提示检查开场、配置和脚本环境。", "回到酒馆导出角色卡；导入后再核对。"], options: [["检查结果", "使用当前酒馆角色数据，检查主开场标记、开场条目及相关配置。"]], buttons: [["保存到角色卡", "将当前作者草稿写入卡片后再检查。"]], notes: ["检查不能代替实际游玩、手机触摸或导出再导入验收。", "玩家仍需安装并启用酒馆助手及对应脚本。"] },
+  updates: { title: "检查更新", purpose: "查看新版版本号与更新内容，自行决定是否更新。", steps: ["点击检查更新，查看目标版本与更新说明。", "确认更新后加载新版本；取消保留当前版本。"], options: [["启动时自动检查更新", "关闭后仍能手动检查；正式与测试通道分别记住偏好。"], ["版本号旁星标", "提示有新版，取消后不再反复弹窗。"]], buttons: [["检查更新", "主动查询当前通道的新版本。"], ["确认更新／取消", "确认才切换，取消会记住此次候选版本。"]], notes: ["普通远程更新无需重新导入脚本；更新前会处理未保存草稿。", "测试脚本读取测试通道，正式脚本读取正式通道。"] }
+};
+
+// src/module-help.js
+var CSS = `dialog.uos-module-help{box-sizing:border-box;width:min(640px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.7 system-ui,sans-serif;overflow:auto;overscroll-behavior:contain;word-break:normal;overflow-wrap:anywhere}dialog.uos-module-help::backdrop{background:#0008}.uos-module-help *{box-sizing:border-box}.uos-module-help .uos-module-help-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--bg,#17252d);border-bottom:1px solid var(--line,#64748b)}.uos-module-help h2{margin:0!important;font:650 18px/1.5 system-ui,sans-serif!important;min-width:0;flex:1}.uos-module-help .uos-module-help-close{flex:none;min-height:44px;padding:8px 12px!important;border:1px solid var(--line,#64748b)!important;border-radius:8px!important;background:var(--panel,#23333b)!important;color:inherit!important;font:inherit!important;cursor:pointer}.uos-module-help .uos-module-help-body{padding:0 18px 18px}.uos-module-help p{margin:12px 0;color:var(--muted,#b7c3cc)}.uos-module-help details{margin:10px 0;border:1px solid var(--line,#64748b);border-radius:10px;padding:0 12px}.uos-module-help summary{min-height:44px;cursor:pointer;padding:10px 0;font-weight:650;color:var(--text,#f4ecda)}.uos-module-help ol{padding-left:24px;margin:6px 0 14px}.uos-module-help li{margin:7px 0}.uos-module-help dl{margin:4px 0 14px}.uos-module-help .uos-module-help-row{display:grid;grid-template-columns:minmax(100px,145px) minmax(0,1fr);gap:12px;padding:10px 0;border-top:1px solid var(--line,#64748b)}.uos-module-help dt{font-weight:650;color:var(--accent,#c99d67)}.uos-module-help dd{margin:0;color:var(--text,#f4ecda)}.uos-module-help :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}@media(max-width:480px){.uos-module-help .uos-module-help-head{padding:10px 12px}.uos-module-help .uos-module-help-body{padding:0 12px 12px}.uos-module-help .uos-module-help-row{grid-template-columns:1fr;gap:3px}}`;
+function createModuleHelp({ doc } = {}) {
+  let active = null, disposed = false;
+  function close() {
+    const current = active;
+    if (!current) return;
+    active = null;
+    current.observer?.disconnect();
+    current.dialog.remove();
+    try {
+      if (current.trigger?.isConnected !== false) current.trigger?.focus();
+    } catch {
+    }
+  }
+  function open(topic, trigger) {
+    const guide = MODULE_HELP[topic], owner = trigger?.ownerDocument || doc;
+    if (disposed || !guide || !owner || trigger?.isConnected === false) return false;
+    close();
+    const el = (tag, text2 = "", className = "") => {
+      const node = owner.createElement(tag);
+      node.textContent = text2;
+      node.className = className;
+      return node;
+    };
+    const dialog = el("dialog", "", "uos-module-help");
+    dialog.dataset.moduleHelp = topic;
+    dialog.setAttribute("aria-label", guide.title + " · 功能说明");
+    const style = el("style", CSS);
+    dialog.append(style);
+    try {
+      const computed = owner.defaultView?.getComputedStyle(trigger);
+      for (const variable of ["--bg", "--panel", "--surface", "--text", "--muted", "--line", "--accent"]) dialog.style.setProperty(variable, computed?.getPropertyValue(variable) || "");
+    } catch {
+    }
+    const head = el("header", "", "uos-module-help-head"), title = el("h2", guide.title + " · 功能说明"), exit = el("button", "关闭说明", "uos-module-help-close");
+    exit.type = "button";
+    exit.onclick = close;
+    head.append(title, exit);
+    dialog.append(head);
+    const body = el("div", "", "uos-module-help-body");
+    body.append(el("p", guide.purpose));
+    dialog.append(body);
+    const section = (label, expanded = false) => {
+      const details = el("details"), summary = el("summary", label);
+      details.open = expanded;
+      details.append(summary);
+      body.append(details);
+      return details;
+    };
+    const quick = section("快速上手", true), steps = el("ol");
+    for (const step of guide.steps) steps.append(el("li", step));
+    quick.append(steps);
+    const controls = section("选项与按钮");
+    for (const [label, rows] of [["选项说明", guide.options], ["按钮说明", guide.buttons]]) {
+      controls.append(el("h3", label));
+      const mapping = el("dl");
+      for (const [name2, description] of rows) {
+        const row = el("div", "", "uos-module-help-row");
+        row.append(el("dt", name2), el("dd", description));
+        mapping.append(row);
+      }
+      controls.append(mapping);
+    }
+    const notes = section("保存与常见误解");
+    for (const note of guide.notes) notes.append(el("p", note));
+    const session = { dialog, trigger, observer: null };
+    active = session;
+    const dismiss = () => {
+      if (active === session) close();
+    };
+    dialog.addEventListener("close", dismiss);
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      event.stopPropagation?.();
+      dismiss();
+    });
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation?.();
+        dismiss();
+      }
+    });
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dismiss();
+    });
+    (owner.body || owner.documentElement).append(dialog);
+    try {
+      dialog.showModal();
+    } catch {
+      dismiss();
+      return false;
+    }
+    const Observer = owner.defaultView?.MutationObserver;
+    if (Observer && trigger) {
+      session.observer = new Observer(() => {
+        if (trigger.isConnected === false) dismiss();
+      });
+      session.observer.observe(owner.documentElement || owner.body, { childList: true, subtree: true });
+    }
+    exit.focus();
+    return true;
+  }
+  function attach(container, topic, { before } = {}) {
+    if (disposed || !container || !MODULE_HELP[topic]) return null;
+    const existing = container.querySelector?.(`[data-module-help-topic="${topic}"]`);
+    if (existing) return existing;
+    const owner = container.ownerDocument || doc;
+    if (!owner) return null;
+    const button = owner.createElement("button");
+    button.type = "button";
+    button.dataset.moduleHelpTopic = topic;
+    button.setAttribute("aria-label", MODULE_HELP[topic].title + "功能说明");
+    button.setAttribute("aria-haspopup", "dialog");
+    button.title = "功能说明";
+    button.style.cssText = "display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:0 0 44px!important;width:44px!important;height:44px!important;min-height:44px!important;margin:0 0 0 auto!important;padding:0!important;border:0!important;border-radius:50%!important;background:transparent!important;color:var(--accent,currentColor)!important;box-shadow:none!important;cursor:pointer!important;vertical-align:middle";
+    if (/^(H[1-6]|SUMMARY)$/i.test(container.tagName || container.tag || "")) {
+      for (const [name2, value] of [["position", "relative"], ["padding-right", "52px"], ["min-height", "44px"]]) container.style.setProperty(name2, value);
+      button.style.cssText += ";position:absolute!important;right:0!important;top:50%!important;transform:translateY(-50%)!important";
+    }
+    const marker = owner.createElement("span");
+    marker.textContent = "?";
+    marker.setAttribute("aria-hidden", "true");
+    marker.style.cssText = "display:flex;align-items:center;justify-content:center;width:25px;height:25px;border:1px solid currentColor;border-radius:50%;font:650 16px/1 system-ui,sans-serif";
+    button.append(marker);
+    button.onclick = (event) => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      return open(topic, button);
+    };
+    if (before?.before) before.before(button);
+    else container.append(button);
+    return button;
+  }
+  function heading(container, topic, label) {
+    const owner = container.ownerDocument || doc;
+    if (!owner) return null;
+    const row = owner.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0";
+    row.dataset.moduleHelpHeading = topic;
+    const title = owner.createElement("h3");
+    title.textContent = label || MODULE_HELP[topic]?.title;
+    title.style.cssText = "margin:0;flex:1;min-width:0;font-size:16px";
+    row.append(title);
+    attach(row, topic);
+    if (container.prepend) container.prepend(row);
+    else container.append(row);
+    return row;
+  }
+  return { attach, heading, open, close, dispose() {
+    disposed = true;
+    close();
+  } };
+}
+
 // src/people-roster-rules.js
 var name = (value) => String(value ?? "").normalize("NFKC").replace(/[\u200b-\u200d\ufeff]/g, "").trim().slice(0, 60);
 function rosterNames(value) {
@@ -215,7 +396,7 @@ function writePeopleRoster(host, avatar, value) {
 }
 
 // src/opening-people-editor.js
-var CSS = `.uos-people-editor{box-sizing:border-box;width:min(660px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif}.uos-people-editor::backdrop{background:#0009}.uos-people-editor h2{margin:0 0 8px}.uos-people-editor p{color:var(--muted,#b7c3cc)}.uos-people-editor-actions,.uos-people-editor-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-people-editor-list{max-height:40dvh;overflow:auto}.uos-people-editor-list label{padding:6px 10px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-people-editor [hidden]{display:none!important}.uos-people-editor input[type=search]{box-sizing:border-box;width:100%;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor small{color:var(--muted,#b7c3cc);overflow-wrap:anywhere}.uos-people-editor textarea{box-sizing:border-box;width:100%;min-height:90px;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor button{padding:8px 12px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:inherit;cursor:pointer;font:inherit}.uos-people-editor button:disabled{opacity:.5;cursor:default}.uos-people-editor :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}`;
+var CSS2 = `.uos-people-editor{box-sizing:border-box;width:min(660px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif}.uos-people-editor::backdrop{background:#0009}.uos-people-editor h2{margin:0 0 8px}.uos-people-editor p{color:var(--muted,#b7c3cc)}.uos-people-editor-actions,.uos-people-editor-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-people-editor-list{max-height:40dvh;overflow:auto}.uos-people-editor-list label{padding:6px 10px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-people-editor [hidden]{display:none!important}.uos-people-editor input[type=search]{box-sizing:border-box;width:100%;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor small{color:var(--muted,#b7c3cc);overflow-wrap:anywhere}.uos-people-editor textarea{box-sizing:border-box;width:100%;min-height:90px;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor button{padding:8px 12px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:inherit;cursor:pointer;font:inherit}.uos-people-editor button:disabled{opacity:.5;cursor:default}.uos-people-editor :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}`;
 function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKnownNames = () => [], getSuggestedNames = () => [], getPalette, beforeOpen = async () => true, onSaved = () => {
 } }) {
   let session = null, disposed = false;
@@ -247,7 +428,8 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
     dialog.className = "uos-people-editor";
     dialog.dataset.peopleEditor = "";
     dialog.setAttribute("aria-label", "人物列表");
-    const style = el("style", CSS);
+    const moduleHelp = createModuleHelp({ doc });
+    const style = el("style", CSS2);
     dialog.append(style);
     const palette = getPalette?.();
     if (palette) {
@@ -258,6 +440,7 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
     const close = () => {
       if (closed) return;
       closed = true;
+      moduleHelp.dispose();
       dialog.remove();
       if (session?.dialog === dialog) session = null;
       try {
@@ -271,7 +454,12 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
       node.onclick = fn;
       return node;
     };
-    dialog.append(el("h2", "人物列表"), el("p", "勾选决定人物是否参与识别；取消勾选仍保留人物行，删除则立即隐藏人物行。勾选并保存即确认身份；此后只按保留的人物及有效别名识别，名单外人物只列为待确认。作者版、玩家版与生成器共用。"), el("p", "按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。"));
+    const head = el("div");
+    head.style.cssText = "display:flex;align-items:center;gap:8px";
+    head.append(el("h2", "人物列表"));
+    moduleHelp.attach(head, "people");
+    dialog.append(head);
+    dialog.append(el("p", "勾选决定人物是否参与识别；取消勾选仍保留人物行，删除则立即隐藏人物行。勾选并保存即确认身份；此后只按保留的人物及有效别名识别，名单外人物只列为待确认。作者版、玩家版与生成器共用。"), el("p", "按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。"));
     const status = el("p");
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
@@ -785,8 +973,10 @@ var DRAW_RANGE_CSS = `
 @media(max-width:380px){.uos-blind-range-body{padding:14px}.uos-blind-range-section{padding:10px}}
 `;
 function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, getPalette, isActive, onApply, onUnavailable }) {
+  const moduleHelp = createModuleHelp({ doc });
   let disposed = false, active = null;
   function close() {
+    moduleHelp.close();
     const current = active;
     if (!current) return;
     active = null;
@@ -813,6 +1003,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     const header = el("div", "uos-blind-header"), heading = el("h2", "uos-blind-heading", "卡池与抽卡设置"), exit = el("button", "", "关闭设置");
     exit.type = "button";
     header.append(heading, exit);
+    const helpButton = moduleHelp.attach(header, "drawSettings", { before: exit });
     const body = el("div", "uos-blind-range-body"), mode = el("select", "uos-blind-range-mode"), search = el("input", "uos-blind-range-search");
     const section = (title) => {
       const node = el("fieldset", "uos-blind-range-section");
@@ -1035,7 +1226,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
         return;
       }
       if (event.key === "Tab") {
-        const controls = [exit, hand, show, poolSelect, name2, addPool, updatePool, renamePool, deletePool, mode, search, all, none, filtered, ...checkboxes, save].filter((node) => !node.disabled), first = controls[0], last = controls.at(-1);
+        const controls = [helpButton, exit, hand, show, poolSelect, name2, addPool, updatePool, renamePool, deletePool, mode, search, all, none, filtered, ...checkboxes, save].filter((node) => !node.disabled), first = controls[0], last = controls.at(-1);
         if (event.shiftKey && doc.activeElement === first) {
           event.preventDefault();
           last.focus();
@@ -1069,6 +1260,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
   return { open, close, dispose() {
     if (disposed) return;
     disposed = true;
+    moduleHelp.dispose();
     close();
   } };
 }
@@ -1244,6 +1436,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
 }, onUnavailable = () => {
 }, onError = () => {
 }, random = Math.random }) {
+  const moduleHelp = createModuleHelp({ doc });
   let disposed = false, active = null, lastId = null, choosing = false;
   const store = createOpeningDrawRange(host, avatar), clock = host || globalThis, style = doc.createElement("style");
   style.dataset.uosBlindStyle = "";
@@ -1258,6 +1451,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
   const rangePanel = createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems: getItems, getPalette, isActive, onUnavailable, onApply: (result) => onRangeChange(result) });
   const poolItems = () => drawRangePool(getAllItems(), getItems(), store.read());
   function close() {
+    moduleHelp.close();
     rangePanel.close();
     const current = active;
     if (!current) return;
@@ -1293,6 +1487,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
     };
     heading.append(el("p", "uos-blind-kicker", "随机故事 · 命运盲盒"), el("h2", "uos-blind-heading", draw.title));
     header.append(heading, exit);
+    const helpButton = moduleHelp.attach(header, "blind", { before: exit });
     const stage = el("div", "uos-blind-stage"), deck = el("div", "uos-blind-deck"), result = el("div", "uos-blind-result");
     dialog.dataset.show = prefs.performances && !reducedMotion() ? "on" : "off";
     stage.append(createBlindPerformance(el, dialog.dataset.theme, dialog.dataset.show === "on"), deck);
@@ -1450,7 +1645,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
         return;
       }
       if (event.key === "Tab") {
-        const controls = [exit, ...cards, reroll, preview, choose].filter((button) => !button.disabled), first = controls[0], last = controls.at(-1);
+        const controls = [helpButton, exit, ...cards, reroll, preview, choose].filter((button) => !button.disabled), first = controls[0], last = controls.at(-1);
         if (event.shiftKey && doc.activeElement === first) {
           event.preventDefault();
           last.focus();
@@ -1493,6 +1688,7 @@ function createOpeningBlindBox({ doc, host = doc.defaultView, getItems, getAllIt
   }, dispose() {
     if (disposed) return;
     disposed = true;
+    moduleHelp.dispose();
     close();
     rangePanel.dispose();
     style.remove();
@@ -2907,7 +3103,7 @@ function createReadingPreferences(host) {
 }
 
 // src/opening-preview.js
-var CSS2 = `
+var CSS3 = `
 dialog.uos-opening-preview{position:fixed;inset:0;width:min(760px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:min(850px,calc(100vh - 24px));height:min(850px,calc(100dvh - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);margin:auto;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text);box-shadow:0 22px 70px #0007;font:14px/1.7 system-ui,sans-serif;z-index:2147483646;overflow:hidden;color-scheme:dark}
 dialog.uos-opening-preview:is([data-theme=paper],[data-theme=school]){color-scheme:light}
 .uos-opening-preview::backdrop{background:#0009}
@@ -2948,11 +3144,12 @@ dialog.uos-opening-preview:is([data-theme=paper],[data-theme=school]){color-sche
 @media(max-width:480px){dialog.uos-opening-preview{width:calc(100vw - 16px);height:calc(100vh - 16px);height:calc(100dvh - 16px);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);border-radius:12px}.uos-opening-preview .uos-preview-content{padding:14px}.uos-opening-preview .uos-preview-header,.uos-opening-preview .uos-preview-footer{padding:10px 12px;gap:8px}.uos-opening-preview .uos-preview-footer button{flex:1}.uos-opening-preview .uos-preview-pager{flex-basis:100%;text-align:center;margin:0}.uos-opening-preview button{min-height:44px;padding:8px}.uos-opening-preview .uos-preview-title{font-size:21px}}
 `;
 function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.defaultView }) {
+  const moduleHelp = createModuleHelp({ doc });
   let disposed = false, active = null;
   const preferences = createReadingPreferences(host);
   const style = doc.createElement("style");
   style.dataset.uosPreviewStyle = "";
-  style.textContent = CSS2 + defaultCoverStyles(".uos-opening-preview");
+  style.textContent = CSS3 + defaultCoverStyles(".uos-opening-preview");
   (doc.head || doc.documentElement).append(style);
   const el = (tag, cls = "", text2) => {
     const node = doc.createElement(tag);
@@ -2961,6 +3158,7 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
     return node;
   };
   function close() {
+    moduleHelp.close();
     const current = active;
     if (!current) return;
     active = null;
@@ -2987,6 +3185,7 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
     exit.type = "button";
     exit.onclick = close;
     header.append(heading, exit);
+    const helpButton = moduleHelp.attach(header, "preview", { before: exit });
     const reading = el("details", "uos-preview-reading"), readingSummary = el("summary", "", "阅读设置"), controls = el("div", "uos-preview-reading-controls");
     reading.append(readingSummary, controls);
     header.append(reading);
@@ -3103,7 +3302,7 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
         return;
       }
       if (event.key === "Tab") {
-        const buttons = [exit, readingSummary, ...reading.open ? [font, spacing, focus] : [], ...diagnosticsSummary && !prefs.focusBody ? [diagnosticsSummary] : [], previous, next, choose].filter((button) => !button.disabled), first = buttons[0], last = buttons.at(-1);
+        const buttons = [helpButton, exit, readingSummary, ...reading.open ? [font, spacing, focus] : [], ...diagnosticsSummary && !prefs.focusBody ? [diagnosticsSummary] : [], previous, next, choose].filter((button) => !button.disabled), first = buttons[0], last = buttons.at(-1);
         if (event.shiftKey && doc.activeElement === first) {
           event.preventDefault();
           last.focus();
@@ -3139,6 +3338,7 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
   return { open, close, dispose() {
     if (disposed) return;
     disposed = true;
+    moduleHelp.dispose();
     close();
     style.remove();
   } };
@@ -3538,7 +3738,7 @@ async function appendGeneratedOpening({ host, getContext, helper, identity, mode
 }
 
 // src/opening-generator.js
-var CSS3 = `
+var CSS4 = `
 .uos-generator{box-sizing:border-box;width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line,#64748b);border-radius:16px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif;overflow:auto;overscroll-behavior:contain}.uos-generator::backdrop{background:#0009}.uos-generator *{box-sizing:border-box}.uos-generator [hidden]{display:none!important}.uos-generator-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line,#64748b);background:var(--bg,#17252d)}.uos-generator h2{font-size:19px;margin:0}.uos-generator h3{font-size:16px;margin:18px 0 8px}.uos-generator-main{padding:0 20px 20px}.uos-generator p{margin:8px 0;color:var(--muted,#b7c3cc)}.uos-generator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.uos-generator-field{display:flex;flex-direction:column;gap:5px;min-width:0;margin:10px 0}.uos-generator-field>span{font-size:13px;color:var(--muted,#b7c3cc)}.uos-generator :is(input:not([type=checkbox]),textarea,select){display:block;width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:var(--text,#f4ecda);font:inherit}.uos-generator textarea{resize:vertical;min-height:80px}.uos-generator .uos-generator-body{min-height:280px;white-space:pre-wrap}.uos-generator button{padding:8px 13px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:var(--text,#f4ecda);font:inherit;cursor:pointer}.uos-generator button:disabled{opacity:.5;cursor:default}.uos-generator :is(button,input,textarea,select):focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}.uos-generator .uos-generator-primary{border-color:var(--accent,#c99d67);font-weight:650}.uos-generator-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-generator-cast{display:flex;flex-wrap:wrap;gap:6px;max-height:180px;overflow:auto}.uos-generator-person{display:flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-generator-person input{width:16px;height:16px;accent-color:var(--accent,#c99d67)}.uos-generator details{margin:14px 0;padding:10px 12px;border:1px solid var(--line,#64748b);border-radius:10px}.uos-generator summary{cursor:pointer}.uos-generator-status{white-space:pre-wrap;overflow-wrap:anywhere;min-height:24px}.uos-generator-review{border-top:1px solid var(--line,#64748b);margin-top:18px;padding-top:4px}.uos-generator-check{display:flex;align-items:center;gap:8px;margin:12px 0}.uos-generator small{color:var(--muted,#b7c3cc)}@media(max-width:520px){.uos-generator-grid{grid-template-columns:1fr;gap:0}.uos-generator-head{padding:12px}.uos-generator-main{padding:0 12px 12px}.uos-generator h2{font-size:17px}.uos-generator-head button{flex:none}}
 `;
 function createOpeningGenerator({ doc, host, sources, getContext, helper, readWorldbook, getPalette, getKnownNames = () => [], onSaved = () => {
@@ -3571,8 +3771,9 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     dialog.className = "uos-generator";
     dialog.dataset.openingGenerator = mode;
     dialog.setAttribute("aria-labelledby", "uos-generator-title");
+    const moduleHelp = createModuleHelp({ doc });
     const style = doc.createElement("style");
-    style.textContent = CSS3;
+    style.textContent = CSS4;
     dialog.append(style);
     const palette = getPalette?.();
     if (palette) {
@@ -3595,6 +3796,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     heading.id = "uos-generator-title";
     const close = button("关闭", () => requestClose()), head = el("header", "", "uos-generator-head");
     head.append(heading, close);
+    moduleHelp.attach(head, "generation", { before: close });
     dialog.append(head);
     const main = el("div", "", "uos-generator-main");
     dialog.append(main);
@@ -3892,6 +4094,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     function finish() {
       if (closed) return;
       closed = true;
+      moduleHelp.dispose();
       service.close();
       dialog.remove();
       if (session?.dialog === dialog) session = null;
@@ -4244,7 +4447,7 @@ var WATERMARK = "唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全
 var VERSION = RUNTIME_VERSION;
 var THEME_ORNAMENT_SPRITE = THEME_ART.ornaments;
 var THEME_ICON_SPRITE = THEME_ART.icons;
-var CSS4 = `
+var CSS5 = `
 .uos-user-trigger{display:flex;align-items:center;gap:8px;width:156px;max-width:calc(100% - 24px);min-height:54px;box-sizing:border-box;margin:10px 12px;padding:5px 9px 5px 5px;border:1px solid #b99669;border-radius:13px;background:#17242d;color:#f3e9d7;font:13px/1.3 system-ui,sans-serif;text-align:left;cursor:pointer;box-shadow:0 4px 14px #0004;overflow:hidden}
 .uos-user-trigger .uos-brand-avatar{width:42px;height:42px;border-radius:9px;background-color:#ffffff12;flex:none}
 .uos-user-trigger-copy{display:grid;gap:2px;flex:1;min-width:0}
@@ -4544,7 +4747,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS4 + BRAND_CSS + PLAYER_BRAND_SETTINGS_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS5 + BRAND_CSS + PLAYER_BRAND_SETTINGS_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
   let trigger = null, triggerDrag = null, stopTriggerBrand = () => {
   }, triggerCount = null, panelSession = null, updating = false;
@@ -4666,6 +4869,9 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     };
     const versionBadge = el("small", "uos-user-version-badge", `v${VERSION}`);
     head.append(heading, versionBadge, close);
+    const moduleHelp = createModuleHelp({ doc });
+    session.own(() => moduleHelp.dispose());
+    moduleHelp.attach(head, "openings", { before: close });
     const tools = el("div", "uos-user-tools");
     const generator = createOpeningGenerator({
       doc,
@@ -5340,6 +5546,10 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     const stopUpdateControl = bindUpdateControl(updateButton, doc, { versionElements: [versionBadge, footerVersion], autoCheckInput, autoCheckHint: updateHint });
     session.own(stopUpdateControl);
     settingsLayout.assemble({ exclusion, people: personSettings, edits, labels: labelSettings, updates: updateSettings, floatingStyle, brandVisibility });
+    moduleHelp.heading(settings, "playerSettings", "玩家设置");
+    for (const [block, topic] of [[exclusion, "titleRules"], [personSettings, "recognition"], [edits, "playerEdits"], [labelSettings, "labels"], [updateSettings, "updates"]]) moduleHelp.attach(block.querySelector("summary"), topic);
+    const appearanceHeading = [...settings.querySelectorAll("h3")].find((node) => node.textContent === "界面外观");
+    moduleHelp.attach(appearanceHeading, "appearance");
     const welcome = createMascotNote(el, "welcome", "按需要展开一项设置，修改后使用该项的保存按钮。");
     settings.querySelector(".uos-user-settings-intro").replaceWith(welcome.element);
     session.own(welcome.dispose);
@@ -5375,6 +5585,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       }
     });
     session.setGuard({ confirm: async () => {
+      moduleHelp.close();
       peopleEditor.close();
       return await generator.prepareForUpdate() && playerDraftGuard.confirm();
     }, close: () => playerDraftGuard.close() });
@@ -7017,9 +7228,11 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   root.__uosDispose?.();
   const stopMascot = bindBrandImages(root);
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
-  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox, generator, peopleEditor;
+  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox, generator, peopleEditor, moduleHelp;
   let previewItems = [], allDrawItems = [];
+  moduleHelp = createModuleHelp({ doc });
   root.__uosDispose = () => {
+    moduleHelp?.dispose();
     peopleEditor?.dispose();
     generator?.dispose();
     stopMascot();
@@ -7534,6 +7747,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         portaled = [];
         frame.remove();
         activePopup = null;
+        moduleHelp.close();
         if (selector.includes("settings")) {
           pagePreview?.dispose();
           pagePreview = null;
@@ -7735,6 +7949,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   function openThemes() {
     const dlg = showSheet("[data-theme-dialog]");
     if (!dlg) return;
+    moduleHelp.attach(dlg.querySelector(".uos-sheet-head"), "themes", { before: dlg.querySelector("[data-close]") });
     const grid = $("[data-theme-grid]");
     grid.replaceChildren();
     THEMES.forEach(([id, name2]) => {
@@ -7801,6 +8016,11 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const dlg = showSheet("[data-settings-dialog]");
     if (!dlg) return;
     ensureUpdateSettings(dlg);
+    moduleHelp.attach(dlg.querySelector(".uos-sheet-head"), "authorSettings", { before: dlg.querySelector("[data-close]") });
+    for (const [tab, topic, title] of [["openings", "cards", "开场白设置"], ["worldbooks", "worldbooks", "世界书预设"], ["bgm", "music", "BGM 与歌词"], ["diagnostics", "diagnostics", "制卡检查"], ["updates", "updates", "插件更新"]]) {
+      const panel = dlg.querySelector(`[data-tab-panel="${tab}"]`);
+      if (panel && !panel.querySelector(`[data-module-help-heading="${topic}"]`)) moduleHelp.heading(panel, topic, title);
+    }
     draft || (draft = normalize2(config));
     pagePreview?.dispose();
     const manuallyEditedNames = /* @__PURE__ */ new Set(), fields = $("[data-settings-fields]");
@@ -7808,6 +8028,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const pageFields = el("section", "uos-settings-group");
     pageFields.append(el("h3", "", "页面信息"), el("p", "uos-help", "先设置选择页的标题与导语，再编辑每条开场。"), field("页面标题", draft.title, (v) => draft.title = v), field("页面导语", draft.subtitle, (v) => draft.subtitle = v, true));
     fields.append(pageFields);
+    moduleHelp.attach(pageFields.querySelector("h3"), "page");
     const brandOptions = el("div", "uos-branding-options");
     brandOptions.append(el("strong", "uos-branding-title", "页眉显示"));
     const addBrandToggle = (key, label) => {
@@ -7859,12 +8080,15 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       }
     });
     fields.append(pagePreview.element);
+    moduleHelp.attach(pagePreview.element.querySelector("summary"), "pagePreview");
     const recognition = el("details", "uos-settings-group");
     recognition.append(el("summary", "", "高级 · 标题与人物识别"), field("标题中排除的 <字段>（逗号分隔）", draft.excludedTags, (v) => draft.excludedTags = v));
     fields.append(recognition);
+    moduleHelp.attach(recognition.querySelector("summary"), "titleRules");
     const personRules = el("details", "uos-person-rules");
     personRules.append(el("summary", "", "人物识别规则"));
     recognition.append(personRules);
+    moduleHelp.attach(personRules.querySelector("summary"), "recognition");
     const worldbookList = el("ul");
     worldbookList.dataset.worldbookList = "";
     renderWorldbookPeopleList(doc, worldbookList, applyPeopleRoster(worldbookPeople, readPeopleRoster(host, character2()?.avatar)), worldbookDiagnostics);
@@ -7887,6 +8111,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const list = el("div", "uos-settings-entries");
     list.append(el("h3", "", "开场卡片"), el("p", "uos-help", "展开要修改的开场。收起只隐藏编辑项，不会清除修改。"));
     fields.append(list);
+    moduleHelp.attach(list.querySelector("h3"), "cards");
     const greetings = greetingList();
     const items = entries();
     items.forEach((entry, i) => {
@@ -8114,6 +8339,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     void peopleEditor.open();
   };
   root.querySelector(".uos-actions")?.prepend(peopleButton);
+  moduleHelp.attach(root.querySelector(".uos-actions"), "openings");
   root.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => activePopup?.complete(null));
   render();
   ensureUpdateSettings($("[data-settings-dialog]"));
@@ -8121,6 +8347,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   void worldbookEditor.refresh();
   root.dataset.uosMounted = "1";
   root.__uosPrepareForUpdate = async () => {
+    moduleHelp.close();
     peopleEditor?.close();
     if (!await generator.prepareForUpdate()) return false;
     if (!hasUnsavedSettings()) return true;
