@@ -1,4 +1,4 @@
-import {readPeopleRoster,applyPeopleRoster} from './opening-people.js';
+import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createWorldbookPresetEditor} from './worldbook-preset-editor.js';
 import {bindBrandImages,createMascotNote} from './brand-mark.js';
@@ -75,10 +75,10 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   async function refreshWorldbookPeople(refresh=false){
     const card=character(),identity=card?.avatar;
     try{const result=await readWorldbookPeople(card,{refresh});if(root.isConnected===false||character()?.avatar!==identity)return;
-      worldbookPeople=applyPeopleRoster(result.people,readPeopleRoster(host,identity));worldbookDiagnostics=result.diagnostics||[];worldbookMessage=formatWorldbookPeopleStatus(result);render();
+      worldbookPeople=result.people;worldbookDiagnostics=result.diagnostics||[];worldbookMessage=formatWorldbookPeopleStatus(result);render();
     }catch{worldbookMessage='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}
     pagePreview?.refresh();
-    const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,worldbookPeople,worldbookDiagnostics);
+    const note=$('[data-worldbook-status]');if(note)note.textContent=worldbookMessage;const list=$('[data-worldbook-list]');if(list)renderWorldbookPeopleList(doc,list,applyPeopleRoster(worldbookPeople,readPeopleRoster(host,character()?.avatar)),worldbookDiagnostics);
   }
   const stored = character()?.data?.extensions?.[KEY] ?? character()?.extensions?.[KEY];
   let config = normalize(stored || seed);
@@ -95,12 +95,13 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   const {field,fileField}=settingsFields;
   generator=createOpeningGenerator({doc:host.document,host,helper:helper(),getContext:context,mode:'author',
     sources:()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host],readWorldbook:readWorldbookPeople,getPalette:()=>root,
-    getKnownNames:()=>[...entries().flatMap(entry=>String(entry.names||'').split(/[、,，]/)),...personAliases(config.personAliases).values()],
+    getKnownNames:()=>[...config.entries.flatMap(entry=>String(entry.names||'').split(/[、,，]/)),...detectGreetingCollection(greetingList(),{worldbookPeople,aliases:config.personAliases}).flatMap(result=>result.names),...personAliases(config.personAliases).values()],
     beforeOpen:async()=>{if(activePopup){await activePopup.complete();if(activePopup)return false}return true},
     onSaved:result=>{config=normalize(result.settings);render();status(result.message)}});
   peopleEditor=createOpeningPeopleEditor({doc:host.document,host,getContext:context,readWorldbook:readWorldbookPeople,getPalette:()=>root,
-    getKnownNames:()=>[...entries().flatMap(entry=>String(entry.names||'').split(/[、,，]/)),...personAliases(config.personAliases).values()],
-    beforeOpen:async()=>{if(!await generator.prepareForUpdate())return false;if(activePopup){await activePopup.complete();if(activePopup)return false}return true},onSaved:()=>{void refreshWorldbookPeople()}});
+    getKnownNames:()=>[...config.entries.flatMap(entry=>String(entry.names||'').split(/[、,，]/)),...detectGreetingCollection(greetingList(),{worldbookPeople,aliases:config.personAliases}).flatMap(result=>result.names),...personAliases(config.personAliases).values()],
+    getSuggestedNames:()=>detectGreetingCollection(greetingList(),{worldbookPeople,aliases:config.personAliases}).flatMap(result=>result.suggestions),
+    beforeOpen:async()=>{if(!await generator.prepareForUpdate())return false;if(activePopup){await activePopup.complete();if(activePopup)return false}return true},onSaved:()=>{render();pagePreview?.refresh();void refreshWorldbookPeople()}});
   const openingGroups=createOpeningGroupRenderer({el,gridClass:'uos-grid'});
   const previewAvatar=character()?.avatar,previewCharacterId=context()?.characterId;
   const favoritesStore=createOpeningFavorites(host,previewAvatar);
@@ -155,15 +156,15 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   function infer(text,i,people,settings=config){
     const source=String(text||''),excluded=excludedTags(settings.excludedTags);
     const title=greetingTitle(source,i,excluded),body=narrativeStart(source,excluded);
-    const detected=people||detectGreetingCollection([source],{aliases:settings.personAliases,worldbookPeople})[0];
+    const detected=people||detectGreetingCollection([source],{aliases:settings.personAliases,worldbookPeople,peopleRoster:readPeopleRoster(host,character()?.avatar)})[0];
     return {title,description:body.slice(title.length).trim().slice(0,140),names:detected.names.join('、'),nameSuggestions:detected.suggestions};
   }
   function suggest(text,i){return infer(text,i)}
   function entries(settings=config){
     const greetings=greetingList();
     const count=greetings.length;
-    const people=detectGreetingCollection(greetings,{characterName:character()?.data?.name||character()?.name,knownNames:settings.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[]),aliases:settings.personAliases,worldbookPeople});
-    return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i],settings),saved=settings.entries[i]||{};return isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved}});
+    const people=detectGreetingCollection(greetings,{characterName:character()?.data?.name||character()?.name,knownNames:settings.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[]),aliases:settings.personAliases,worldbookPeople,peopleRoster:readPeopleRoster(host,character()?.avatar)});
+    return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i],settings),saved=settings.entries[i]||{};const merged=isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved};return {...merged,names:filterRosterNames(merged.names,readPeopleRoster(host,character()?.avatar)).join('、')}});
   }
   function localTheme(){try{return host.localStorage.getItem('uos_theme_'+(character()?.avatar||character()?.name||'current'))}catch{return null}}
   const defaultCoverStyle=doc.createElement('style');defaultCoverStyle.textContent=defaultCoverStyles('.uos');root.append(defaultCoverStyle);
@@ -379,7 +380,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       }});fields.append(pagePreview.element);
     const recognition=el('details','uos-settings-group');recognition.append(el('summary','','高级 · 标题与人物识别'),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));fields.append(recognition);
     const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));recognition.append(personRules);
-    const worldbookList=el('ul');worldbookList.dataset.worldbookList='';renderWorldbookPeopleList(doc,worldbookList,worldbookPeople,worldbookDiagnostics);
+    const worldbookList=el('ul');worldbookList.dataset.worldbookList='';renderWorldbookPeopleList(doc,worldbookList,applyPeopleRoster(worldbookPeople,readPeopleRoster(host,character()?.avatar)),worldbookDiagnostics);
     const aliasWarning=el('p','uos-help');aliasWarning.textContent=personAliases(draft.personAliases).conflicts.length?`重复别名未参与匹配：${personAliases(draft.personAliases).conflicts.join('、')}。请只保留一个归属。`:'';personRules.append(aliasWarning);
     const worldbookNote=el('p','uos-help',worldbookMessage);worldbookNote.dataset.worldbookStatus='';const reloadWorldbook=el('button','uos-icon','重新读取世界书');reloadWorldbook.type='button';reloadWorldbook.onclick=async()=>{reloadWorldbook.disabled=true;await refreshWorldbookPeople(true);reloadWorldbook.disabled=false};personRules.append(worldbookNote,worldbookList,reloadWorldbook,el('p','uos-help','仅读取角色绑定的世界书，明确姓名参与全文匹配，包含所有标签。普通触发关键词需手动确认；缺少明确姓名证据的标题、台词署名和人物标签先列为候选。'),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>{draft.personAliases=v;aliasWarning.textContent=personAliases(v).conflicts.length?`重复别名未参与匹配：${personAliases(v).conflicts.join('、')}。请只保留一个归属。`:''},true));
     const list=el('div','uos-settings-entries');list.append(el('h3','','开场卡片'),el('p','uos-help','展开要修改的开场。收起只隐藏编辑项，不会清除修改。'));fields.append(list);

@@ -1,4 +1,4 @@
-import {readPeopleRoster,applyPeopleRoster} from './opening-people.js';
+import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {OPENING_SEEDS,openingNames,openingStamp,normalizeGenerationOptions,selectedWorldbookContext,buildOpeningPrompt} from './opening-generation.js';
 import {createOpeningGenerationService,appendGeneratedOpening} from './opening-generation-service.js';
 
@@ -97,14 +97,14 @@ export function createOpeningGenerator({doc,host,sources,getContext,helper,readW
         const known=openingNames([data.name||card.name,...(saved.entries||[]).map(entry=>entry.names||''),...getKnownNames()]);
         const rawPeople=new Map(result.people.map(person=>[person.name,person]));for(const name of known)if(!rawPeople.has(name))rawPeople.set(name,{name,sources:['角色卡'],trusted:true});
         const roster=readPeopleRoster(host,card.avatar),people=applyPeopleRoster([...rawPeople.values()],roster);
-        controls.names.value=openingNames(controls.names.value).filter(name=>!roster.excluded.includes(name)).join('、');capture();persist();
+        controls.names.value=filterRosterNames(openingNames(controls.names.value),roster).join('、');capture();persist();
         for(const person of people){
           const label=el('label','','uos-generator-person'),input=el('input');input.type='checkbox';input.value=person.name;input.setAttribute('aria-label',`选择人物 ${person.name}`);label.title=person.sources?.join('；')||'';
           label.append(input,el('span',person.name+(person.trusted===false?'（待确认）':'')));cast.append(label);
           input.onchange=()=>{const picked=openingNames(controls.names.value);controls.names.value=(input.checked?[...picked,person.name]:picked.filter(name=>name!==person.name)).join('、');capture();persist();syncCast()};
         }
         syncCast();castHint.textContent=`读取 ${result.people.length} 位世界书人物，候选列表保留 ${people.length} 位。可在选择器主界面的「人物列表」整理名单。${result.warnings?.length?result.warnings.join('；'):''}`;
-      }catch{if(!closed)castHint.textContent='世界书读取失败，仍可手动填写人物；生成会保留角色卡背景。'}finally{loadingWorldbook=false;reload.disabled=saving}
+      }catch{if(!closed){const roster=readPeopleRoster(host,card.avatar);controls.names.value=filterRosterNames(openingNames(controls.names.value),roster).join('、');capture();persist();castHint.textContent='世界书读取失败，仍可手动填写人物；生成会保留角色卡背景。'}}finally{loadingWorldbook=false;reload.disabled=saving}
     }
     function updateButtons(){generate.disabled=pending||saving;stop.hidden=!pending;revise.disabled=pending||saving||!body.value.trim();save.disabled=pending||saving||!body.value.trim();close.disabled=saving;for(const control of dialog.querySelectorAll('input,textarea,select'))control.disabled=saving;versionsSelect.disabled=saving||!versions.length;reload.disabled=saving||loadingWorldbook}
     function renderCandidate(){

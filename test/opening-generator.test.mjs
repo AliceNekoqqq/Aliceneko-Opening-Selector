@@ -76,17 +76,33 @@ test('independent roster saves exclusions and additions, cancels drafts, refresh
   const f=setup({readWorldbook:async()=>({people:[{name:'林安'},{name:'误识别'}],warnings:[],worldbooks:[]})});
   const e=editorFixture(f,async()=>({people:[{name:'林安',trusted:true},{name:'误识别',trusted:false}],warnings:[]}));
   await e.editor.open();await tick();assert.ok(e.keep('误识别'));e.keep('误识别').checked=false;e.added().value='乔乔、乔乔';e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('误识别').checked,false);
-  e.button('保存人物列表').onclick();assert.equal(e.dialog(),null);assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')),{excluded:['误识别'],added:['乔乔']});
+  e.button('保存并重新识别').onclick();assert.equal(e.dialog(),null);assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')),{managed:true,confirmed:['林安','卡中人物','乔乔'],excluded:['误识别'],added:['乔乔']});
   await e.editor.open();await tick();assert.equal(e.keep('误识别').checked,false);e.button('恢复读取名单').onclick();e.button('取消').onclick();assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).excluded,['误识别']);
   await f.api.open();await tick();const names=f.dialog().querySelectorAll('input').filter(input=>input.type==='checkbox').map(input=>input.value);assert.ok(names.includes('乔乔'));assert.ok(!names.includes('误识别'));f.api.dispose();e.editor.dispose();
 });
 test('roster preserves more than 24 exclusions and rejects switched character saves and late reads',async()=>{
-  const f=setup(),people=Array.from({length:40},(_,i)=>({name:`人物${i}`})),e=editorFixture(f,async()=>({people,warnings:[]}));await e.editor.open();await tick();e.button('全部移除').onclick();e.button('保存人物列表').onclick();
+  const f=setup(),people=Array.from({length:40},(_,i)=>({name:`人物${i}`})),e=editorFixture(f,async()=>({people,warnings:[]}));await e.editor.open();await tick();e.button('全部移除').onclick();e.button('保存并重新识别').onclick();
   const host={localStorage:{getItem:key=>f.map.get(key)}};assert.equal(readPeopleRoster(host,'draft.png').excluded.length,42);assert.deepEqual(applyPeopleRoster(people,readPeopleRoster(host,'draft.png')),[]);
-  await e.editor.open();await tick();e.added().value='不应保存';f.context.characterId=1;e.button('保存人物列表').onclick();assert.ok(e.dialog());assert.deepEqual(readPeopleRoster(host,'draft.png').added,[]);e.editor.dispose();
+  await e.editor.open();await tick();e.added().value='不应保存';f.context.characterId=1;e.button('保存并重新识别').onclick();assert.ok(e.dialog());assert.deepEqual(readPeopleRoster(host,'draft.png').added,[]);e.editor.dispose();
   let finish;f.context.characterId=0;const delayed=editorFixture(f,()=>new Promise(resolve=>finish=resolve));await delayed.editor.open();delayed.editor.dispose();finish({people,warnings:[]});await tick();assert.equal(delayed.dialog(),null);
 });
 test('failed roster storage leaves editor open and previous choices intact',async()=>{
   const f=setup();const editor=createOpeningPeopleEditor({doc:f.doc,host:{localStorage:{getItem:()=>null,setItem(){throw Error('quota')}}},getContext:()=>f.context,readWorldbook:async()=>({people:[],warnings:[]})});
-  await editor.open();await tick();const dialog=f.doc.body.querySelector('[data-people-editor]');dialog.querySelector('[data-people-added]').value='乔乔';dialog.querySelectorAll('button').find(node=>node.textContent==='保存人物列表').onclick();assert.ok(f.doc.body.querySelector('[data-people-editor]'));assert.equal(dialog.querySelector('[data-people-added]').value,'乔乔');editor.dispose();
+  await editor.open();await tick();const dialog=f.doc.body.querySelector('[data-people-editor]');dialog.querySelector('[data-people-added]').value='乔乔';dialog.querySelectorAll('button').find(node=>node.textContent==='保存并重新识别').onclick();assert.ok(f.doc.body.querySelector('[data-people-editor]'));assert.equal(dialog.querySelector('[data-people-added]').value,'乔乔');editor.dispose();
+});
+
+test('single and bulk confirmations remove pending labels, survive reload/save and cancel discards changes',async()=>{
+  const f=setup(),read=async()=>({people:[{name:'甲',trusted:false,sources:['资料A']},{name:'乙',trusted:false,sources:['资料B']}],warnings:[]}),e=editorFixture(f,read);
+  await e.editor.open();await tick();let input=e.keep('甲'),row=input.parent;assert.equal(input.dataset.peoplePending,'true');row.querySelector('button').onclick();assert.equal(input.dataset.peoplePending,'false');assert.equal(row.querySelector('span').textContent,'甲');assert.equal(input.checked,true);
+  e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('甲').dataset.peoplePending,'false');e.button('确认全部待确认').onclick();assert.equal(e.keep('乙').dataset.peoplePending,'false');e.button('取消').onclick();assert.equal(f.map.has('uos_opening_cast_v1_draft.png'),false);
+  await e.editor.open();await tick();e.button('确认全部待确认').onclick();e.button('保存并重新识别').onclick();assert.ok(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).confirmed.includes('甲'));
+  await e.editor.open();await tick();assert.equal(e.keep('甲').dataset.peoplePending,'false');assert.equal(e.keep('甲').parent.querySelector('span').textContent,'甲');e.editor.dispose();
+});
+test('search and pending filter do not alter selections; bulk cleanup and restore are saveable draft actions',async()=>{
+  const f=setup(),e=editorFixture(f,async()=>({people:[{name:'林安',trusted:true,sources:['主书']},{name:'误识别',trusted:false,sources:['附加书']}],warnings:[]}));await e.editor.open();await tick();
+  const search=e.dialog().querySelector('[data-people-search]');search.value='附加书';search.oninput();assert.equal(e.keep('林安').parent.hidden,true);assert.equal(e.keep('误识别').parent.hidden,false);assert.equal(e.keep('林安').checked,true);
+  const pending=e.dialog().querySelector('[data-people-pending-only]');search.value='';pending.checked=true;pending.onchange();assert.equal(e.keep('林安').parent.hidden,true);assert.equal(e.keep('误识别').parent.hidden,false);
+  e.button('移除待确认').onclick();assert.equal(e.keep('误识别').checked,false);e.button('保存并重新识别').onclick();assert.ok(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).excluded.includes('误识别'));
+  await e.editor.open();await tick();e.button('恢复自动识别').onclick();e.button('取消').onclick();assert.equal(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).managed,true);
+  await e.editor.open();await tick();e.button('恢复自动识别').onclick();e.button('保存并重新识别').onclick();assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')),{managed:false,confirmed:[],excluded:[],added:[]});e.editor.dispose();
 });

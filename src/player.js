@@ -1,4 +1,4 @@
-import {readPeopleRoster,applyPeopleRoster} from './opening-people.js';
+import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
 import {BLIND_BOX_CONTROL_CSS} from './opening-blind-box-styles.js';
@@ -280,10 +280,10 @@ function labelKey(snapshot){
   return `uos_player_labels_${(hash>>>0).toString(16)}`;
 }
 function parseNames(value){return [...new Set(String(value||'').split(/[,，、/\n]+/).map(x=>x.trim()).filter(Boolean))].slice(0,8)}
-export function resolveDisplayEntry(entry,author={},local={},excluded=[]){
+export function resolveDisplayEntry(entry,author={},local={},excluded=[],peopleRoster=null){
   const title=typeof local.title==='string'&&local.title.trim()?local.title.trim():typeof author.title==='string'&&author.title.trim()?author.title.trim():greetingTitle(entry.body,entry.index,excluded);
   const nameValue=typeof local.names==='string'?local.names:typeof author.names==='string'?author.names:null;
-  const names=nameValue===null?entry.names:parseNames(nameValue);
+  const names=filterRosterNames(nameValue===null?entry.names:parseNames(nameValue),peopleRoster);
   const detectedSources=[...new Set(names.map(name=>entry.nameEvidence?.[name]).filter(Boolean))];
   return {title,names,titleSource:local.title?.trim()?'玩家填写':author.title?.trim()?'作者填写':'自动提取',namesSource:nameValue===null?(names.length?`自动提取：${detectedSources.join('、')||'文本线索'}`:'未识别'):typeof local.names==='string'?'玩家填写':'作者填写'};
 }
@@ -370,13 +370,14 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const tools=el('div','uos-user-tools');
     const generator=createOpeningGenerator({doc,host,helper,getContext:()=>host.SillyTavern?.getContext?.(),mode:'player',
       sources:()=>[helperApi,startDocument?.defaultView?.TavernHelper,startDocument?.defaultView,host.TavernHelper,host],readWorldbook:readWorldbookPeople,getPalette:()=>panel,
-      getKnownNames:()=>[...snapshot.entries.flatMap(entry=>entry.names),...personAliases(aliasInput.value).values()],
+      getKnownNames:()=>[...authorEntries.flatMap(entry=>parseNames(entry?.names)),...Object.values(localEdits).flatMap(entry=>parseNames(entry?.names)),...detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{worldbookPeople,aliases:aliasInput.value}).flatMap(result=>result.names),...personAliases(aliasInput.value).values()],
       beforeOpen:()=>confirmPlayerChanges(),onSaved:result=>{session.close();scan();if(state()?.avatar===snapshot.avatar){openPanel();const note=doc.querySelector('.uos-user-status');if(note)note.textContent=result.message}}});
     session.own(()=>generator.dispose());
     const generateOpening=el('button','uos-user-settings-button','＋ 创建新开场白');generateOpening.type='button';generateOpening.onclick=()=>{void generator.open()};tools.append(generateOpening);
     const peopleEditor=createOpeningPeopleEditor({doc,host,getContext:()=>host.SillyTavern?.getContext?.(),readWorldbook:readWorldbookPeople,getPalette:()=>panel,
-      getKnownNames:()=>[...snapshot.entries.flatMap(entry=>entry.names),...personAliases(aliasInput.value).values()],
-      beforeOpen:async()=>await generator.prepareForUpdate()&&confirmPlayerChanges(),onSaved:()=>{void refreshWorldbook()}});
+      getKnownNames:()=>[...authorEntries.flatMap(entry=>parseNames(entry?.names)),...Object.values(localEdits).flatMap(entry=>parseNames(entry?.names)),...detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{worldbookPeople,aliases:aliasInput.value}).flatMap(result=>result.names),...personAliases(aliasInput.value).values()],
+      getSuggestedNames:()=>detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{worldbookPeople,aliases:aliasInput.value}).flatMap(result=>result.suggestions),
+      beforeOpen:async()=>await generator.prepareForUpdate()&&confirmPlayerChanges(),onSaved:()=>{updatePeople();renderCards();void refreshWorldbook()}});
     session.own(()=>peopleEditor.dispose());
     const peopleButton=el('button','uos-user-settings-button','人物列表');peopleButton.type='button';peopleButton.dataset.peopleList='';peopleButton.onclick=()=>{void peopleEditor.open()};tools.append(peopleButton);
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;setBlindBoxTheme(blindTrigger,select.value);void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];kicker.append(headerArt);if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
@@ -451,7 +452,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     function updatePeople(){
       const conflicts=personAliases([authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';')).conflicts;conflictNote.textContent=conflicts.length?`重复别名未参与匹配：${conflicts.join('、')}。请只保留一个归属。`:'';
       const known=[...authorEntries.flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[]),...Object.values(localEdits).flatMap(entry=>typeof entry?.names==='string'?parseNames(entry.names):[])];
-      const detected=detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{characterName:character?.data?.name||character?.name,knownNames:known,aliases:[authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';'),worldbookPeople});
+      const detected=detectGreetingCollection(snapshot.entries.map(entry=>entry.body),{characterName:character?.data?.name||character?.name,knownNames:known,aliases:[authorConfig.personAliases,localPersonRules.personAliases].filter(Boolean).join(';'),worldbookPeople,peopleRoster:readPeopleRoster(host,snapshot.avatar)});
       snapshot.entries.forEach((entry,i)=>{entry.names=detected[i].names;entry.nameEvidence=detected[i].evidence;entry.nameSuggestions=detected[i].suggestions});
       for(const {entry,namesInput,candidates} of editFields){namesInput.placeholder=entry.names.join('、')||'未识别，可填写姓名';candidates.replaceChildren();if(entry.nameSuggestions.length){candidates.append(el('span','','待确认：'));for(const name of entry.nameSuggestions){const button=el('button','',name);button.type='button';button.onclick=()=>{namesInput.value=[...new Set([...parseNames(namesInput.value),name])].join('、');status.textContent='已填入候选人物，请保存修正。'};candidates.append(button)}}}
     }
@@ -472,7 +473,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
     const editFields=[];
     for(const entry of snapshot.entries){
       const box=el('div','');box.append(el('strong','',`开场 ${entry.index+1}`));
-      const effective=resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]);
+      const effective=resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded],readPeopleRoster(host,snapshot.avatar));
       const titleInput=el('input');titleInput.type='text';titleInput.maxLength=100;titleInput.value=localEdits[entry.index]?.title??authorEntries[entry.index]?.title??'';titleInput.placeholder=effective.title;
       const namesInput=el('input');namesInput.type='text';namesInput.maxLength=200;const savedNames=localEdits[entry.index]?.names??authorEntries[entry.index]?.names;namesInput.value=savedNames===''?'无':savedNames??'';namesInput.placeholder=entry.names.join('、')||'未识别，可填写姓名';
       const titleField=el('label');titleField.append(el('span','','标题（留空使用自动提取）'),titleInput);
@@ -577,7 +578,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
           session.close();scan();
         }catch(error){status.textContent=`切换失败：${error?.message||error}`;choose.disabled=false}
     }
-    function renderCards(){list.replaceChildren();previewItems=[];const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded]));
+    function renderCards(){updatePeople();list.replaceChildren();previewItems=[];const resolved=snapshot.entries.map(entry=>resolveDisplayEntry(entry,authorEntries[entry.index],localEdits[entry.index],[...authorExcluded,...localExcluded],readPeopleRoster(host,snapshot.avatar)));
       const selected=person.value;person.replaceChildren();const any=el('option','','全部人物');any.value='';person.append(any);
       for(const name of new Set(resolved.flatMap(x=>x.names))){const option=el('option','',name);option.value=name;person.append(option)}person.value=selected;
       const rows=favoriteUI.update(snapshot.entries.map(entry=>({...entry,...resolved[entry.index],...openingMetadata(authorEntries[entry.index]),label:typeof customLabels[entry.index]==='string'&&customLabels[entry.index]?customLabels[entry.index]:entry.label})));categories.update(rows);
@@ -628,7 +629,7 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
         if(panelSession!==session||session.disposed||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
-        worldbookPeople=applyPeopleRoster(result.people,readPeopleRoster(host,snapshot.avatar));renderWorldbookPeopleList(doc,worldbookList,worldbookPeople,result.diagnostics);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
+        worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,applyPeopleRoster(worldbookPeople,readPeopleRoster(host,snapshot.avatar)),result.diagnostics);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
       }catch{if(panelSession===session&&!session.disposed)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();

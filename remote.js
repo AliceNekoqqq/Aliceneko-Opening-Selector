@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.17-beta.3" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.4" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -173,32 +173,50 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
   };
 }
 
-// src/opening-people.js
+// src/people-roster-rules.js
+var name = (value) => String(value ?? "").normalize("NFKC").replace(/[\u200b-\u200d\ufeff]/g, "").trim().slice(0, 60);
 function rosterNames(value) {
-  return [...new Set((Array.isArray(value) ? value.join("、") : String(value || "")).split(/[、,，;；\n]/u).map((name) => name.trim().slice(0, 60)).filter(Boolean))].slice(0, 500);
+  return [...new Set((Array.isArray(value) ? value.join("、") : String(value || "")).split(/[、,，;；\n/]/u).map(name).filter(Boolean))].slice(0, 500);
 }
+function normalizePeopleRoster(value) {
+  const added = rosterNames(value?.added), excluded = rosterNames(value?.excluded).filter((item) => !added.includes(item));
+  const managed = value?.managed === true;
+  return { managed, confirmed: managed ? rosterNames([...Array.isArray(value?.confirmed) ? value.confirmed : [], ...added]).filter((item) => !excluded.includes(item)) : [], excluded, added };
+}
+function rosterExcludesName(value, roster) {
+  return !!roster?.excluded?.includes(name(value));
+}
+function rosterAllowsName(value, roster) {
+  const canonical = name(value);
+  return !rosterExcludesName(canonical, roster) && (!roster?.managed || roster.confirmed.includes(canonical));
+}
+function filterRosterNames(values, roster) {
+  return rosterNames(values).filter((value) => rosterAllowsName(value, roster));
+}
+function applyPeopleRoster(people, value) {
+  const roster = normalizePeopleRoster(value), all = new Map(people.map((person) => [name(person.name), person]));
+  for (const candidate of [...roster.confirmed, ...roster.added]) if (!all.has(candidate)) all.set(candidate, { name: candidate, aliases: [], sources: ["用户确认名单"], trusted: true });
+  return [...all.values()].filter((person) => rosterAllowsName(person.name, roster)).map((person) => roster.managed ? { ...person, trusted: true } : person);
+}
+
+// src/opening-people.js
 function readPeopleRoster(host, avatar) {
   let value;
   try {
     value = JSON.parse(host.localStorage.getItem(`uos_opening_cast_v1_${avatar}`));
   } catch {
   }
-  return { excluded: rosterNames(value?.excluded), added: rosterNames(value?.added) };
+  return normalizePeopleRoster(value);
 }
 function writePeopleRoster(host, avatar, value) {
-  const added = rosterNames(value.added), excluded = rosterNames(value.excluded).filter((name) => !added.includes(name));
-  host.localStorage.setItem(`uos_opening_cast_v1_${avatar}`, JSON.stringify({ excluded, added }));
-  return { excluded, added };
-}
-function applyPeopleRoster(people, roster) {
-  const all = new Map(people.map((person) => [person.name, person]));
-  for (const name of roster.added) if (!all.has(name)) all.set(name, { name, aliases: [], sources: ["手动补充"], trusted: true });
-  return [...all.values()].filter((person) => !roster.excluded.includes(person.name));
+  const roster = normalizePeopleRoster(value);
+  host.localStorage.setItem(`uos_opening_cast_v1_${avatar}`, JSON.stringify(roster));
+  return roster;
 }
 
 // src/opening-people-editor.js
-var CSS = `.uos-people-editor{box-sizing:border-box;width:min(660px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif}.uos-people-editor::backdrop{background:#0009}.uos-people-editor h2{margin:0 0 8px}.uos-people-editor p{color:var(--muted,#b7c3cc)}.uos-people-editor-actions,.uos-people-editor-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-people-editor-list{max-height:40dvh;overflow:auto}.uos-people-editor-list label{padding:6px 10px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-people-editor textarea{box-sizing:border-box;width:100%;min-height:90px;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor button{padding:8px 12px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:inherit;cursor:pointer;font:inherit}.uos-people-editor button:disabled{opacity:.5;cursor:default}.uos-people-editor :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}`;
-function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKnownNames = () => [], getPalette, beforeOpen = async () => true, onSaved = () => {
+var CSS = `.uos-people-editor{box-sizing:border-box;width:min(660px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif}.uos-people-editor::backdrop{background:#0009}.uos-people-editor h2{margin:0 0 8px}.uos-people-editor p{color:var(--muted,#b7c3cc)}.uos-people-editor-actions,.uos-people-editor-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-people-editor-list{max-height:40dvh;overflow:auto}.uos-people-editor-list label{padding:6px 10px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-people-editor [hidden]{display:none!important}.uos-people-editor input[type=search]{box-sizing:border-box;width:100%;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor small{color:var(--muted,#b7c3cc);overflow-wrap:anywhere}.uos-people-editor textarea{box-sizing:border-box;width:100%;min-height:90px;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor button{padding:8px 12px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:inherit;cursor:pointer;font:inherit}.uos-people-editor button:disabled{opacity:.5;cursor:default}.uos-people-editor :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}`;
+function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKnownNames = () => [], getSuggestedNames = () => [], getPalette, beforeOpen = async () => true, onSaved = () => {
 } }) {
   let session = null, disposed = false;
   async function open() {
@@ -215,7 +233,7 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
     const context = getContext(), id = context?.characterId, card = context?.characters?.[id];
     if (!card?.avatar) return false;
     const avatar = card.avatar, roster = readPeopleRoster(host, avatar);
-    let closed = false, loading = false, available = /* @__PURE__ */ new Map();
+    let closed = false, loading = false, automaticDraft = false, available = /* @__PURE__ */ new Map();
     const active = () => {
       const current = getContext();
       return !closed && current?.characterId === id && current?.characters?.[id]?.avatar === avatar;
@@ -234,7 +252,7 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
     const palette = getPalette?.();
     if (palette) {
       const computed = host.getComputedStyle(palette);
-      for (const name of ["--bg", "--panel", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(name, computed.getPropertyValue(name));
+      for (const name2 of ["--bg", "--panel", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(name2, computed.getPropertyValue(name2));
     }
     const previousFocus = doc.activeElement;
     const close = () => {
@@ -253,11 +271,40 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
       node.onclick = fn;
       return node;
     };
-    dialog.append(el("h2", "人物列表"), el("p", "勾选要保留的名字，取消勾选可移除误识别项。保存后的名单用于人物识别和开场白生成，作者版与玩家版共用。"), el("p", "按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。"));
+    dialog.append(el("h2", "人物列表"), el("p", "勾选要保留的名字，取消勾选可移除误识别项。勾选并保存即确认身份；此后只按保留的人物及有效别名识别，名单外人物只列为待确认。作者版、玩家版与生成器共用。"), el("p", "按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。"));
     const status = el("p");
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
     dialog.append(status);
+    const search = el("input");
+    search.type = "search";
+    search.placeholder = "搜索人物或来源";
+    search.setAttribute("aria-label", "搜索人物列表");
+    search.dataset.peopleSearch = "";
+    dialog.append(search);
+    const pendingLabel = el("label"), pendingOnly = el("input");
+    pendingOnly.type = "checkbox";
+    pendingOnly.checked = false;
+    pendingOnly.dataset.peoplePendingOnly = "";
+    pendingOnly.setAttribute("aria-label", "只看待确认");
+    pendingLabel.append(pendingOnly, el("span", "只看待确认"));
+    dialog.append(pendingLabel);
+    const summary = el("p");
+    summary.dataset.peopleSummary = "";
+    dialog.append(summary);
+    function updateSummary() {
+      const query = search.value.trim().toLocaleLowerCase();
+      let kept = 0, visible = 0;
+      for (const input of list.querySelectorAll("input")) {
+        const row = input.parentNode || input.parent;
+        if (input.checked) kept++;
+        row.hidden = !!(query && !`${input.value} ${input.dataset.peopleSource || ""}`.toLocaleLowerCase().includes(query)) || pendingOnly.checked && input.dataset.peoplePending !== "true";
+        if (!row.hidden) visible++;
+      }
+      summary.textContent = automaticDraft ? "保存后恢复自动识别，清除本机名单限制。" : `已保留 ${kept} / ${available.size} 位 · 当前显示 ${visible} 位 · 补充 ${rosterNames(added.value).length} 位`;
+    }
+    search.oninput = updateSummary;
+    pendingOnly.onchange = updateSummary;
     const list = el("div");
     list.className = "uos-people-editor-list";
     dialog.append(list);
@@ -265,36 +312,53 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
     actions.className = "uos-people-editor-actions";
     dialog.append(actions);
     const setChecks = (checked) => {
+      automaticDraft = false;
       for (const input of list.querySelectorAll("input")) input.checked = checked;
+      updateSummary();
     };
+    const confirmPending = button("确认全部待确认", () => {
+      automaticDraft = false;
+      for (const input of list.querySelectorAll("input")) input.confirmPerson?.();
+      updateSummary();
+    });
     const all = button("全部保留", () => setChecks(true)), none = button("全部移除", () => setChecks(false)), reset = button("恢复读取名单", () => {
       setChecks(true);
       added.value = "";
+      updateSummary();
+    }), removePending = button("移除待确认", () => {
+      automaticDraft = false;
+      for (const input of list.querySelectorAll("input")) if (input.dataset.peoplePending === "true") input.checked = false;
+      updateSummary();
     }), reload = button("重新读取人物", () => {
       void load(true);
     });
-    actions.append(all, none, reset, reload);
+    actions.append(all, none, confirmPending, removePending, reset, reload);
     const label = el("label", "补充人物（可修改或删除）"), added = el("textarea");
     added.dataset.peopleAdded = "";
     added.setAttribute("aria-label", "补充人物");
     added.placeholder = "用顿号、逗号或换行分隔";
     added.maxLength = 3e4;
     added.value = roster.added.join("、");
+    added.oninput = () => {
+      automaticDraft = false;
+      updateSummary();
+    };
     label.append(added);
     dialog.append(label);
     const footer = el("div");
     footer.className = "uos-people-editor-actions";
     dialog.append(footer);
-    const save = button("保存人物列表", () => {
+    const save = button("保存并重新识别", () => {
       if (loading || closed) return;
       if (!active()) {
         status.textContent = "角色已切换，请回到原角色再保存。";
         return;
       }
-      const excluded = roster.excluded.filter((name) => !available.has(name));
+      const excluded = roster.excluded.filter((name2) => !available.has(name2));
       for (const input of list.querySelectorAll("input")) if (!input.checked) excluded.push(input.value);
+      const confirmed = [...roster.confirmed.filter((name2) => !available.has(name2) && !roster.added.includes(name2)), ...[...list.querySelectorAll("input")].filter((input) => input.checked).map((input) => input.value)];
       try {
-        writePeopleRoster(host, avatar, { excluded, added: rosterNames(added.value) });
+        writePeopleRoster(host, avatar, automaticDraft ? { managed: false, excluded: [], added: [] } : { managed: true, confirmed, excluded, added: rosterNames(added.value) });
       } catch {
         status.textContent = "本机保存失败，编辑仍保留，请稍后重试。";
         return;
@@ -302,12 +366,15 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
       close();
       onSaved();
     });
-    footer.append(save, button("取消", close));
+    footer.append(save, button("恢复自动识别", () => {
+      automaticDraft = true;
+      updateSummary();
+    }), button("取消", close));
     async function load(refresh = false) {
       if (loading || closed) return;
-      const draft = new Map([...list.querySelectorAll("input")].map((input) => [input.value, input.checked]));
+      const draft = new Map([...list.querySelectorAll("input")].map((input) => [input.value, { checked: input.checked, pending: input.dataset.peoplePending }]));
       loading = true;
-      for (const node of [save, reload, all, none, reset]) node.disabled = true;
+      for (const node of [save, reload, all, none, reset, removePending, confirmPending]) node.disabled = true;
       status.textContent = "正在读取人物名单…";
       try {
         const result = await readWorldbook(card, { refresh });
@@ -316,25 +383,49 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
           return;
         }
         available = new Map(result.people.map((person) => [person.name, person]));
-        for (const name of rosterNames([card.data?.name || card.name, ...getKnownNames()])) if (!available.has(name)) available.set(name, { name, sources: ["角色卡"], trusted: true });
+        for (const name2 of rosterNames([card.data?.name || card.name, ...getKnownNames(), ...roster.confirmed.filter((name3) => !roster.added.includes(name3)), ...roster.excluded])) if (!available.has(name2)) available.set(name2, { name: name2, sources: ["角色卡"], trusted: true });
+        for (const name2 of rosterNames(getSuggestedNames())) if (!available.has(name2)) available.set(name2, { name: name2, sources: ["正文候选"], trusted: false });
         list.replaceChildren();
         for (const person of available.values()) {
           const row = el("label"), input = el("input");
           input.type = "checkbox";
           input.value = person.name;
           input.dataset.peopleKeep = person.name;
-          input.checked = draft.has(person.name) ? draft.get(person.name) : !roster.excluded.includes(person.name);
+          input.checked = draft.has(person.name) ? draft.get(person.name).checked : !roster.excluded.includes(person.name) && (!roster.managed || roster.confirmed.includes(person.name));
+          input.dataset.peoplePending = draft.get(person.name)?.pending ?? String(person.trusted === false && !roster.confirmed.includes(person.name));
+          input.dataset.peopleSource = person.sources?.join("；") || "";
+          input.onchange = () => {
+            automaticDraft = false;
+            updateSummary();
+          };
           input.setAttribute("aria-label", `保留人物 ${person.name}`);
           row.title = person.sources?.join("；") || "";
-          row.append(input, el("span", person.name + (person.trusted === false ? "（待确认）" : "")));
+          const nameLabel = el("span", person.name + (input.dataset.peoplePending === "true" ? "（待确认）" : ""));
+          row.append(input, nameLabel, el("small", " · " + (person.sources?.join("；") || "来源未标注")));
+          if (input.dataset.peoplePending === "true") {
+            const confirm = button("确认", () => {
+              input.confirmPerson();
+              updateSummary();
+            });
+            confirm.setAttribute("aria-label", `确认人物 ${person.name}`);
+            input.confirmPerson = () => {
+              automaticDraft = false;
+              input.checked = true;
+              input.dataset.peoplePending = "false";
+              nameLabel.textContent = person.name;
+              confirm.hidden = true;
+            };
+            row.append(confirm);
+          }
           list.append(row);
         }
+        updateSummary();
         status.textContent = `读取 ${result.people.length} 位世界书人物，共 ${available.size} 位候选。${result.warnings?.length ? result.warnings.join("；") : ""}`;
       } catch {
         if (!closed) status.textContent = "世界书读取失败，可重新读取；仍可保存手动补充的人物。";
       } finally {
         loading = false;
-        for (const node of [save, reload, all, none, reset]) node.disabled = false;
+        for (const node of [save, reload, all, none, reset, removePending, confirmPending]) node.disabled = false;
       }
     }
     dialog.addEventListener("cancel", (event) => {
@@ -731,17 +822,17 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
     show.value = prefs.performances ? "theme" : "simple";
     experienceFields.append(field("每轮摆出", hand), field("演出效果", show));
     experience.append(experienceFields, el("p", "", "每轮只选一张。候选不足时按实际数量摆出；手机五张卡分两排。"));
-    const poolSection = section("命名卡池"), poolSelect = el("select", "uos-blind-pool-select"), name = el("input", "uos-blind-pool-name"), poolActions = el("div", "uos-blind-range-pool-actions");
-    name.type = "text";
-    name.maxLength = 40;
-    name.placeholder = "例如：主线、番外、今晚想看";
-    name.value = pools.find((pool) => pool.id === editingId)?.name || "";
+    const poolSection = section("命名卡池"), poolSelect = el("select", "uos-blind-pool-select"), name2 = el("input", "uos-blind-pool-name"), poolActions = el("div", "uos-blind-range-pool-actions");
+    name2.type = "text";
+    name2.maxLength = 40;
+    name2.placeholder = "例如：主线、番外、今晚想看";
+    name2.value = pools.find((pool) => pool.id === editingId)?.name || "";
     const addPool = el("button", "", "保存为新卡池"), updatePool = el("button", "", "更新卡池内容"), renamePool = el("button", "", "重命名"), deletePool = el("button", "", "删除卡池");
     for (const button of [addPool, updatePool, renamePool, deletePool]) button.type = "button";
     poolActions.append(addPool, updatePool, renamePool, deletePool);
     const message = el("p", "uos-blind-range-message", "卡池保存在本机；关闭设置会放弃本次修改。");
     message.setAttribute("role", "status");
-    poolSection.append(field("切换卡池", poolSelect), field("卡池名称", name), poolActions, message);
+    poolSection.append(field("切换卡池", poolSelect), field("卡池名称", name2), poolActions, message);
     const rangeSection = section("抽取范围");
     mode.setAttribute("aria-label", "抽取范围模式");
     for (const [value, label] of [["filtered", "沿用首页当前筛选"], ["manual", "只抽手动勾选的开场"]]) {
@@ -796,10 +887,10 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
       return mode.value === "manual" ? [...keys] : eligible.filter((item) => filteredIds.has(item.id)).map((item) => item.drawKey);
     }
     function validName(exceptId) {
-      const value = drawPoolName(name.value);
+      const value = drawPoolName(name2.value);
       if (!value) {
         message.textContent = "请先填写卡池名称。";
-        name.focus();
+        name2.focus();
         return null;
       }
       if (pools.some((pool) => pool.id !== exceptId && pool.name === value)) {
@@ -818,8 +909,8 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
       if (pool) {
         keys = new Set(pool.keys);
         mode.value = "manual";
-        name.value = pool.name;
-      } else name.value = "";
+        name2.value = pool.name;
+      } else name2.value = "";
       renderPools();
       render();
     };
@@ -833,7 +924,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
       keys = new Set(currentKeys());
       mode.value = "manual";
       pools.push({ id: editingId, name: value, keys: [...keys] });
-      name.value = value;
+      name2.value = value;
       renderPools();
       render();
       poolMessage("新卡池已暂存");
@@ -854,7 +945,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
       const value = validName(editingId), pool = pools.find((pool2) => pool2.id === editingId);
       if (!value || !pool) return;
       pool.name = value;
-      name.value = value;
+      name2.value = value;
       renderPools();
       poolMessage("新名称已暂存");
     };
@@ -862,7 +953,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
       if (!valid() || deletePool.disabled) return;
       pools = pools.filter((pool) => pool.id !== editingId);
       editingId = null;
-      name.value = "";
+      name2.value = "";
       renderPools();
       poolMessage("删除已暂存，当前勾选范围保留");
     };
@@ -926,7 +1017,7 @@ function createDrawRangePanel({ doc, el, store, getAllItems, getFilteredItems, g
         return;
       }
       if (event.key === "Tab") {
-        const controls = [exit, hand, show, poolSelect, name, addPool, updatePool, renamePool, deletePool, mode, search, all, none, filtered, ...checkboxes, save].filter((node) => !node.disabled), first = controls[0], last = controls.at(-1);
+        const controls = [exit, hand, show, poolSelect, name2, addPool, updatePool, renamePool, deletePool, mode, search, all, none, filtered, ...checkboxes, save].filter((node) => !node.disabled), first = controls[0], last = controls.at(-1);
         if (event.shiftKey && doc.activeElement === first) {
           event.preventDefault();
           last.focus();
@@ -2048,19 +2139,19 @@ function normalizePersonText(value) {
   return String(value ?? "").normalize("NFKC").replace(/[\u200b-\u200d\ufeff]/g, "");
 }
 function isPersonName(value) {
-  const name = normalizePersonText(value).trim();
-  if (/^[\p{Script=Han}·・\s]+$/u.test(name) && name.replace(/[·・\s]/g, "").length > 12) return false;
-  return !WB_STRUCTURAL.test(name) && !wbTitleTag(name) && /^(?=.*[\p{L}])[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}][\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}\s.'’·・\-]{0,39}$/u.test(name);
+  const name2 = normalizePersonText(value).trim();
+  if (/^[\p{Script=Han}·・\s]+$/u.test(name2) && name2.replace(/[·・\s]/g, "").length > 12) return false;
+  return !WB_STRUCTURAL.test(name2) && !wbTitleTag(name2) && /^(?=.*[\p{L}])[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}][\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Latin}\p{N}\s.'’·・\-]{0,39}$/u.test(name2);
 }
 function isAutomaticPersonName(value) {
-  const name = normalizePersonText(value).trim();
-  return isPersonName(name) && !WB_GENERIC.test(name) && !/^(?:user|assistant|system|char|bot|you|me)$/iu.test(name) && !/(?:\p{Script=Han}的(?:\p{Script=Han}|$)|['’]s\s+\p{L}|\s+(?:of|the)\s+)/iu.test(name);
+  const name2 = normalizePersonText(value).trim();
+  return isPersonName(name2) && !WB_GENERIC.test(name2) && !/^(?:user|assistant|system|char|bot|you|me)$/iu.test(name2) && !/(?:\p{Script=Han}的(?:\p{Script=Han}|$)|['’]s\s+\p{L}|\s+(?:of|the)\s+)/iu.test(name2);
 }
 function wbName(value) {
   return normalizePersonText(value).replace(/\*\*|`/g, "").trim().replace(/^[#\s]+/, "").replace(/^(?:[-*•➤]\s*|\d+[.、)]\s*|\d+\s+(?=\p{L})|\d+(?=\p{Script=Han})|[①-⑳]\s*)/u, "").replace(/[（(].*$/, "").replace(/^["'“「『【\[]+|["'”」』】\]。]+$/g, "").trim();
 }
 function wbNames(value) {
-  return String(value ?? "").split(/[、，,\/;；]+/).map(wbName).filter((name) => isAutomaticPersonName(name) && !WB_GENERIC.test(name) && !WB_PLACE.test(name) && !WB_PROSE.test(name));
+  return String(value ?? "").split(/[、，,\/;；]+/).map(wbName).filter((name2) => isAutomaticPersonName(name2) && !WB_GENERIC.test(name2) && !WB_PLACE.test(name2) && !WB_PROSE.test(name2));
 }
 function wbTitle(value, learned = /* @__PURE__ */ new Set()) {
   let title = normalizePersonText(value).replace(/[【\[]([^】\]]*)[】\]]/g, (_, inside) => wbTitleTag(inside, learned) ? "" : `【${inside}】`).replace(/^(?:[\p{Extended_Pictographic}\uFE0F\s]+|\d+[.、)]\s*)/u, "").replace(/^(?:人物档案|角色档案|人物设定|角色设定|人物介绍|角色介绍|人物简介|角色简介|角色资料|人物资料|人物|角色|人设|NPC\b|character\b|profile\b)\s*[·・:：\-—_|｜/]*\s*/i, "").replace(/\s*[-—_|｜:]\s*(?:人物|角色|NPC|档案|设定|基础信息|详细信息|profile).*$/i, "").replace(/(?:人物介绍|角色介绍|人物设定|角色设定|人物档案|角色档案|角色资料|人物资料|人设)$/i, "").trim();
@@ -2077,12 +2168,12 @@ function wbTitle(value, learned = /* @__PURE__ */ new Set()) {
   return wbName(title);
 }
 function wbTitleKeyword(title, keys) {
-  const text2 = normalizePersonText(title), matches = keys.flatMap((name) => {
-    const start = text2.indexOf(name);
+  const text2 = normalizePersonText(title), matches = keys.flatMap((name2) => {
+    const start = text2.indexOf(name2);
     if (start < 0) return [];
-    const end = start + name.length;
+    const end = start + name2.length;
     if (/[\p{L}\p{N}]/u.test(text2[start - 1] || "") || /[\p{L}\p{N}]/u.test(text2[end] || "")) return [];
-    return [name];
+    return [name2];
   });
   return [...new Set(matches)];
 }
@@ -2184,7 +2275,7 @@ function extractPersonIdentities(value, { title = "", descriptions = true } = {}
     const scope = identityScope(text2, index, title);
     if (scope.blocked) return;
     const trusted = explicit || scope.person;
-    for (const name of wbFieldNames(raw)) identities.push({ name, trusted, kind: trusted ? kind : "通用名称字段，待确认", index });
+    for (const name2 of wbFieldNames(raw)) identities.push({ name: name2, trusted, kind: trusted ? kind : "通用名称字段，待确认", index });
   };
   const fields = new RegExp(`(?:^|[\\n{,，|>])\\s*(?:[-*#]\\s*)*["']?(${WB_NAME_FIELD})["']?\\s*[:：=]\\s*["']?([^\\n<>。；;"'}|]{1,160})`, "gimu");
   for (const match of text2.matchAll(fields)) emit(match[2], match[1], match.index + match[0].indexOf(match[1]), "姓名字段", !/^(?:name|名字)$/iu.test(match[1]));
@@ -2201,7 +2292,7 @@ function wbBookEvidence(records, found, diagnostics) {
     if (!groups.has(record.bookSource)) groups.set(record.bookSource, { records: [], tags: /* @__PURE__ */ new Set(), strong: /* @__PURE__ */ new Set() });
     const group = groups.get(record.bookSource);
     group.records.push(record);
-    for (const name of record.accepted) if (found.get(name)?.trusted) group.strong.add(name);
+    for (const name2 of record.accepted) if (found.get(name2)?.trusted) group.strong.add(name2);
   }
   for (const group of groups.values()) {
     const patterns = /* @__PURE__ */ new Map();
@@ -2227,19 +2318,19 @@ function wbBookEvidence(records, found, diagnostics) {
 }
 function extractWorldbookPeople(books, { diagnostics = [] } = {}) {
   const found = /* @__PURE__ */ new Map(), records = [];
-  const add = (name, record, kind, trusted = true) => {
-    name = wbName(name);
-    if (!isAutomaticPersonName(name) || WB_GENERIC.test(name) || WB_PLACE.test(name) || WB_PROSE.test(name)) return;
-    if (found.size >= 1e3 && !found.has(name)) {
+  const add = (name2, record, kind, trusted = true) => {
+    name2 = wbName(name2);
+    if (!isAutomaticPersonName(name2) || WB_GENERIC.test(name2) || WB_PLACE.test(name2) || WB_PROSE.test(name2)) return;
+    if (found.size >= 1e3 && !found.has(name2)) {
       record.limit = true;
       return;
     }
-    const person = found.get(name) || { name, aliases: [], candidateAliases: [], sources: [], trusted: false };
+    const person = found.get(name2) || { name: name2, aliases: [], candidateAliases: [], sources: [], trusted: false };
     person.trusted || (person.trusted = trusted);
     const source = `${record.book} · ${record.title || "未命名条目"}（${kind}）`;
     if (!person.sources.includes(source)) person.sources.push(source);
-    found.set(name, person);
-    record.accepted.add(name);
+    found.set(name2, person);
+    record.accepted.add(name2);
   };
   for (const book of books || []) for (const entry of (Array.isArray(book.entries) ? book.entries : []).slice(0, 3e3)) {
     const title = String(entry.name || entry.comment || "").slice(0, 240), content = String(entry.content || "").slice(0, 1e5);
@@ -2291,7 +2382,7 @@ function extractWorldbookPeople(books, { diagnostics = [] } = {}) {
       }
       if (/^\s*(?:人物速览|角色速览|人物名单|角色名单|登场人物|登场角色|主要人物|主要角色)\s*[:：]/u.test(line) && !heading) {
         overview = true;
-        for (const name of wbNames(line.split(":").slice(1).join(":"))) add(name, record, "人物速览");
+        for (const name2 of wbNames(line.split(":").slice(1).join(":"))) add(name2, record, "人物速览");
         continue;
       }
       if (!overview) continue;
@@ -2311,10 +2402,10 @@ function extractWorldbookPeople(books, { diagnostics = [] } = {}) {
         }
         if (tableNameColumn < 0) continue;
         const cell = cells[tableNameColumn];
-        for (const name of overviewNames(cell)) {
-          add(name, record, "人物速览");
-          const person = found.get(name);
-          if (person && tableAliasColumn >= 0) person.aliases.push(...wbNames(cells[tableAliasColumn]).filter((x) => x !== name));
+        for (const name2 of overviewNames(cell)) {
+          add(name2, record, "人物速览");
+          const person = found.get(name2);
+          if (person && tableAliasColumn >= 0) person.aliases.push(...wbNames(cells[tableAliasColumn]).filter((x) => x !== name2));
         }
         continue;
       }
@@ -2322,7 +2413,7 @@ function extractWorldbookPeople(books, { diagnostics = [] } = {}) {
       if (!row || /^[^\p{L}\p{N}]*$/u.test(row)) continue;
       if (!/^\s*(?:#|[-*•➤]|\d+[.、)]|[①-⑳])/.test(line) && !/[：:|｜—、，,]/.test(row) && row.length > 40) continue;
       const explicitRow = /^\s*(?:[-*•➤]|\d+[.、)]|\d+\s*(?=\p{L})|[①-⑳])/u.test(line);
-      for (const name of overviewNames(row)) add(name, record, explicitRow ? "人物速览名单" : "速览标题／文字，待确认", explicitRow);
+      for (const name2 of overviewNames(row)) add(name2, record, explicitRow ? "人物速览名单" : "速览标题／文字，待确认", explicitRow);
     }
     const personFields = /(?:性别|年龄|外貌|性格|gender|age)["']?\s*[:=]/iu.test(labeled);
     const personTitle = WB_PERSON_MARKER.test(title) && !WB_OVERVIEW.test(title) && !/(?:关系|规则|名单|设定集)/u.test(title);
@@ -2396,7 +2487,7 @@ function extractWorldbookPeople(books, { diagnostics = [] } = {}) {
     person.ambiguousAliases = person.aliases.filter((alias) => owners.get(alias).size > 1);
   }
   const ordered = new Set(records.flatMap((record) => [...record.accepted]));
-  return [...ordered].map((name) => found.get(name));
+  return [...ordered].map((name2) => found.get(name2));
 }
 function renderWorldbookPeopleList(doc, list, people, diagnostics = []) {
   list.className = "uos-worldbook-people";
@@ -2407,9 +2498,9 @@ function renderWorldbookPeopleList(doc, list, people, diagnostics = []) {
     list.append(empty);
   }
   for (const person of people) {
-    const row = doc.createElement("li"), name = doc.createElement("strong");
-    name.textContent = `${person.name}${person.trusted === false ? "（待确认）" : ""}`;
-    row.append(name);
+    const row = doc.createElement("li"), name2 = doc.createElement("strong");
+    name2.textContent = `${person.name}${person.trusted === false ? "（待确认）" : ""}`;
+    row.append(name2);
     const aliases = doc.createElement("p");
     aliases.textContent = `别名：${person.aliases?.join("、") || "无"}${person.ambiguousAliases?.length ? `；冲突别名不自动匹配：${person.ambiguousAliases.join("、")}` : ""}`;
     const source = doc.createElement("p");
@@ -2479,18 +2570,18 @@ function createWorldbookPeopleReader(helper) {
     const pending = (async () => {
       const books = [];
       if (bindings.length && !getBook && !getOldBook) warnings.push("当前酒馆助手未提供世界书读取接口");
-      else for (const name of bindings) {
+      else for (const name2 of bindings) {
         let loaded = false, errorMessage = "";
         for (const fetchBook of [getBook, getOldBook].filter(Boolean)) try {
-          const entries = await fetchBook(name);
+          const entries = await fetchBook(name2);
           if (!Array.isArray(entries)) throw Error("返回格式异常");
-          books.push({ name, entries });
+          books.push({ name: name2, entries });
           loaded = true;
           break;
         } catch (error) {
           errorMessage = String(error?.message || error).slice(0, 160);
         }
-        if (!loaded) warnings.push(`世界书“${name}”读取失败${errorMessage ? `：${errorMessage}` : ""}`);
+        if (!loaded) warnings.push(`世界书“${name2}”读取失败${errorMessage ? `：${errorMessage}` : ""}`);
       }
       const diagnostics = [], people = extractWorldbookPeople(books, { diagnostics });
       return { people, diagnostics, worldbooks: books, books: books.map((book) => book.name), boundBooks: bindings, entryCount: books.reduce((count, book) => count + book.entries.length, 0), warnings };
@@ -2543,25 +2634,26 @@ var PERSON_WORD = { test: isPersonName };
 function personAliases(value) {
   const result = /* @__PURE__ */ new Map(), owners = /* @__PURE__ */ new Map(), canonicalNames = /* @__PURE__ */ new Set();
   for (const line of normalizePersonText(value).slice(0, 1500).split(/[;；\n]+/).slice(0, 40)) {
-    const [canonical, ...rest] = line.split(/[=＝]/), name = canonical?.trim();
-    if (!PERSON_WORD.test(name)) continue;
-    canonicalNames.add(name);
-    for (const alias of [name, ...rest.join("=").split(/[，,、/]+/).map((x) => x.trim())]) if (PERSON_WORD.test(alias)) {
+    const [canonical, ...rest] = line.split(/[=＝]/), name2 = canonical?.trim();
+    if (!PERSON_WORD.test(name2)) continue;
+    canonicalNames.add(name2);
+    for (const alias of [name2, ...rest.join("=").split(/[，,、/]+/).map((x) => x.trim())]) if (PERSON_WORD.test(alias)) {
       if (!owners.has(alias)) owners.set(alias, /* @__PURE__ */ new Set());
-      owners.get(alias).add(name);
+      owners.get(alias).add(name2);
     }
   }
   for (const [alias, names] of owners) if (names.size === 1) result.set(alias, [...names][0]);
-  for (const name of canonicalNames) result.set(name, name);
+  for (const name2 of canonicalNames) result.set(name2, name2);
   result.conflicts = [...owners].filter(([alias, names]) => names.size > 1 && !canonicalNames.has(alias)).map(([alias]) => alias);
   return result;
 }
-function detectGreetingPeople(body, { knownNames = [], characterName = "", aliases = "", worldbookPeople = null } = {}) {
+function detectGreetingPeople(body, { knownNames = [], characterName = "", aliases = "", worldbookPeople = null, peopleRoster = null } = {}) {
   const text2 = normalizePersonText(body);
   knownNames = knownNames.map(normalizePersonText);
   characterName = normalizePersonText(characterName).trim();
+  const roster = normalizePeopleRoster(peopleRoster);
   const manual = personAliases(aliases);
-  const userNames = /* @__PURE__ */ new Set([...knownNames, ...manual.values()]);
+  const userNames = /* @__PURE__ */ new Set([...knownNames, ...manual.values(), ...roster.confirmed, ...roster.added]);
   const names = [], evidence = {}, suggestions = [];
   const dictionary = /* @__PURE__ */ new Map(), worldbookByName = /* @__PURE__ */ new Map(), owners = /* @__PURE__ */ new Map();
   for (const person of worldbookPeople || []) {
@@ -2574,18 +2666,27 @@ function detectGreetingPeople(body, { knownNames = [], characterName = "", alias
   }
   for (const [alias, people] of owners) if (people.size === 1) dictionary.set(alias, [...people][0]);
   for (const person of worldbookByName.values()) dictionary.set(person.name, person.name);
-  for (const name of knownNames) if (PERSON_WORD.test(name)) dictionary.set(name, name);
-  for (const [alias, name] of manual) dictionary.set(alias, name);
+  for (const name2 of [...knownNames, ...roster.confirmed, ...roster.added, ...roster.excluded]) if (PERSON_WORD.test(name2)) dictionary.set(name2, name2);
+  for (const [alias, name2] of manual) dictionary.set(alias, name2);
   for (const alias of manual.conflicts) if (!userNames.has(alias) && dictionary.get(alias) !== alias) dictionary.delete(alias);
   const weakCharacterName = isAutomaticPersonName(characterName) && !manual.conflicts.includes(characterName) && !dictionary.has(characterName) ? characterName : "";
   if (weakCharacterName) dictionary.set(weakCharacterName, weakCharacterName);
-  const add = (name, source) => {
-    if ((owners.get(name)?.size > 1 || manual.conflicts.includes(name)) && !dictionary.has(name)) return;
-    const canonical = dictionary.get(name) || name;
+  const suggest = (name2) => {
+    const canonical = dictionary.get(name2) || name2;
+    if (!rosterExcludesName(name2, roster) && !rosterExcludesName(canonical, roster) && !suggestions.includes(canonical)) suggestions.push(canonical);
+  };
+  const add = (name2, source) => {
+    if ((owners.get(name2)?.size > 1 || manual.conflicts.includes(name2)) && !dictionary.has(name2)) return;
+    const canonical = dictionary.get(name2) || name2;
     if (!PERSON_WORD.test(canonical) || NON_PERSON_LABELS.test(canonical) || !userNames.has(canonical) && !isAutomaticPersonName(canonical)) return;
-    const confirmed = userNames.has(canonical) || worldbookByName.has(canonical) && worldbookByName.get(canonical).trusted !== false || names.includes(canonical);
+    if (rosterExcludesName(name2, roster) || rosterExcludesName(canonical, roster)) return;
+    if (!rosterAllowsName(canonical, roster)) {
+      suggest(canonical);
+      return;
+    }
+    const confirmed = roster.managed || roster.added.includes(canonical) || userNames.has(canonical) || worldbookByName.has(canonical) && worldbookByName.get(canonical).trusted !== false || names.includes(canonical);
     if (source !== "明确标注" && !confirmed) {
-      if (!suggestions.includes(canonical)) suggestions.push(canonical);
+      suggest(canonical);
       return;
     }
     if (!names.includes(canonical)) names.push(canonical);
@@ -2593,11 +2694,11 @@ function detectGreetingPeople(body, { knownNames = [], characterName = "", alias
   };
   for (const identity of extractPersonIdentities(text2, { descriptions: false })) {
     if (identity.trusted) add(identity.name, "明确标注");
-    else if (!suggestions.includes(identity.name)) suggestions.push(identity.name);
+    else suggest(identity.name);
   }
   for (const match of text2.matchAll(/(?:^|[\n>])\s*(?:登场人物|在场角色)[：:]\s*([^\n<>。；;]{1,160})/gmu)) {
     if (!allowsPersonEvidence(text2, match.index + match[0].search(/登场人物|在场角色/u))) continue;
-    for (const name of match[1].split(/[、，,\/]+/).map((x) => x.trim())) if (isAutomaticPersonName(name)) add(name, "明确标注");
+    for (const name2 of match[1].split(/[、，,\/]+/).map((x) => x.trim())) if (isAutomaticPersonName(name2)) add(name2, "明确标注");
   }
   const lines = text2.replace(/<\/?[^<>]*>/g, (tag) => " ".repeat(tag.length)).split("\n"), lineOffsets = [];
   let offset = 0;
@@ -2615,10 +2716,10 @@ function detectGreetingPeople(body, { knownNames = [], characterName = "", alias
       const head = item[1], tail = item[2];
       if (/的/u.test(head) || tail && !/^[\s:：|（(、，,]/u.test(tail)) continue;
       const costume = head.match(/^(.{2,4})(?:制服|校服|便服|常服|泳装)$/u);
-      const name = costume?.[1] || head;
-      if (isAutomaticPersonName(name)) {
-        if (dictionary.has(name) || costume || [...name].length <= 4) add(name, "明确标注");
-        else if (!suggestions.includes(name)) suggestions.push(name);
+      const name2 = costume?.[1] || head;
+      if (isAutomaticPersonName(name2)) {
+        if (dictionary.has(name2) || costume || [...name2].length <= 4) add(name2, "明确标注");
+        else suggest(name2);
       }
     }
   }
@@ -2648,14 +2749,14 @@ function detectGreetingPeople(body, { knownNames = [], characterName = "", alias
     }
   }
   for (const match of story.matchAll(/(?:^|[。！？!?\n])\s*([\p{Script=Han}]{2,4})(?=走|说|问|答|望|看|笑|喊|推|抱|站|坐|跑|听|握|抬|转|递)/gmu)) {
-    const name = match[1];
-    if (isAutomaticPersonName(name) && COMMON_SURNAMES.includes(name[0]) && !NON_PERSON_LABELS.test(name) && !names.includes(name) && !suggestions.includes(name)) suggestions.push(name);
+    const name2 = match[1];
+    if (isAutomaticPersonName(name2) && COMMON_SURNAMES.includes(name2[0]) && !NON_PERSON_LABELS.test(name2) && !names.includes(name2) && !suggestions.includes(name2)) suggest(name2);
   }
-  return { names, evidence, suggestions: suggestions.filter((name) => !names.includes(name)).slice(0, 3) };
+  return { names, evidence, suggestions: suggestions.filter((name2) => !names.includes(name2)).slice(0, 3) };
 }
 function detectGreetingCollection(bodies, options = {}) {
   const first = bodies.map((body) => detectGreetingPeople(body, options));
-  const known = [.../* @__PURE__ */ new Set([...options.knownNames || [], ...first.flatMap((result) => result.names.filter((name) => result.evidence[name] === "明确标注"))])];
+  const known = [.../* @__PURE__ */ new Set([...options.knownNames || [], ...first.flatMap((result) => result.names.filter((name2) => result.evidence[name2] === "明确标注"))])];
   return bodies.map((body) => detectGreetingPeople(body, { ...options, knownNames: known }));
 }
 function isLegacyGeneratedEntry(body, entry, index) {
@@ -2877,8 +2978,8 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
       const label = el("label");
       label.append(el("span", "", title), select);
       select.setAttribute("aria-label", title);
-      for (const [id2, name] of options) {
-        const option = el("option", "", name);
+      for (const [id2, name2] of options) {
+        const option = el("option", "", name2);
         option.value = id2;
         select.append(option);
       }
@@ -2936,7 +3037,7 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
       if (item.names?.length) {
         const cast = el("div", "uos-preview-cast");
         cast.append(el("b", "uos-preview-cast-label", "全部人物"));
-        for (const name of item.names) cast.append(el("span", "", name));
+        for (const name2 of item.names) cast.append(el("span", "", name2));
         content.append(cast);
         extras.push(cast);
       }
@@ -3226,7 +3327,7 @@ var OPENING_SEEDS = [
 ];
 var text = (value, max) => String(value ?? "").trim().slice(0, max);
 function openingNames(value) {
-  return [...new Set((Array.isArray(value) ? value.join("、") : String(value || "")).split(/[、,，;；\n]/u).map((name) => text(name, 60)).filter(Boolean))].slice(0, 24);
+  return [...new Set((Array.isArray(value) ? value.join("、") : String(value || "")).split(/[、,，;；\n]/u).map((name2) => text(name2, 60)).filter(Boolean))].slice(0, 24);
 }
 function openingStamp(card) {
   const data = card?.data || card || {};
@@ -3312,9 +3413,9 @@ function generationResultText(result) {
 
 // src/opening-generation-service.js
 var activeRequest = null;
-var resolve = (sources, name) => {
-  const owner = (typeof sources === "function" ? sources() : sources).find((source) => typeof source?.[name] === "function");
-  return owner ? owner[name].bind(owner) : null;
+var resolve = (sources, name2) => {
+  const owner = (typeof sources === "function" ? sources() : sources).find((source) => typeof source?.[name2] === "function");
+  return owner ? owner[name2].bind(owner) : null;
 };
 function createOpeningGenerationService(sources) {
   let request = null, closed = false;
@@ -3458,7 +3559,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     const palette = getPalette?.();
     if (palette) {
       const computed = host.getComputedStyle(palette);
-      for (const name of ["--bg", "--panel", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(name, computed.getPropertyValue(name));
+      for (const name2 of ["--bg", "--panel", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(name2, computed.getPropertyValue(name2));
     }
     const el = (tag, text2 = "", className = "") => {
       const node = doc.createElement(tag);
@@ -3487,7 +3588,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     };
     main.append(el("p", "使用当前主 API。先生成、再编辑确认，最后追加到角色卡的备用开场；不会自动进入故事。"), el("small", "选项与最近 5 份草稿按角色保存在本机，不随卡分享。"));
     const controls = {};
-    function field(parent, name, label, { choices = null, multiline = false, placeholder = "", value = options[name] } = {}) {
+    function field(parent, name2, label, { choices = null, multiline = false, placeholder = "", value = options[name2] } = {}) {
       const row = el("label", "", "uos-generator-field"), caption = el("span", label), input = el(choices ? "select" : multiline ? "textarea" : "input");
       if (choices) for (const [id, text2] of choices) {
         const option = el("option", text2);
@@ -3498,15 +3599,15 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
       input.value = Array.isArray(value) ? value.join("、") : value ?? "";
       input.placeholder = placeholder;
       input.setAttribute("aria-label", label);
-      input.dataset.generationField = name;
+      input.dataset.generationField = name2;
       input.oninput = () => {
         capture();
         persist();
-        if (name === "names") syncCast();
+        if (name2 === "names") syncCast();
       };
       row.append(caption, input);
       parent.append(row);
-      controls[name] = input;
+      controls[name2] = input;
       return input;
     }
     main.append(el("h3", "1 · 选择登场人物"));
@@ -3520,7 +3621,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     main.append(el("h3", "2 · 给故事一个起点"));
     const grid = el("div", "", "uos-generator-grid");
     main.append(grid);
-    field(grid, "seed", "故事种子", { choices: OPENING_SEEDS.map(([id, name]) => [id, name]) });
+    field(grid, "seed", "故事种子", { choices: OPENING_SEEDS.map(([id, name2]) => [id, name2]) });
     field(grid, "mood", "氛围／文风", { placeholder: "例如：克制、轻松、悬疑、慢热" });
     field(main, "scene", "时间、地点与场景", { placeholder: "可留空，让模型结合角色卡构思" });
     field(main, "relationship", "人物关系／玩家身份", { placeholder: "例如：初次见面；玩家是刚到任的调查员" });
@@ -3602,7 +3703,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     review.append(reviewActions, el("small", "请检查人物设定、正文格式和状态栏。生成正文以文本编辑，不在此执行其中的 HTML 或脚本。"));
     function capture() {
       const next = { ...options, useWorldbook: worldbook.checked };
-      for (const name of Object.keys(options)) if (controls[name]) next[name] = controls[name].value;
+      for (const name2 of Object.keys(options)) if (controls[name2]) next[name2] = controls[name2].value;
       options = normalizeGenerationOptions(next);
       return options;
     }
@@ -3641,9 +3742,9 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
         const saved = (data.extensions?.universal_opening_selector ?? card.extensions?.universal_opening_selector) || {};
         const known = openingNames([data.name || card.name, ...(saved.entries || []).map((entry) => entry.names || ""), ...getKnownNames()]);
         const rawPeople = new Map(result.people.map((person) => [person.name, person]));
-        for (const name of known) if (!rawPeople.has(name)) rawPeople.set(name, { name, sources: ["角色卡"], trusted: true });
+        for (const name2 of known) if (!rawPeople.has(name2)) rawPeople.set(name2, { name: name2, sources: ["角色卡"], trusted: true });
         const roster = readPeopleRoster(host, card.avatar), people = applyPeopleRoster([...rawPeople.values()], roster);
-        controls.names.value = openingNames(controls.names.value).filter((name) => !roster.excluded.includes(name)).join("、");
+        controls.names.value = filterRosterNames(openingNames(controls.names.value), roster).join("、");
         capture();
         persist();
         for (const person of people) {
@@ -3656,7 +3757,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
           cast.append(label);
           input.onchange = () => {
             const picked = openingNames(controls.names.value);
-            controls.names.value = (input.checked ? [...picked, person.name] : picked.filter((name) => name !== person.name)).join("、");
+            controls.names.value = (input.checked ? [...picked, person.name] : picked.filter((name2) => name2 !== person.name)).join("、");
             capture();
             persist();
             syncCast();
@@ -3665,7 +3766,13 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
         syncCast();
         castHint.textContent = `读取 ${result.people.length} 位世界书人物，候选列表保留 ${people.length} 位。可在选择器主界面的「人物列表」整理名单。${result.warnings?.length ? result.warnings.join("；") : ""}`;
       } catch {
-        if (!closed) castHint.textContent = "世界书读取失败，仍可手动填写人物；生成会保留角色卡背景。";
+        if (!closed) {
+          const roster = readPeopleRoster(host, card.avatar);
+          controls.names.value = filterRosterNames(openingNames(controls.names.value), roster).join("、");
+          capture();
+          persist();
+          castHint.textContent = "世界书读取失败，仍可手动填写人物；生成会保留角色卡背景。";
+        }
       } finally {
         loadingWorldbook = false;
         reload.disabled = saving;
@@ -3846,9 +3953,9 @@ function normalizeWorldbookPreset(input) {
   const books = [];
   const seenBooks = /* @__PURE__ */ new Set();
   for (const book of input.books.slice(0, 128)) {
-    const name = typeof book?.name === "string" ? book.name.trim().slice(0, 300) : "";
-    if (!name || seenBooks.has(name) || !Array.isArray(book.entries)) continue;
-    seenBooks.add(name);
+    const name2 = typeof book?.name === "string" ? book.name.trim().slice(0, 300) : "";
+    if (!name2 || seenBooks.has(name2) || !Array.isArray(book.entries)) continue;
+    seenBooks.add(name2);
     const seenUids = /* @__PURE__ */ new Set();
     const entries = [];
     for (const raw of book.entries.slice(0, 1e4)) {
@@ -3858,7 +3965,7 @@ function normalizeWorldbookPreset(input) {
       seenUids.add(key);
       entries.push(entry);
     }
-    if (entries.length) books.push({ name, entries });
+    if (entries.length) books.push({ name: name2, entries });
   }
   return books.length ? { version: 1, books } : null;
 }
@@ -3879,8 +3986,8 @@ function normalizeWorldbookPresetLibrary(input) {
     const idBase = typeof raw?.id === "string" ? raw.id.trim().slice(0, 120) : "";
     const id = uniqueValue(idBase || "worldbook-" + (index + 1), ids, "-");
     const nameBase = String(raw?.name || "世界书预设 " + (index + 1)).trim().slice(0, 120) || "世界书预设 " + (index + 1);
-    const name = uniqueValue(nameBase, names, " ");
-    presets.push({ id, name, ...snapshot });
+    const name2 = uniqueValue(nameBase, names, " ");
+    presets.push({ id, name: name2, ...snapshot });
   }
   return presets;
 }
@@ -3902,8 +4009,8 @@ function migrateWorldbookPresetAssignments(rawEntries, rawPresets) {
     if (!snapshot || presets.length >= 500) return entry;
     const id = uniqueValue("legacy-opening-" + (index + 1), ids, "-");
     const title = String(source.title || "开场 " + (index + 1)).trim().slice(0, 80);
-    const name = uniqueValue("开场 " + (index + 1) + " · " + title, names, " ");
-    presets.push({ id, name, ...snapshot });
+    const name2 = uniqueValue("开场 " + (index + 1) + " · " + title, names, " ");
+    presets.push({ id, name: name2, ...snapshot });
     entry.worldbookPresetId = id;
     return entry;
   });
@@ -3943,7 +4050,7 @@ function createWorldbookPresetManager(getSources, getCard) {
       try {
         const result = await get();
         if (!result || typeof result !== "object" || !("primary" in result || "additional" in result)) continue;
-        return [...new Set([result.primary, ...Array.isArray(result.additional) ? result.additional : []].filter((name) => typeof name === "string" && name.trim()).map((name) => name.trim()))];
+        return [...new Set([result.primary, ...Array.isArray(result.additional) ? result.additional : []].filter((name2) => typeof name2 === "string" && name2.trim()).map((name2) => name2.trim()))];
       } catch {
       }
     }
@@ -3960,20 +4067,20 @@ function createWorldbookPresetManager(getSources, getCard) {
     if (bindings.length && !getWorldbook && !getLorebookEntries) {
       throw Error("酒馆助手未提供世界书条目读取接口");
     }
-    for (const name of bindings) {
+    for (const name2 of bindings) {
       let loaded = false, error = "";
       for (const get of [getWorldbook, getLorebookEntries].filter(Boolean)) {
         try {
-          const entries = await get(name);
+          const entries = await get(name2);
           if (!Array.isArray(entries)) throw Error("返回格式异常");
-          books.push({ name, entries });
+          books.push({ name: name2, entries });
           loaded = true;
           break;
         } catch (cause) {
           error = String(cause?.message || cause).slice(0, 140);
         }
       }
-      if (!loaded) warnings.push(`“${name}”读取失败${error ? `：${error}` : ""}`);
+      if (!loaded) warnings.push(`“${name2}”读取失败${error ? `：${error}` : ""}`);
     }
     if (bindings.length && !books.length) throw Error(`角色绑定的世界书无法读取${warnings.length ? `：${warnings.join("；")}` : ""}`);
     return { books, bindings, warnings, entryCount: books.reduce((sum, book) => sum + book.entries.length, 0) };
@@ -3981,9 +4088,9 @@ function createWorldbookPresetManager(getSources, getCard) {
   function updateMethod(assertCurrent = () => {
   }) {
     const updateWith = find("updateWorldbookWith");
-    if (updateWith) return async (name, states, sourceEntries) => {
+    if (updateWith) return async (name2, states, sourceEntries) => {
       assertCurrent();
-      await updateWith(name, (entries) => {
+      await updateWith(name2, (entries) => {
         assertCurrent();
         const found = /* @__PURE__ */ new Set();
         const updated = entries.map((entry) => {
@@ -3992,12 +4099,12 @@ function createWorldbookPresetManager(getSources, getCard) {
           found.add(key);
           return withEnabledState(entry, states.get(key));
         });
-        if ([...states.keys()].some((key) => !found.has(key))) throw Error(`世界书“${name}”的条目已变化`);
+        if ([...states.keys()].some((key) => !found.has(key))) throw Error(`世界书“${name2}”的条目已变化`);
         return updated;
       }, { render: "immediate" });
     };
     const replaceWorldbook = find("replaceWorldbook");
-    if (replaceWorldbook) return async (name, states, sourceEntries) => {
+    if (replaceWorldbook) return async (name2, states, sourceEntries) => {
       const found = /* @__PURE__ */ new Set();
       const updated = sourceEntries.map((entry) => {
         const key = uidKey(entry.uid ?? entry.id);
@@ -4005,23 +4112,23 @@ function createWorldbookPresetManager(getSources, getCard) {
         found.add(key);
         return withEnabledState(entry, states.get(key));
       });
-      if ([...states.keys()].some((key) => !found.has(key))) throw Error(`世界书“${name}”的条目已变化`);
+      if ([...states.keys()].some((key) => !found.has(key))) throw Error(`世界书“${name2}”的条目已变化`);
       assertCurrent();
-      await replaceWorldbook(name, updated, { render: "immediate" });
+      await replaceWorldbook(name2, updated, { render: "immediate" });
     };
     const setEntries = find("setLorebookEntries");
-    if (setEntries) return async (name, states, sourceEntries) => {
+    if (setEntries) return async (name2, states, sourceEntries) => {
       const byUid = new Map(sourceEntries.map((entry) => [uidKey(entry.uid ?? entry.id), entry]));
       const updates = [...states].map(([uid, enabled]) => {
         const current = byUid.get(uid);
-        if (!current) throw Error(`世界书“${name}”的条目已变化`);
+        if (!current) throw Error(`世界书“${name2}”的条目已变化`);
         return Object.prototype.hasOwnProperty.call(current, "disable") ? { uid: current.uid ?? current.id, disable: !enabled, ...Object.prototype.hasOwnProperty.call(current, "enabled") ? { enabled } : {} } : { uid: current.uid ?? current.id, enabled };
       });
       assertCurrent();
-      await setEntries(name, updates);
+      await setEntries(name2, updates);
     };
     const replaceLorebookEntries = find("replaceLorebookEntries");
-    if (replaceLorebookEntries) return async (name, states, sourceEntries) => {
+    if (replaceLorebookEntries) return async (name2, states, sourceEntries) => {
       const found = /* @__PURE__ */ new Set();
       const updated = sourceEntries.map((entry) => {
         const key = uidKey(entry.uid ?? entry.id);
@@ -4029,9 +4136,9 @@ function createWorldbookPresetManager(getSources, getCard) {
         found.add(key);
         return withEnabledState(entry, states.get(key));
       });
-      if ([...states.keys()].some((key) => !found.has(key))) throw Error(`世界书“${name}”的条目已变化`);
+      if ([...states.keys()].some((key) => !found.has(key))) throw Error(`世界书“${name2}”的条目已变化`);
       assertCurrent();
-      await replaceLorebookEntries(name, updated, { render: "immediate" });
+      await replaceLorebookEntries(name2, updated, { render: "immediate" });
     };
     return null;
   }
@@ -4067,7 +4174,7 @@ function createWorldbookPresetManager(getSources, getCard) {
       return { name: saved.name, entries: book.entries, desired, before };
     });
     const configuredBooks = new Set(preset.books.map((book) => book.name));
-    const unconfiguredBindings = current.bindings.filter((name) => !configuredBooks.has(name));
+    const unconfiguredBindings = current.bindings.filter((name2) => !configuredBooks.has(name2));
     if (unconfiguredBindings.length) throw Error(`角色新增了尚未记录到此开场的绑定世界书：${unconfiguredBindings.join("、")}；请重新记录预设`);
     const write = updateMethod(assertCurrent), restore = updateMethod();
     if (!write) throw Error("当前酒馆助手没有可用的世界书条目写入接口");
@@ -4367,11 +4474,11 @@ function labelKey(snapshot) {
 function parseNames(value) {
   return [...new Set(String(value || "").split(/[,，、/\n]+/).map((x) => x.trim()).filter(Boolean))].slice(0, 8);
 }
-function resolveDisplayEntry(entry, author = {}, local = {}, excluded = []) {
+function resolveDisplayEntry(entry, author = {}, local = {}, excluded = [], peopleRoster = null) {
   const title = typeof local.title === "string" && local.title.trim() ? local.title.trim() : typeof author.title === "string" && author.title.trim() ? author.title.trim() : greetingTitle(entry.body, entry.index, excluded);
   const nameValue = typeof local.names === "string" ? local.names : typeof author.names === "string" ? author.names : null;
-  const names = nameValue === null ? entry.names : parseNames(nameValue);
-  const detectedSources = [...new Set(names.map((name) => entry.nameEvidence?.[name]).filter(Boolean))];
+  const names = filterRosterNames(nameValue === null ? entry.names : parseNames(nameValue), peopleRoster);
+  const detectedSources = [...new Set(names.map((name2) => entry.nameEvidence?.[name2]).filter(Boolean))];
   return { title, names, titleSource: local.title?.trim() ? "玩家填写" : author.title?.trim() ? "作者填写" : "自动提取", namesSource: nameValue === null ? names.length ? `自动提取：${detectedSources.join("、") || "文本线索"}` : "未识别" : typeof local.names === "string" ? "玩家填写" : "作者填写" };
 }
 function readPlayerState(context, helper) {
@@ -4551,7 +4658,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       sources: () => [helperApi, startDocument?.defaultView?.TavernHelper, startDocument?.defaultView, host.TavernHelper, host],
       readWorldbook: readWorldbookPeople,
       getPalette: () => panel,
-      getKnownNames: () => [...snapshot.entries.flatMap((entry) => entry.names), ...personAliases(aliasInput.value).values()],
+      getKnownNames: () => [...authorEntries.flatMap((entry) => parseNames(entry?.names)), ...Object.values(localEdits).flatMap((entry) => parseNames(entry?.names)), ...detectGreetingCollection(snapshot.entries.map((entry) => entry.body), { worldbookPeople, aliases: aliasInput.value }).flatMap((result) => result.names), ...personAliases(aliasInput.value).values()],
       beforeOpen: () => confirmPlayerChanges(),
       onSaved: (result) => {
         session.close();
@@ -4576,9 +4683,12 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       getContext: () => host.SillyTavern?.getContext?.(),
       readWorldbook: readWorldbookPeople,
       getPalette: () => panel,
-      getKnownNames: () => [...snapshot.entries.flatMap((entry) => entry.names), ...personAliases(aliasInput.value).values()],
+      getKnownNames: () => [...authorEntries.flatMap((entry) => parseNames(entry?.names)), ...Object.values(localEdits).flatMap((entry) => parseNames(entry?.names)), ...detectGreetingCollection(snapshot.entries.map((entry) => entry.body), { worldbookPeople, aliases: aliasInput.value }).flatMap((result) => result.names), ...personAliases(aliasInput.value).values()],
+      getSuggestedNames: () => detectGreetingCollection(snapshot.entries.map((entry) => entry.body), { worldbookPeople, aliases: aliasInput.value }).flatMap((result) => result.suggestions),
       beforeOpen: async () => await generator.prepareForUpdate() && confirmPlayerChanges(),
       onSaved: () => {
+        updatePeople();
+        renderCards();
         void refreshWorldbook();
       }
     });
@@ -4592,8 +4702,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     tools.append(peopleButton);
     const select = el("select", "");
     select.setAttribute("aria-label", "选择主题");
-    for (const [id, name] of THEMES) {
-      const option = el("option", "", name);
+    for (const [id, name2] of THEMES) {
+      const option = el("option", "", name2);
       option.value = id;
       select.append(option);
     }
@@ -4662,8 +4772,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     panel.dataset.layout = openingLayout(layout);
     const layoutSelect = el("select");
     layoutSelect.setAttribute("aria-label", "选择版式");
-    for (const [id, name] of OPENING_LAYOUTS) {
-      const option = el("option", "", name);
+    for (const [id, name2] of OPENING_LAYOUTS) {
+      const option = el("option", "", name2);
       option.value = id;
       layoutSelect.append(option);
     }
@@ -4799,7 +4909,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       const conflicts = personAliases([authorConfig.personAliases, localPersonRules.personAliases].filter(Boolean).join(";")).conflicts;
       conflictNote.textContent = conflicts.length ? `重复别名未参与匹配：${conflicts.join("、")}。请只保留一个归属。` : "";
       const known = [...authorEntries.flatMap((entry) => typeof entry?.names === "string" ? parseNames(entry.names) : []), ...Object.values(localEdits).flatMap((entry) => typeof entry?.names === "string" ? parseNames(entry.names) : [])];
-      const detected = detectGreetingCollection(snapshot.entries.map((entry) => entry.body), { characterName: character?.data?.name || character?.name, knownNames: known, aliases: [authorConfig.personAliases, localPersonRules.personAliases].filter(Boolean).join(";"), worldbookPeople });
+      const detected = detectGreetingCollection(snapshot.entries.map((entry) => entry.body), { characterName: character?.data?.name || character?.name, knownNames: known, aliases: [authorConfig.personAliases, localPersonRules.personAliases].filter(Boolean).join(";"), worldbookPeople, peopleRoster: readPeopleRoster(host, snapshot.avatar) });
       snapshot.entries.forEach((entry, i) => {
         entry.names = detected[i].names;
         entry.nameEvidence = detected[i].evidence;
@@ -4810,11 +4920,11 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         candidates.replaceChildren();
         if (entry.nameSuggestions.length) {
           candidates.append(el("span", "", "待确认："));
-          for (const name of entry.nameSuggestions) {
-            const button = el("button", "", name);
+          for (const name2 of entry.nameSuggestions) {
+            const button = el("button", "", name2);
             button.type = "button";
             button.onclick = () => {
-              namesInput.value = [.../* @__PURE__ */ new Set([...parseNames(namesInput.value), name])].join("、");
+              namesInput.value = [.../* @__PURE__ */ new Set([...parseNames(namesInput.value), name2])].join("、");
               status.textContent = "已填入候选人物，请保存修正。";
             };
             candidates.append(button);
@@ -4865,7 +4975,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
     for (const entry of snapshot.entries) {
       const box = el("div", "");
       box.append(el("strong", "", `开场 ${entry.index + 1}`));
-      const effective = resolveDisplayEntry(entry, authorEntries[entry.index], localEdits[entry.index], [...authorExcluded, ...localExcluded]);
+      const effective = resolveDisplayEntry(entry, authorEntries[entry.index], localEdits[entry.index], [...authorExcluded, ...localExcluded], readPeopleRoster(host, snapshot.avatar));
       const titleInput = el("input");
       titleInput.type = "text";
       titleInput.maxLength = 100;
@@ -5141,17 +5251,18 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       }
     }
     function renderCards() {
+      updatePeople();
       list.replaceChildren();
       previewItems = [];
-      const resolved = snapshot.entries.map((entry) => resolveDisplayEntry(entry, authorEntries[entry.index], localEdits[entry.index], [...authorExcluded, ...localExcluded]));
+      const resolved = snapshot.entries.map((entry) => resolveDisplayEntry(entry, authorEntries[entry.index], localEdits[entry.index], [...authorExcluded, ...localExcluded], readPeopleRoster(host, snapshot.avatar)));
       const selected = person.value;
       person.replaceChildren();
       const any = el("option", "", "全部人物");
       any.value = "";
       person.append(any);
-      for (const name of new Set(resolved.flatMap((x) => x.names))) {
-        const option = el("option", "", name);
-        option.value = name;
+      for (const name2 of new Set(resolved.flatMap((x) => x.names))) {
+        const option = el("option", "", name2);
+        option.value = name2;
         person.append(option);
       }
       person.value = selected;
@@ -5180,7 +5291,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         if (display.names.length) {
           const cast = el("p", "uos-user-names");
           cast.append(el("span", "uos-cast-label", "人物"));
-          for (const name of display.names.slice(0, 3)) cast.append(el("span", "uos-name-chip", name));
+          for (const name2 of display.names.slice(0, 3)) cast.append(el("span", "uos-name-chip", name2));
           if (display.names.length > 3) cast.append(el("span", "uos-name-chip", `+${display.names.length - 3}`));
           cardBody.append(cast);
         }
@@ -5257,8 +5368,8 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         const result = await readWorldbookPeople(character, { refresh });
         const current = host.SillyTavern?.getContext?.();
         if (panelSession !== session || session.disposed || current?.characterId !== snapshot.characterId || current?.characters?.[current.characterId]?.avatar !== character?.avatar) return;
-        worldbookPeople = applyPeopleRoster(result.people, readPeopleRoster(host, snapshot.avatar));
-        renderWorldbookPeopleList(doc, worldbookList, worldbookPeople, result.diagnostics);
+        worldbookPeople = result.people;
+        renderWorldbookPeopleList(doc, worldbookList, applyPeopleRoster(worldbookPeople, readPeopleRoster(host, snapshot.avatar)), result.diagnostics);
         worldbookStatus.textContent = formatWorldbookPeopleStatus(result);
         updatePeople();
         renderCards();
@@ -5341,16 +5452,16 @@ function createWorldbookPresetEditor({
     const draft = getDraft();
     if (closed || !draft) return false;
     if (!selection.dirty) return true;
-    const selected = selection.edit, name = String(selected?.name || "").trim().slice(0, 120);
-    if (!selected || !name) {
+    const selected = selection.edit, name2 = String(selected?.name || "").trim().slice(0, 120);
+    if (!selected || !name2) {
       status(fromForm ? "请填写预设名称。" : "请先填写预设名称。");
       return false;
     }
-    if (worldbookPresetNameTaken(name, selected.id)) {
+    if (worldbookPresetNameTaken(name2, selected.id)) {
       status(fromForm ? "已有同名预设，请换一个名称。" : "已有同名预设，请换一个名称后再保存。");
       return false;
     }
-    const saved = { ...JSON.parse(JSON.stringify(selected)), name };
+    const saved = { ...JSON.parse(JSON.stringify(selected)), name: name2 };
     if (selection.isNew) draft.worldbookPresets.push(saved);
     else {
       const index = draft.worldbookPresets.findIndex((preset) => preset.id === selected.id);
@@ -5395,19 +5506,19 @@ function createWorldbookPresetEditor({
     while (draft.worldbookPresets.some((preset) => preset.id === id)) id = base + "-" + index++;
     return id;
   }
-  function worldbookPresetNameTaken(name, exceptId = "") {
+  function worldbookPresetNameTaken(name2, exceptId = "") {
     const draft = getDraft();
-    const normalized = String(name || "").trim().toLocaleLowerCase();
+    const normalized = String(name2 || "").trim().toLocaleLowerCase();
     return draft.worldbookPresets.some((preset) => preset.id !== exceptId && preset.name.toLocaleLowerCase() === normalized);
   }
   function nextWorldbookPresetName(base) {
     const baseName = String(base || "世界书预设").trim().slice(0, 120) || "世界书预设";
-    let name = baseName, index = 2;
-    while (worldbookPresetNameTaken(name)) {
+    let name2 = baseName, index = 2;
+    while (worldbookPresetNameTaken(name2)) {
       const suffix = " " + index++;
-      name = baseName.slice(0, 120 - suffix.length) + suffix;
+      name2 = baseName.slice(0, 120 - suffix.length) + suffix;
     }
-    return name;
+    return name2;
   }
   function renderWorldbookPresetRows(list, preset, query, onChange = () => {
   }) {
@@ -5517,8 +5628,8 @@ function createWorldbookPresetEditor({
     create.disabled = worldbookPresetData.warnings.length > 0 || selection.dirty;
     create.onclick = () => {
       try {
-        const snapshot = captureWorldbookPreset(worldbookPresetData.books), name = nextWorldbookPresetName(newName.value.trim() || "世界书预设 " + (presets.length + 1));
-        selection.edit = { id: makeWorldbookPresetId(), name, ...snapshot };
+        const snapshot = captureWorldbookPreset(worldbookPresetData.books), name2 = nextWorldbookPresetName(newName.value.trim() || "世界书预设 " + (presets.length + 1));
+        selection.edit = { id: makeWorldbookPresetId(), name: name2, ...snapshot };
         selection.id = selection.edit.id;
         selection.dirty = true;
         selection.isNew = true;
@@ -5991,7 +6102,7 @@ function renderMusicSettings({ root, settings, isCurrent, fields, renderMusic })
 
 // src/author-opening-card.js
 function createAuthorOpeningCard({ el, entry, index, body, host, onChoose, onPreview, favoriteButton }) {
-  const names = Array.isArray(entry.names) ? entry.names : String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean);
+  const names = Array.isArray(entry.names) ? entry.names : String(entry.names || "").split(/[、，,\/]/).map((name2) => name2.trim()).filter(Boolean);
   const shell = el("article", "uos-card-shell"), card = el("button", "uos-card");
   card.type = "button";
   card.setAttribute("aria-label", `选择 ${entry.title}`);
@@ -6009,7 +6120,7 @@ function createAuthorOpeningCard({ el, entry, index, body, host, onChoose, onPre
   if (names.length) {
     const cast = el("p", "uos-card-names");
     cast.append(el("span", "uos-cast-label", "人物"));
-    for (const name of names.slice(0, 3)) cast.append(el("span", "uos-name-chip", name));
+    for (const name2 of names.slice(0, 3)) cast.append(el("span", "uos-name-chip", name2));
     if (names.length > 3) cast.append(el("span", "uos-name-chip", `+${names.length - 3}`));
     content.append(cast);
   }
@@ -6619,9 +6730,9 @@ function renderAuthorPagePreview({ doc, model, host, groups }) {
   const all = el("option", "", "全部人物");
   all.value = "";
   people.append(all);
-  for (const name of new Set(model.items.flatMap((item) => item.names))) {
-    const option = el("option", "", name);
-    option.value = name;
+  for (const name2 of new Set(model.items.flatMap((item) => item.names))) {
+    const option = el("option", "", name2);
+    option.value = name2;
     people.append(option);
   }
   people.disabled = true;
@@ -6945,7 +7056,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     try {
       const result = await readWorldbookPeople(card, { refresh });
       if (root.isConnected === false || character2()?.avatar !== identity) return;
-      worldbookPeople = applyPeopleRoster(result.people, readPeopleRoster(host, identity));
+      worldbookPeople = result.people;
       worldbookDiagnostics = result.diagnostics || [];
       worldbookMessage = formatWorldbookPeopleStatus(result);
       render();
@@ -6956,7 +7067,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const note = $("[data-worldbook-status]");
     if (note) note.textContent = worldbookMessage;
     const list = $("[data-worldbook-list]");
-    if (list) renderWorldbookPeopleList(doc, list, worldbookPeople, worldbookDiagnostics);
+    if (list) renderWorldbookPeopleList(doc, list, applyPeopleRoster(worldbookPeople, readPeopleRoster(host, character2()?.avatar)), worldbookDiagnostics);
   }
   const stored = character2()?.data?.extensions?.[KEY2] ?? character2()?.extensions?.[KEY2];
   let config = normalize2(stored || seed);
@@ -6995,7 +7106,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     sources: () => [helperApi, doc.defaultView?.TavernHelper, doc.defaultView, host.TavernHelper, host],
     readWorldbook: readWorldbookPeople,
     getPalette: () => root,
-    getKnownNames: () => [...entries().flatMap((entry) => String(entry.names || "").split(/[、,，]/)), ...personAliases(config.personAliases).values()],
+    getKnownNames: () => [...config.entries.flatMap((entry) => String(entry.names || "").split(/[、,，]/)), ...detectGreetingCollection(greetingList(), { worldbookPeople, aliases: config.personAliases }).flatMap((result) => result.names), ...personAliases(config.personAliases).values()],
     beforeOpen: async () => {
       if (activePopup) {
         await activePopup.complete();
@@ -7015,7 +7126,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     getContext: context,
     readWorldbook: readWorldbookPeople,
     getPalette: () => root,
-    getKnownNames: () => [...entries().flatMap((entry) => String(entry.names || "").split(/[、,，]/)), ...personAliases(config.personAliases).values()],
+    getKnownNames: () => [...config.entries.flatMap((entry) => String(entry.names || "").split(/[、,，]/)), ...detectGreetingCollection(greetingList(), { worldbookPeople, aliases: config.personAliases }).flatMap((result) => result.names), ...personAliases(config.personAliases).values()],
+    getSuggestedNames: () => detectGreetingCollection(greetingList(), { worldbookPeople, aliases: config.personAliases }).flatMap((result) => result.suggestions),
     beforeOpen: async () => {
       if (!await generator.prepareForUpdate()) return false;
       if (activePopup) {
@@ -7025,6 +7137,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       return true;
     },
     onSaved: () => {
+      render();
+      pagePreview?.refresh();
       void refreshWorldbookPeople();
     }
   });
@@ -7131,7 +7245,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   function infer(text2, i, people, settings = config) {
     const source = String(text2 || ""), excluded = excludedTags(settings.excludedTags);
     const title = greetingTitle(source, i, excluded), body = narrativeStart(source, excluded);
-    const detected = people || detectGreetingCollection([source], { aliases: settings.personAliases, worldbookPeople })[0];
+    const detected = people || detectGreetingCollection([source], { aliases: settings.personAliases, worldbookPeople, peopleRoster: readPeopleRoster(host, character2()?.avatar) })[0];
     return { title, description: body.slice(title.length).trim().slice(0, 140), names: detected.names.join("、"), nameSuggestions: detected.suggestions };
   }
   function suggest(text2, i) {
@@ -7140,10 +7254,11 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   function entries(settings = config) {
     const greetings = greetingList();
     const count = greetings.length;
-    const people = detectGreetingCollection(greetings, { characterName: character2()?.data?.name || character2()?.name, knownNames: settings.entries.flatMap((entry) => typeof entry.names === "string" ? entry.names.split(/[、，,\/]/).map((x) => x.trim()) : []), aliases: settings.personAliases, worldbookPeople });
+    const people = detectGreetingCollection(greetings, { characterName: character2()?.data?.name || character2()?.name, knownNames: settings.entries.flatMap((entry) => typeof entry.names === "string" ? entry.names.split(/[、，,\/]/).map((x) => x.trim()) : []), aliases: settings.personAliases, worldbookPeople, peopleRoster: readPeopleRoster(host, character2()?.avatar) });
     return Array.from({ length: count }, (_, i) => {
       const generated = infer(greetings[i], i, people[i], settings), saved = settings.entries[i] || {};
-      return isLegacyGeneratedEntry(greetings[i], saved, i) ? { ...generated, ...saved, title: generated.title, description: generated.description } : { ...generated, ...saved };
+      const merged = isLegacyGeneratedEntry(greetings[i], saved, i) ? { ...generated, ...saved, title: generated.title, description: generated.description } : { ...generated, ...saved };
+      return { ...merged, names: filterRosterNames(merged.names, readPeopleRoster(host, character2()?.avatar)).join("、") };
     });
   }
   function localTheme() {
@@ -7261,7 +7376,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       save.focus();
     });
   }
-  function confirmPresetDelete(name) {
+  function confirmPresetDelete(name2) {
     const frameDoc = activePopup?.frame?.contentDocument;
     if (!frameDoc) return Promise.resolve(false);
     return new Promise((resolve2) => {
@@ -7270,7 +7385,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       dialog.style.cssText = "width:min(420px,calc(100% - 32px));padding:20px;border:1px solid var(--accent);border-radius:14px;background:var(--bg);color:var(--text)";
       for (const key of ["--bg", "--panel", "--text", "--accent"]) dialog.style.setProperty(key, activePopup.sheet.style.getPropertyValue(key));
       const text2 = frameDoc.createElement("p");
-      text2.textContent = "删除预设“" + name + "”？已分配的开场也会清空。";
+      text2.textContent = "删除预设“" + name2 + "”？已分配的开场也会清空。";
       const actions = frameDoc.createElement("div");
       actions.style.cssText = "display:flex;justify-content:flex-end;gap:8px";
       const cancel = frameDoc.createElement("button"), remove = frameDoc.createElement("button");
@@ -7484,7 +7599,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     }
     const query = filters.querySelector("input").value.trim().toLocaleLowerCase(), person = filters.querySelector("select"), selected = person.value;
     const items = entries(), greetings = greetingList(), people = /* @__PURE__ */ new Set();
-    const rows = favoriteUI.update(items.map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings[i] || "", names: String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean) })));
+    const rows = favoriteUI.update(items.map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings[i] || "", names: String(entry.names || "").split(/[、，,\/]/).map((name2) => name2.trim()).filter(Boolean) })));
     if (!filters.contains(favoriteUI.element)) filters.append(favoriteUI.element);
     if (!filters.__uosCategories) {
       filters.__uosCategories = createOpeningCategoryFilters({ el, onChange: () => render() });
@@ -7495,14 +7610,14 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     allDrawItems = rows.filter((entry) => entry.body).map((entry) => ({ ...entry, id: entry.id + 1, number: entry.id + 1, coverIndex: entry.id }));
     const openingCount = $("[data-opening-count]");
     if (openingCount) openingCount.textContent = `共 ${items.length} 个开场`;
-    for (const entry of items) for (const name of String(entry.names || "").split(/[、，,\/]/).map((x) => x.trim()).filter(Boolean)) people.add(name);
+    for (const entry of items) for (const name2 of String(entry.names || "").split(/[、，,\/]/).map((x) => x.trim()).filter(Boolean)) people.add(name2);
     person.replaceChildren();
     const all = el("option", "", "全部人物");
     all.value = "";
     person.append(all);
-    for (const name of people) {
-      const option = el("option", "", name);
-      option.value = name;
+    for (const name2 of people) {
+      const option = el("option", "", name2);
+      option.value = name2;
       person.append(option);
     }
     person.value = selected;
@@ -7604,10 +7719,10 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     if (!dlg) return;
     const grid = $("[data-theme-grid]");
     grid.replaceChildren();
-    THEMES.forEach(([id, name]) => {
+    THEMES.forEach(([id, name2]) => {
       const b = el("button", "uos-theme-choice");
       b.type = "button";
-      b.setAttribute("aria-label", `切换到${name}`);
+      b.setAttribute("aria-label", `切换到${name2}`);
       b.setAttribute("aria-pressed", String(id === displayTheme));
       const swatch = el("span", "uos-theme-swatch");
       swatch.dataset.theme = id;
@@ -7616,7 +7731,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       icon.dataset.theme = id;
       icon.setAttribute("aria-hidden", "true");
       swatch.append(icon);
-      b.append(swatch, el("span", "", name));
+      b.append(swatch, el("span", "", name2));
       b.onclick = () => {
         setTheme(id);
         activePopup?.complete(null);
@@ -7697,8 +7812,8 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     const layoutField = el("label", "uos-layout-field"), layoutSelect = el("select");
     layoutField.append(el("span", "", "页面版式"), layoutSelect);
     layoutSelect.setAttribute("aria-label", "页面版式");
-    for (const [id, name] of OPENING_LAYOUTS) {
-      const option = el("option", "", name);
+    for (const [id, name2] of OPENING_LAYOUTS) {
+      const option = el("option", "", name2);
       option.value = id;
       layoutSelect.append(option);
     }
@@ -7722,7 +7837,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           return automatic;
         }) }), greetings2 = greetingList();
         const favoriteKeys = favoritesStore.keys(greetings2), savedFavorites = favoritesStore.snapshot();
-        return { ...settings, items: entries(settings).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", favoriteKey: favoriteKeys[i], favorite: savedFavorites.has(favoriteKeys[i]), names: String(entry.names || "").split(/[、，,\/]/).map((name) => name.trim()).filter(Boolean) })) };
+        return { ...settings, items: entries(settings).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", favoriteKey: favoriteKeys[i], favorite: savedFavorites.has(favoriteKeys[i]), names: String(entry.names || "").split(/[、，,\/]/).map((name2) => name2.trim()).filter(Boolean) })) };
       }
     });
     fields.append(pagePreview.element);
@@ -7734,7 +7849,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     recognition.append(personRules);
     const worldbookList = el("ul");
     worldbookList.dataset.worldbookList = "";
-    renderWorldbookPeopleList(doc, worldbookList, worldbookPeople, worldbookDiagnostics);
+    renderWorldbookPeopleList(doc, worldbookList, applyPeopleRoster(worldbookPeople, readPeopleRoster(host, character2()?.avatar)), worldbookDiagnostics);
     const aliasWarning = el("p", "uos-help");
     aliasWarning.textContent = personAliases(draft.personAliases).conflicts.length ? `重复别名未参与匹配：${personAliases(draft.personAliases).conflicts.join("、")}。请只保留一个归属。` : "";
     personRules.append(aliasWarning);
