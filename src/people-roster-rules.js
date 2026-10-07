@@ -2,9 +2,9 @@
 const name=value=>String(value??'').normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g,'').trim().slice(0,60);
 export function rosterNames(value){return [...new Set((Array.isArray(value)?value.join('、'):String(value||'')).split(/[、,，;；\n/]/u).map(name).filter(Boolean))].slice(0,500)}
 export function normalizePeopleRoster(value){
-  const added=rosterNames(value?.added),excluded=rosterNames(value?.excluded).filter(item=>!added.includes(item));
+  const added=rosterNames(value?.added),deleted=rosterNames(value?.deleted).filter(item=>!added.includes(item)),excluded=rosterNames([...(Array.isArray(value?.excluded)?value.excluded:[]),...deleted]).filter(item=>!added.includes(item));
   const managed=value?.managed===true;
-  return {managed,confirmed:managed?rosterNames([...(Array.isArray(value?.confirmed)?value.confirmed:[]),...added]).filter(item=>!excluded.includes(item)):[],excluded,added};
+  return {managed,confirmed:managed?rosterNames([...(Array.isArray(value?.confirmed)?value.confirmed:[]),...added]).filter(item=>!excluded.includes(item)):[],excluded,added,deleted};
 }
 export function rosterExcludesName(value,roster){return !!roster?.excluded?.includes(name(value))}
 export function rosterAllowsName(value,roster){const canonical=name(value);return !rosterExcludesName(canonical,roster)&&(!roster?.managed||roster.confirmed.includes(canonical))}

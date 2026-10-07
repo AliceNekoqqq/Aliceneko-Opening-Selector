@@ -31,3 +31,9 @@ test('legacy selections keep explicit exclusions effective; absent or restored a
   const legacy=normalizePeopleRoster({excluded:['楚泽'],added:['乔乔']});assert.equal(legacy.managed,false);assert.deepEqual(detectGreetingCollection(['姓名：楚泽\n乔乔推开门。'],{peopleRoster:legacy})[0].names,['乔乔']);
   assert.deepEqual(detectGreetingCollection(['姓名：楚泽'],{peopleRoster:normalizePeopleRoster({managed:false,confirmed:[],excluded:[],added:[]})})[0].names,['楚泽']);
 });
+
+test('deleted vocabulary is excluded from recognition and presentation, legacy records still work and explicit readdition revives a name',()=>{
+  const deleted=normalizePeopleRoster({managed:true,confirmed:['林安','楚泽'],excluded:[],added:[],deleted:['楚泽']});assert.deepEqual(deleted.confirmed,['林安']);assert.deepEqual(deleted.excluded,['楚泽']);
+  assert.deepEqual(detectGreetingCollection(['姓名：楚泽\n哥哥推开门。'],{worldbookPeople:people,peopleRoster:deleted})[0].names,[]);assert.deepEqual(applyPeopleRoster(people,deleted).map(person=>person.name),['林安']);assert.deepEqual(filterRosterNames('楚泽、林安',deleted),['林安']);
+  const revived=normalizePeopleRoster({...deleted,added:['楚泽']});assert.deepEqual(revived.deleted,[]);assert.ok(revived.confirmed.includes('楚泽'));assert.deepEqual(normalizePeopleRoster({excluded:[],added:[]}).deleted,[]);
+});

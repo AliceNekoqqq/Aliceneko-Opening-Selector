@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.17-beta.5" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.6" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -179,9 +179,9 @@ function rosterNames(value) {
   return [...new Set((Array.isArray(value) ? value.join("、") : String(value || "")).split(/[、,，;；\n/]/u).map(name).filter(Boolean))].slice(0, 500);
 }
 function normalizePeopleRoster(value) {
-  const added = rosterNames(value?.added), excluded = rosterNames(value?.excluded).filter((item) => !added.includes(item));
+  const added = rosterNames(value?.added), deleted = rosterNames(value?.deleted).filter((item) => !added.includes(item)), excluded = rosterNames([...Array.isArray(value?.excluded) ? value.excluded : [], ...deleted]).filter((item) => !added.includes(item));
   const managed = value?.managed === true;
-  return { managed, confirmed: managed ? rosterNames([...Array.isArray(value?.confirmed) ? value.confirmed : [], ...added]).filter((item) => !excluded.includes(item)) : [], excluded, added };
+  return { managed, confirmed: managed ? rosterNames([...Array.isArray(value?.confirmed) ? value.confirmed : [], ...added]).filter((item) => !excluded.includes(item)) : [], excluded, added, deleted };
 }
 function rosterExcludesName(value, roster) {
   return !!roster?.excluded?.includes(name(value));
@@ -232,7 +232,7 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
     }
     const context = getContext(), id = context?.characterId, card = context?.characters?.[id];
     if (!card?.avatar) return false;
-    const avatar = card.avatar, roster = readPeopleRoster(host, avatar);
+    const avatar = card.avatar, roster = readPeopleRoster(host, avatar), deleted = new Set(roster.deleted);
     let closed = false, loading = false, automaticDraft = false, available = /* @__PURE__ */ new Map();
     const active = () => {
       const current = getContext();
@@ -271,7 +271,7 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
       node.onclick = fn;
       return node;
     };
-    dialog.append(el("h2", "人物列表"), el("p", "勾选要保留的名字，取消勾选可移除误识别项。勾选并保存即确认身份；此后只按保留的人物及有效别名识别，名单外人物只列为待确认。作者版、玩家版与生成器共用。"), el("p", "按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。"));
+    dialog.append(el("h2", "人物列表"), el("p", "勾选决定人物是否参与识别；取消勾选仍保留人物行，删除则立即隐藏人物行。勾选并保存即确认身份；此后只按保留的人物及有效别名识别，名单外人物只列为待确认。作者版、玩家版与生成器共用。"), el("p", "按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。"));
     const status = el("p");
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
@@ -301,7 +301,7 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
         row.hidden = !!(query && !`${input.value} ${input.dataset.peopleSource || ""}`.toLocaleLowerCase().includes(query)) || pendingOnly.checked && input.dataset.peoplePending !== "true";
         if (!row.hidden) visible++;
       }
-      summary.textContent = automaticDraft ? "保存后恢复自动识别，清除本机名单限制。" : `已保留 ${kept} / ${available.size} 位 · 当前显示 ${visible} 位 · 补充 ${rosterNames(added.value).length} 位`;
+      summary.textContent = automaticDraft ? "保存后恢复自动识别，清除本机名单限制。" : `已保留 ${kept} / ${list.querySelectorAll("input").length} 位 · 当前显示 ${visible} 位 · 补充 ${rosterNames(added.value).length} 位 · 已删除 ${deleted.size} 位`;
     }
     search.oninput = updateSummary;
     pendingOnly.onchange = updateSummary;
@@ -321,18 +321,31 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
       for (const input of list.querySelectorAll("input")) if (input.checked) input.confirmPerson?.();
       updateSummary();
     });
-    const all = button("全部保留", () => setChecks(true)), none = button("全部移除", () => setChecks(false)), reset = button("恢复读取名单", () => {
+    const all = button("全选", () => setChecks(true)), none = button("取消全选", () => setChecks(false)), reset = button("恢复读取名单", () => {
+      deleted.clear();
+      renderPeople();
       setChecks(true);
       added.value = "";
       updateSummary();
-    }), removePending = button("移除待确认", () => {
+    }), removePending = button("取消勾选待确认", () => {
       automaticDraft = false;
       for (const input of list.querySelectorAll("input")) if (input.dataset.peoplePending === "true") input.checked = false;
       updateSummary();
     }), reload = button("重新读取人物", () => {
       void load(true);
     });
-    actions.append(all, none, confirmPending, removePending, reset, reload);
+    function deletePeople(predicate) {
+      if (loading || closed) return;
+      automaticDraft = false;
+      for (const input of list.querySelectorAll("input")) if (predicate(input)) {
+        deleted.add(input.value);
+        (input.parentNode || input.parent).remove();
+      }
+      added.value = rosterNames(added.value).filter((name2) => !deleted.has(name2)).join("、");
+      updateSummary();
+    }
+    const deleteUnchecked = button("删除未勾选", () => deletePeople((input) => !input.checked)), deletePending = button("删除待确认", () => deletePeople((input) => input.dataset.peoplePending === "true"));
+    actions.append(all, none, confirmPending, removePending, deleteUnchecked, deletePending, reset, reload);
     const label = el("label", "补充人物（可修改或删除）"), added = el("textarea");
     added.dataset.peopleAdded = "";
     added.setAttribute("aria-label", "补充人物");
@@ -354,11 +367,11 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
         status.textContent = "角色已切换，请回到原角色再保存。";
         return;
       }
-      const excluded = roster.excluded.filter((name2) => !available.has(name2));
+      const excluded = [...roster.excluded.filter((name2) => !available.has(name2)), ...deleted];
       for (const input of list.querySelectorAll("input")) if (!input.checked) excluded.push(input.value);
-      const confirmed = [...roster.confirmed.filter((name2) => !available.has(name2) && !roster.added.includes(name2)), ...[...list.querySelectorAll("input")].filter((input) => input.checked).map((input) => input.value)];
+      const confirmed = [...roster.confirmed.filter((name2) => !available.has(name2) && !roster.added.includes(name2) && !deleted.has(name2)), ...[...list.querySelectorAll("input")].filter((input) => input.checked).map((input) => input.value)];
       try {
-        writePeopleRoster(host, avatar, automaticDraft ? { managed: false, excluded: [], added: [] } : { managed: true, confirmed, excluded, added: rosterNames(added.value) });
+        writePeopleRoster(host, avatar, automaticDraft ? { managed: false, excluded: [], added: [], deleted: [] } : { managed: true, confirmed, excluded, added: rosterNames(added.value), deleted: [...deleted] });
       } catch {
         status.textContent = "本机保存失败，编辑仍保留，请稍后重试。";
         return;
@@ -370,11 +383,49 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
       automaticDraft = true;
       updateSummary();
     }), button("取消", close));
+    function renderPeople(draft = /* @__PURE__ */ new Map()) {
+      list.replaceChildren();
+      for (const person of available.values()) {
+        if (deleted.has(person.name)) continue;
+        const row = el("label"), input = el("input");
+        input.type = "checkbox";
+        input.value = person.name;
+        input.dataset.peopleKeep = person.name;
+        input.checked = draft.has(person.name) ? draft.get(person.name).checked : !roster.excluded.includes(person.name) && (!roster.managed || roster.confirmed.includes(person.name));
+        input.dataset.peoplePending = draft.get(person.name)?.pending ?? String(person.trusted === false && !roster.confirmed.includes(person.name));
+        input.dataset.peopleSource = person.sources?.join("；") || "";
+        input.onchange = () => {
+          automaticDraft = false;
+          updateSummary();
+        };
+        input.setAttribute("aria-label", `保留人物 ${person.name}`);
+        row.title = person.sources?.join("；") || "";
+        const nameLabel = el("span", person.name + (input.dataset.peoplePending === "true" ? "（待确认）" : ""));
+        row.append(input, nameLabel, el("small", " · " + (person.sources?.join("；") || "来源未标注")));
+        if (input.dataset.peoplePending === "true") {
+          const confirm = button("确认", () => {
+            input.confirmPerson();
+            updateSummary();
+          });
+          confirm.setAttribute("aria-label", `确认人物 ${person.name}`);
+          input.confirmPerson = () => {
+            automaticDraft = false;
+            input.checked = true;
+            input.dataset.peoplePending = "false";
+            nameLabel.textContent = person.name;
+            confirm.hidden = true;
+          };
+          row.append(confirm);
+        }
+        list.append(row);
+      }
+      updateSummary();
+    }
     async function load(refresh = false) {
       if (loading || closed) return;
       const draft = new Map([...list.querySelectorAll("input")].map((input) => [input.value, { checked: input.checked, pending: input.dataset.peoplePending }]));
       loading = true;
-      for (const node of [save, reload, all, none, reset, removePending, confirmPending]) node.disabled = true;
+      for (const node of [save, reload, all, none, reset, removePending, confirmPending, deleteUnchecked, deletePending]) node.disabled = true;
       status.textContent = "正在读取人物名单…";
       try {
         const result = await readWorldbook(card, { refresh });
@@ -383,49 +434,16 @@ function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKn
           return;
         }
         available = new Map(result.people.map((person) => [person.name, person]));
-        for (const name2 of rosterNames([card.data?.name || card.name, ...getKnownNames(), ...roster.confirmed.filter((name3) => !roster.added.includes(name3)), ...roster.excluded])) if (!available.has(name2)) available.set(name2, { name: name2, sources: ["角色卡"], trusted: true });
+        for (const name2 of rosterNames([card.data?.name || card.name, ...getKnownNames(), ...roster.confirmed.filter((name3) => !roster.added.includes(name3)), ...roster.excluded.filter((name3) => !roster.deleted.includes(name3))])) if (!available.has(name2)) available.set(name2, { name: name2, sources: ["角色卡"], trusted: true });
         for (const name2 of rosterNames(getSuggestedNames())) if (!available.has(name2)) available.set(name2, { name: name2, sources: ["正文候选"], trusted: false });
-        list.replaceChildren();
-        for (const person of available.values()) {
-          const row = el("label"), input = el("input");
-          input.type = "checkbox";
-          input.value = person.name;
-          input.dataset.peopleKeep = person.name;
-          input.checked = draft.has(person.name) ? draft.get(person.name).checked : !roster.excluded.includes(person.name) && (!roster.managed || roster.confirmed.includes(person.name));
-          input.dataset.peoplePending = draft.get(person.name)?.pending ?? String(person.trusted === false && !roster.confirmed.includes(person.name));
-          input.dataset.peopleSource = person.sources?.join("；") || "";
-          input.onchange = () => {
-            automaticDraft = false;
-            updateSummary();
-          };
-          input.setAttribute("aria-label", `保留人物 ${person.name}`);
-          row.title = person.sources?.join("；") || "";
-          const nameLabel = el("span", person.name + (input.dataset.peoplePending === "true" ? "（待确认）" : ""));
-          row.append(input, nameLabel, el("small", " · " + (person.sources?.join("；") || "来源未标注")));
-          if (input.dataset.peoplePending === "true") {
-            const confirm = button("确认", () => {
-              input.confirmPerson();
-              updateSummary();
-            });
-            confirm.setAttribute("aria-label", `确认人物 ${person.name}`);
-            input.confirmPerson = () => {
-              automaticDraft = false;
-              input.checked = true;
-              input.dataset.peoplePending = "false";
-              nameLabel.textContent = person.name;
-              confirm.hidden = true;
-            };
-            row.append(confirm);
-          }
-          list.append(row);
-        }
+        renderPeople(draft);
         updateSummary();
         status.textContent = `读取 ${result.people.length} 位世界书人物，共 ${available.size} 位候选。${result.warnings?.length ? result.warnings.join("；") : ""}`;
       } catch {
         if (!closed) status.textContent = "世界书读取失败，可重新读取；仍可保存手动补充的人物。";
       } finally {
         loading = false;
-        for (const node of [save, reload, all, none, reset, removePending, confirmPending]) node.disabled = false;
+        for (const node of [save, reload, all, none, reset, removePending, confirmPending, deleteUnchecked, deletePending]) node.disabled = false;
       }
     }
     dialog.addEventListener("cancel", (event) => {
