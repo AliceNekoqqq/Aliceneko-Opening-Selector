@@ -460,7 +460,8 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   $('[data-settings-button]').onclick=openSettings;
   const generateButton=root.querySelector('[data-generate-opening]')||el('button','uos-icon','＋ 生成开场白');generateButton.type='button';generateButton.dataset.generateOpening='';generateButton.onclick=()=>{void generator.open()};root.querySelector('.uos-actions')?.prepend(generateButton);
   const peopleButton=el('button','uos-icon','人物列表');peopleButton.type='button';peopleButton.dataset.peopleList='';peopleButton.onclick=()=>{void peopleEditor.open()};root.querySelector('.uos-actions')?.prepend(peopleButton);
-  moduleHelp.attach(root.querySelector('.uos-actions'),'openings');
+  const masthead=root.querySelector('.uos-masthead'),homeHelp=moduleHelp.attach(masthead,'openings');
+  if(homeHelp){homeHelp.classList.add('uos-home-help');masthead.classList.add('uos-has-home-help')}
   root.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>activePopup?.complete(null));
   render();
   ensureUpdateSettings($('[data-settings-dialog]'));

@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.17-beta.8" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.9" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -6744,6 +6744,9 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos .uos-masthead .uos-intro{font-size:14px;line-height:1.75;margin:0 0 18px;max-width:680px;overflow-wrap:anywhere}
 .uos .uos-masthead .uos-intro:empty{display:none}
 .uos-masthead .uos-header-ornament{position:absolute;right:0;top:0;width:54px;height:54px;pointer-events:none}
+.uos-masthead>.uos-home-help{position:absolute!important;top:0!important;right:0!important}
+.uos-masthead.uos-has-home-help .uos-header-ornament{right:52px}
+.uos .uos-masthead.uos-has-home-help :is(.uos-brand,.uos-kicker,h1){padding-right:116px}
 .uos .uos-masthead .uos-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0;padding:0;border:0}
 .uos-opening-count{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
 .uos .uos-masthead .uos-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:auto;max-width:100%}
@@ -8341,7 +8344,11 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     void peopleEditor.open();
   };
   root.querySelector(".uos-actions")?.prepend(peopleButton);
-  moduleHelp.attach(root.querySelector(".uos-actions"), "openings");
+  const masthead = root.querySelector(".uos-masthead"), homeHelp = moduleHelp.attach(masthead, "openings");
+  if (homeHelp) {
+    homeHelp.classList.add("uos-home-help");
+    masthead.classList.add("uos-has-home-help");
+  }
   root.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => activePopup?.complete(null));
   render();
   ensureUpdateSettings($("[data-settings-dialog]"));

@@ -370,6 +370,9 @@
 .uos .uos-masthead .uos-intro{font-size:14px;line-height:1.75;margin:0 0 18px;max-width:680px;overflow-wrap:anywhere}
 .uos .uos-masthead .uos-intro:empty{display:none}
 .uos-masthead .uos-header-ornament{position:absolute;right:0;top:0;width:54px;height:54px;pointer-events:none}
+.uos-masthead>.uos-home-help{position:absolute!important;top:0!important;right:0!important}
+.uos-masthead.uos-has-home-help .uos-header-ornament{right:52px}
+.uos .uos-masthead.uos-has-home-help :is(.uos-brand,.uos-kicker,h1){padding-right:116px}
 .uos .uos-masthead .uos-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0;padding:0;border:0}
 .uos-opening-count{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
 .uos .uos-masthead .uos-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:auto;max-width:100%}
