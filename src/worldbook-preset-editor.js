@@ -106,7 +106,7 @@ export function createWorldbookPresetEditor({doc,el,query:$,getDraft,entries,
   function render(){
     const draft=getDraft(),panel=$('[data-worldbook-presets]');if(closed||!panel||!draft)return;panel.replaceChildren();
     const statusLine=el('p','uos-help',worldbookPresetMessage);statusLine.dataset.worldbookPresetsStatus='';panel.append(statusLine);
-    const refresh=el('button','uos-icon','刷新');refresh.type='button';refresh.onclick=async()=>{refresh.disabled=true;await refresh();refresh.disabled=false};panel.append(refresh);
+    const refreshButton=el('button','uos-icon','刷新');refreshButton.type='button';refreshButton.onclick=async()=>{refreshButton.disabled=true;try{await refresh()}finally{refreshButton.disabled=false}};panel.append(refreshButton);
     panel.append(el('p','uos-help','修改后点「保存预设」，最后点页面底部「保存到角色卡」。'));
     if(worldbookPresetData.warnings.length)panel.append(el('p','uos-help','有世界书未能读取，暂不能新建或编辑预设。'));
     const presets=draft.worldbookPresets||[];

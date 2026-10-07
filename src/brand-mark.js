@@ -16,6 +16,9 @@ export const BRAND_CSS=`
 .uos-brand-copy{display:grid;gap:4px;min-width:0;color:var(--text);font-family:system-ui,"Noto Sans SC",sans-serif}
 .uos-brand-copy strong{font-size:15px;font-weight:700;line-height:1.4;letter-spacing:.09em;overflow-wrap:anywhere}
 .uos-brand-copy small{color:var(--muted);font-size:11px;line-height:1.5;letter-spacing:.08em}
+.uos[data-brand-mascot="false"] .uos-brand .uos-brand-avatar,.uos-user-panel[data-brand-mascot="false"] .uos-brand .uos-brand-avatar{display:none}
+.uos[data-brand-title="false"] .uos-brand .uos-brand-copy,.uos-user-panel[data-brand-title="false"] .uos-brand .uos-brand-copy{display:none}
+.uos[data-brand-mascot="false"][data-brand-title="false"] .uos-brand,.uos-user-panel[data-brand-mascot="false"][data-brand-title="false"] .uos-brand{display:none}
 .uos-user-panel .uos-brand{margin-bottom:12px}
 .uos-user-panel .uos-brand-avatar{width:64px;height:59px}
 .uos-user-head>div:first-child{min-width:0;flex:1}

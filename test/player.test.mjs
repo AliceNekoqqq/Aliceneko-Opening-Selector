@@ -26,6 +26,8 @@ const context={characters:[character],characterId:0,groupId:null};
 let swipeId=0,lastId=0;
 const helper={getChatMessages:()=>[{role:'assistant',swipe_id:swipeId,swipes:[character.data.first_mes,...character.data.alternate_greetings]}],getLastMessageId:()=>lastId,setChatMessages:async()=>{}};
 const state=readPlayerState(context,helper);
+const single={avatar:'single.png',data:{first_mes:'唯一主开场',alternate_greetings:[]}};
+assert.equal(readPlayerState({characters:[single],characterId:0}, {...helper,getChatMessages:()=>[{role:'assistant',swipe_id:0,swipes:['唯一主开场']}]}).entries.length,1,'single-opening cards expose the generation entry');
 assert.deepEqual(state.entries.map(x=>x.index),[0,1,2]);
 assert.equal(state.entries[0].body,'第一条开场。');
 assert.equal(state.entries[2].body,'第三条开场。');

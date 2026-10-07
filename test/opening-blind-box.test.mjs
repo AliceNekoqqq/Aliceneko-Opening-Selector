@@ -83,8 +83,8 @@ test('single candidate and reduced motion have honest counts, disabled reroll an
   const empty=fixture();empty.setItems([items()[2]]);assert.equal(empty.box.open(),false);assert.equal(empty.doc.body.children.length,0);const trigger=openingBlindBoxButton(empty.el);updateBlindBoxButton(trigger,items(),{readonly:true});assert.equal(trigger.disabled,true);assert.equal(trigger.__uosBlindCount.textContent,'2 个开场');updateBlindBoxButton(trigger,[]);assert.equal(trigger.disabled,true);assert.equal(trigger.__uosBlindCount.textContent,'暂无候选');empty.box.dispose();
 });
 test('Escape, native close and busy / revealed keyboard traps clean up and remain reachable',()=>{
-  const f=fixture();f.box.open(f.trigger);const exit=f.button('关闭盲盒');let prevented=0;f.dialog.dispatch('keydown',{key:'Tab',preventDefault(){prevented++}});assert.equal(f.doc.activeElement,exit);assert.equal(prevented,1);
-  f.run(1800);f.pick();f.run(1180);f.button('进入此开场').focus();f.dialog.dispatch('keydown',{key:'Tab',preventDefault(){prevented++}});assert.equal(f.doc.activeElement,exit);
+  const f=fixture();f.box.open(f.trigger);const help=f.all(node=>node.dataset.moduleHelpTopic==='blind')[0];let prevented=0;f.dialog.dispatch('keydown',{key:'Tab',preventDefault(){prevented++}});assert.equal(f.doc.activeElement,help);assert.equal(prevented,1);
+  f.run(1800);f.pick();f.run(1180);f.button('进入此开场').focus();f.dialog.dispatch('keydown',{key:'Tab',preventDefault(){prevented++}});assert.equal(f.doc.activeElement,help);
   f.dialog.dispatch('keydown',{key:'Escape',preventDefault(){},stopPropagation(){}});assert.equal(f.doc.body.children.length,0);f.box.open(f.trigger);f.dialog.close();assert.equal(f.timers.size,0);assert.equal(f.doc.activeElement,f.trigger);f.box.dispose();
 });
 test('pending entry blocks a second draw, and a failed transaction releases that guard',async()=>{

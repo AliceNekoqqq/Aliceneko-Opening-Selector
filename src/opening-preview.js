@@ -1,3 +1,4 @@
+import {createModuleHelp} from './module-help.js';
 import {applyOpeningCover} from './opening-presentation.js';
 import {defaultCoverStyles} from './default-covers.js';
 import {openingMetadata} from './opening-categories.js';
@@ -46,11 +47,13 @@ dialog.uos-opening-preview:is([data-theme=paper],[data-theme=school]){color-sche
 
 // Read-only navigation. Opening selection stays with the caller's existing transaction.
 export function createOpeningPreview({doc,getItems,getPalette,onChoose,host=doc.defaultView}){
+  const moduleHelp=createModuleHelp({doc});
   let disposed=false,active=null;
   const preferences=createReadingPreferences(host);
   const style=doc.createElement('style');style.dataset.uosPreviewStyle='';style.textContent=CSS+defaultCoverStyles('.uos-opening-preview');(doc.head||doc.documentElement).append(style);
   const el=(tag,cls='',text)=>{const node=doc.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=String(text);return node};
   function close(){
+    moduleHelp.close();
     const current=active;if(!current)return;active=null;
     current.dialog.removeEventListener('keydown',current.onKey);
     if(current.dialog.open)current.dialog.close();current.dialog.remove();
@@ -63,7 +66,7 @@ export function createOpeningPreview({doc,getItems,getPalette,onChoose,host=doc.
     const dialog=el('dialog','uos-opening-preview');dialog.setAttribute('aria-label','完整开场预览');dialog.setAttribute('aria-modal','true');
     const palette=getPalette(),computed=palette.ownerDocument.defaultView.getComputedStyle(palette);dialog.dataset.theme=palette.dataset.theme||'archive';
     for(const key of ['--bg','--surface','--text','--muted','--accent','--line'])dialog.style.setProperty(key,computed.getPropertyValue(key)||computed.getPropertyValue('--panel'));
-    const window=el('div','uos-preview-window'),header=el('div','uos-preview-header'),heading=el('span','','完整开场预览'),exit=el('button','','关闭预览');exit.type='button';exit.onclick=close;header.append(heading,exit);
+    const window=el('div','uos-preview-window'),header=el('div','uos-preview-header'),heading=el('span','','完整开场预览'),exit=el('button','','关闭预览');exit.type='button';exit.onclick=close;header.append(heading,exit);const helpButton=moduleHelp.attach(header,'preview',{before:exit});
     const reading=el('details','uos-preview-reading'),readingSummary=el('summary','','阅读设置'),controls=el('div','uos-preview-reading-controls');reading.append(readingSummary,controls);header.append(reading);
     const font=el('select','uos-preview-font-size'),spacing=el('select','uos-preview-line-spacing'),focus=el('button','uos-preview-focus','专注正文');focus.type='button';
     for(const [select,title,options] of [[font,'正文字号',READING_FONT_SIZES],[spacing,'正文行距',READING_LINE_SPACING]]){
@@ -98,7 +101,7 @@ export function createOpeningPreview({doc,getItems,getPalette,onChoose,host=doc.
     const onKey=event=>{
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();return}
       if(event.key==='Tab'){
-        const buttons=[exit,readingSummary,...(reading.open?[font,spacing,focus]:[]),...(diagnosticsSummary&&!prefs.focusBody?[diagnosticsSummary]:[]),previous,next,choose].filter(button=>!button.disabled),first=buttons[0],last=buttons.at(-1);
+        const buttons=[helpButton,exit,readingSummary,...(reading.open?[font,spacing,focus]:[]),...(diagnosticsSummary&&!prefs.focusBody?[diagnosticsSummary]:[]),previous,next,choose].filter(button=>!button.disabled),first=buttons[0],last=buttons.at(-1);
         // Keep native disclosure controls in normal tab order; wrap at the window edges.
         if(event.shiftKey&&doc.activeElement===first){event.preventDefault();last.focus()}
         else if(!event.shiftKey&&doc.activeElement===last){event.preventDefault();first.focus()}
@@ -109,5 +112,5 @@ export function createOpeningPreview({doc,getItems,getPalette,onChoose,host=doc.
     try{dialog.showModal()}catch{dialog.setAttribute('open','');dialog.setAttribute('role','dialog')}
     exit.focus();return true;
   }
-  return {open,close,dispose(){if(disposed)return;disposed=true;close();style.remove()}};
+  return {open,close,dispose(){if(disposed)return;disposed=true;moduleHelp.dispose();close();style.remove()}};
 }

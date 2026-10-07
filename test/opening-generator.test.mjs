@@ -1,0 +1,154 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {createOpeningGenerator} from '../src/opening-generator.js';
+
+/* Minimal DOM harness for event/state paths, not a browser layout assertion. */
+function documentFixture(){
+  const doc={activeElement:null};
+  function element(tag){
+    const node={tag,children:[],attrs:{},dataset:{},value:'',textContent:'',hidden:false,disabled:false,parent:null,listeners:new Map(),style:{setProperty(){}},className:'',
+      classList:{add(){}},append(...items){for(const item of items){item.parent=this;this.children.push(item)}},
+      replaceChildren(...items){this.children=[];this.append(...items)},setAttribute(name,value){this.attrs[name]=value},focus(){doc.activeElement=this},showModal(){this.open=true},remove(){if(this.parent)this.parent.children=this.parent.children.filter(item=>item!==this)},
+      addEventListener(name,fn){this.listeners.set(name,fn)},querySelector(selector){return this.querySelectorAll(selector)[0]||null},
+      querySelectorAll(selector){const all=this.children.flatMap(child=>[child,...child.querySelectorAll('*')]);if(selector==='*')return all;return all.filter(child=>selector.split(',').some(part=>{
+        if(part.startsWith('[data-')){const match=/\[data-([\w-]+)(?:="([^"]*)")?\]/.exec(part);const key=match[1].replace(/-([a-z])/g,(_,char)=>char.toUpperCase());return key in child.dataset&&(match[2]===undefined||child.dataset[key]===match[2])}
+        return child.tag===part;
+      }))}};
+    return node;
+  }
+  doc.createElement=element;doc.body=element('body');return doc;
+}
+function setup({storage,readWorldbook,generate}={}){
+  const doc=documentFixture(),map=new Map(),card={avatar:'draft.png',data:{name:'林安',first_mes:'原主开场',alternate_greetings:[],extensions:{}}};
+  const context={characters:[card],characterId:0,chatId:'c',getRequestHeaders:()=>({})};let server=structuredClone(card),calls=[],swipes=['原主开场'];
+  const host={localStorage:storage||{getItem:key=>map.get(key)||null,setItem:(key,value)=>map.set(key,value)}};
+  host.fetch=async(url,options)=>{if(url.endsWith('/get'))return {ok:true,json:async()=>structuredClone(server)};const update=JSON.parse(options.body).data;server.data={...server.data,...update};return {ok:true}};
+  const helper={generate:async config=>{calls.push(config);return generate?generate(config):'<content>林安推开门。</content>'},getChatMessages:()=>[{role:'assistant',swipe_id:0,swipes}],getLastMessageId:()=>0,setChatMessages:async([value])=>swipes=value.swipes};
+  const saved=[];
+  const api=createOpeningGenerator({doc,host,sources:()=>[helper],getContext:()=>context,helper,
+    readWorldbook:readWorldbook||(async()=>({people:[{name:'林安',trusted:true,sources:[]}],worldbooks:[],warnings:[]})),onSaved:value=>saved.push(value)});
+  const dialog=()=>doc.body.querySelector('dialog'),field=name=>dialog().querySelector(`[data-generation-field="${name}"]`),button=text=>dialog().querySelectorAll('button').find(node=>node.textContent===text);
+  const fill=(name,value)=>{field(name).value=value;field(name).oninput()};
+  return {api,doc,dialog,field,button,fill,map,calls,card,saved,context,host};
+}
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('unloading the generator during a card write keeps its draft and prevents a late interface callback',async()=>{
+  const f=setup();await f.api.open();await tick();await f.button('生成开场白').onclick();
+  const fetch=f.host.fetch;let release;
+  f.host.fetch=async(url,options)=>{if(url.endsWith('/merge-attributes'))await new Promise(resolve=>{release=resolve});return fetch(url,options)};
+  const saving=f.button('加入新建备用开场白').onclick();await tick();assert.equal(typeof release,'function');
+  f.api.dispose();release();await saving;
+  assert.equal(f.dialog(),null);assert.equal(f.saved.length,0);
+  assert.equal(JSON.parse(f.map.get('uos_opening_generator_v1_player_draft.png')).versions.length,1);
+});
+
+test('workshop generates, edits, refines, restores earlier draft and appends on confirmation',async()=>{
+  const f=setup();await f.api.open();await tick();
+  f.fill('names','林安');f.fill('idea','一封错寄的信');await f.button('生成开场白').onclick();
+  assert.equal(f.calls.length,1);assert.match(f.calls[0].user_input,/一封错寄的信/);assert.equal(f.saved.length,0);
+  f.fill('candidateTitle','错寄来信');f.fill('candidateBody','<content>编辑后的正文</content>');f.fill('refinement','减少旁白');
+  await f.button('按修改方向生成新版本').onclick();assert.equal(f.calls.length,2);assert.match(f.calls[1].user_input,/编辑后的正文/);
+  const version=f.field('versionChoice');version.value='0';version.onchange();assert.equal(f.field('candidateBody').value,'<content>编辑后的正文</content>');assert.equal(f.field('candidateTitle').value,'错寄来信');
+  await f.button('关闭').onclick();assert.equal(f.dialog(),null);
+  await f.api.open();await tick();assert.equal(f.field('candidateBody').value,'<content>编辑后的正文</content>');
+  await f.button('加入新建备用开场白').onclick();assert.equal(f.dialog(),null);assert.equal(f.saved.length,1);assert.deepEqual(f.card.data.alternate_greetings,['<content>编辑后的正文</content>']);assert.equal(f.card.data.extensions.universal_opening_selector.entries[1].title,'错寄来信');f.api.dispose();
+});
+
+test('changed inputs do not change an in-flight candidate, disposal discards late results',async()=>{
+  let finish;
+  const f=setup({generate:()=>new Promise(resolve=>finish=resolve)});await f.api.open();await tick();f.fill('names','林安');
+  const pending=f.button('生成开场白').onclick();await tick();f.fill('names','乔乔');finish('林安的开场');await pending;
+  assert.equal(f.field('candidateNames').value,'林安');
+  const another=f.button('生成开场白').onclick();await tick();f.api.dispose();finish('不应保存的迟到结果');await another;
+  const saved=JSON.parse([...f.map.values()][0]);assert.equal(saved.versions.length,1);assert.equal(saved.versions[0].body,'林安的开场');assert.equal(f.dialog(),null);
+});
+
+test('cancel during worldbook loading never starts an API call',async()=>{
+  let loaded;const f=setup({readWorldbook:()=>new Promise(resolve=>loaded=resolve)});await f.api.open();const pending=f.button('生成开场白').onclick();f.button('取消生成').onclick();loaded({people:[],worldbooks:[],warnings:[]});await pending;assert.equal(f.calls.length,0);f.api.dispose();
+});
+
+test('storage failure protects draft on ordinary close; switched characters cannot save',async()=>{
+  const f=setup({storage:{getItem:()=>null,setItem(){throw Error('quota')}}});await f.api.open();await tick();await f.button('生成开场白').onclick();
+  f.context.characterId=1;await f.button('加入新建备用开场白').onclick();assert.equal(f.saved.length,0);
+  f.button('关闭').onclick();assert.ok(f.dialog());assert.ok(f.button('仍然关闭'));assert.equal(await f.api.prepareForUpdate(),false);
+  f.button('仍然关闭').onclick();assert.equal(f.dialog(),null);f.api.dispose();
+});
+
+import {createOpeningPeopleEditor} from '../src/opening-people-editor.js';
+import {readPeopleRoster,applyPeopleRoster} from '../src/opening-people.js';
+function editorFixture(f,readWorldbook){
+  const editor=createOpeningPeopleEditor({doc:f.doc,host:{localStorage:{getItem:key=>f.map.get(key)||null,setItem:(key,value)=>f.map.set(key,value)}},getContext:()=>f.context,readWorldbook,getKnownNames:()=>['卡中人物']});
+  const dialog=()=>f.doc.body.querySelector('[data-people-editor]');
+  return {editor,dialog,button:text=>dialog().querySelectorAll('button').find(node=>node.textContent===text),keep:name=>dialog().querySelector(`[data-people-keep="${name}"]`),added:()=>dialog().querySelector('[data-people-added]')};
+}
+test('independent roster saves exclusions and additions, cancels drafts, refresh preserves choices and generator uses it',async()=>{
+  const f=setup({readWorldbook:async()=>({people:[{name:'林安'},{name:'误识别'}],warnings:[],worldbooks:[]})});
+  const e=editorFixture(f,async()=>({people:[{name:'林安',trusted:true},{name:'误识别',trusted:false}],warnings:[]}));
+  await e.editor.open();await tick();assert.ok(e.keep('误识别'));e.keep('误识别').checked=false;e.added().value='乔乔、乔乔';e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('误识别').checked,false);
+  e.button('保存并重新识别').onclick();assert.equal(e.dialog(),null);assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')),{managed:true,confirmed:['林安','卡中人物','乔乔'],excluded:['误识别'],added:['乔乔'],deleted:[]});
+  await e.editor.open();await tick();assert.equal(e.keep('误识别').checked,false);e.button('恢复读取名单').onclick();e.button('取消').onclick();assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).excluded,['误识别']);
+  await f.api.open();await tick();const names=f.dialog().querySelectorAll('input').filter(input=>input.type==='checkbox').map(input=>input.value);assert.ok(names.includes('乔乔'));assert.ok(!names.includes('误识别'));f.api.dispose();e.editor.dispose();
+});
+test('roster preserves more than 24 exclusions and rejects switched character saves and late reads',async()=>{
+  const f=setup(),people=Array.from({length:40},(_,i)=>({name:`人物${i}`})),e=editorFixture(f,async()=>({people,warnings:[]}));await e.editor.open();await tick();e.button('取消全选').onclick();e.button('保存并重新识别').onclick();
+  const host={localStorage:{getItem:key=>f.map.get(key)}};assert.equal(readPeopleRoster(host,'draft.png').excluded.length,42);assert.deepEqual(applyPeopleRoster(people,readPeopleRoster(host,'draft.png')),[]);
+  await e.editor.open();await tick();e.added().value='不应保存';f.context.characterId=1;e.button('保存并重新识别').onclick();assert.ok(e.dialog());assert.deepEqual(readPeopleRoster(host,'draft.png').added,[]);e.editor.dispose();
+  let finish;f.context.characterId=0;const delayed=editorFixture(f,()=>new Promise(resolve=>finish=resolve));await delayed.editor.open();delayed.editor.dispose();finish({people,warnings:[]});await tick();assert.equal(delayed.dialog(),null);
+});
+test('failed roster storage leaves editor open and previous choices intact',async()=>{
+  const f=setup();const editor=createOpeningPeopleEditor({doc:f.doc,host:{localStorage:{getItem:()=>null,setItem(){throw Error('quota')}}},getContext:()=>f.context,readWorldbook:async()=>({people:[],warnings:[]})});
+  await editor.open();await tick();const dialog=f.doc.body.querySelector('[data-people-editor]');dialog.querySelector('[data-people-added]').value='乔乔';dialog.querySelectorAll('button').find(node=>node.textContent==='保存并重新识别').onclick();assert.ok(f.doc.body.querySelector('[data-people-editor]'));assert.equal(dialog.querySelector('[data-people-added]').value,'乔乔');editor.dispose();
+});
+test('roster limit errors keep the full input and old storage until corrected',async()=>{
+  const f=setup(),e=editorFixture(f,async()=>({people:[],warnings:[]}));
+  await e.editor.open();await tick();
+  const names=Array.from({length:501},(_,i)=>`人物${i}`).join('、');
+  e.added().value=names;e.added().oninput();e.button('保存并重新识别').onclick();
+  assert.ok(e.dialog());assert.equal(e.added().value,names);assert.equal(f.map.has('uos_opening_cast_v1_draft.png'),false);
+  assert.match(e.dialog().querySelector('[data-people-summary]').textContent,/补充 501 位/);
+  assert.ok(e.dialog().querySelectorAll('p').some(node=>/最多 500 位/.test(node.textContent)));
+  e.added().value='乔乔';e.button('保存并重新识别').onclick();assert.equal(e.dialog(),null);
+  assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).added,['乔乔']);
+});
+
+test('single and bulk confirmations remove pending labels, survive reload/save and cancel discards changes',async()=>{
+  const f=setup(),read=async()=>({people:[{name:'甲',trusted:false,sources:['资料A']},{name:'乙',trusted:false,sources:['资料B']}],warnings:[]}),e=editorFixture(f,read);
+  await e.editor.open();await tick();let input=e.keep('甲'),row=input.parent;assert.equal(input.dataset.peoplePending,'true');row.querySelector('button').onclick();assert.equal(input.dataset.peoplePending,'false');assert.equal(row.querySelector('span').textContent,'甲');assert.equal(input.checked,true);
+  e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('甲').dataset.peoplePending,'false');e.button('确认已勾选人物').onclick();assert.equal(e.keep('乙').dataset.peoplePending,'false');e.button('取消').onclick();assert.equal(f.map.has('uos_opening_cast_v1_draft.png'),false);
+  await e.editor.open();await tick();e.button('确认已勾选人物').onclick();e.button('保存并重新识别').onclick();assert.ok(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).confirmed.includes('甲'));
+  await e.editor.open();await tick();assert.equal(e.keep('甲').dataset.peoplePending,'false');assert.equal(e.keep('甲').parent.querySelector('span').textContent,'甲');e.editor.dispose();
+});
+test('search and pending filter do not alter selections; bulk cleanup and restore are saveable draft actions',async()=>{
+  const f=setup(),e=editorFixture(f,async()=>({people:[{name:'林安',trusted:true,sources:['主书']},{name:'误识别',trusted:false,sources:['附加书']}],warnings:[]}));await e.editor.open();await tick();
+  const search=e.dialog().querySelector('[data-people-search]');search.value='附加书';search.oninput();assert.equal(e.keep('林安').parent.hidden,true);assert.equal(e.keep('误识别').parent.hidden,false);assert.equal(e.keep('林安').checked,true);
+  const pending=e.dialog().querySelector('[data-people-pending-only]');search.value='';pending.checked=true;pending.onchange();assert.equal(e.keep('林安').parent.hidden,true);assert.equal(e.keep('误识别').parent.hidden,false);
+  e.button('取消勾选待确认').onclick();assert.equal(e.keep('误识别').checked,false);e.button('保存并重新识别').onclick();assert.ok(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).excluded.includes('误识别'));
+  await e.editor.open();await tick();e.button('恢复自动识别').onclick();e.button('取消').onclick();assert.equal(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).managed,true);
+  await e.editor.open();await tick();e.button('恢复自动识别').onclick();e.button('保存并重新识别').onclick();assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')),{managed:false,confirmed:[],excluded:[],added:[],deleted:[]});e.editor.dispose();
+});
+
+test('bulk confirmation acts only on checked people, including hidden selections, and never rechecks excluded candidates',async()=>{
+  const f=setup(),e=editorFixture(f,async()=>({people:[{name:'甲',trusted:false},{name:'乙',trusted:false},{name:'丙',trusted:true}],warnings:[]}));await e.editor.open();await tick();
+  e.keep('乙').checked=false;e.keep('丙').checked=false;
+  const search=e.dialog().querySelector('[data-people-search]');search.value='乙';search.oninput();assert.equal(e.keep('甲').parent.hidden,true);
+  e.button('确认已勾选人物').onclick();assert.equal(e.keep('甲').checked,true);assert.equal(e.keep('甲').dataset.peoplePending,'false');assert.equal(e.keep('甲').parent.querySelector('span').textContent,'甲');
+  assert.equal(e.keep('乙').checked,false);assert.equal(e.keep('乙').dataset.peoplePending,'true');assert.equal(e.keep('乙').parent.querySelector('span').textContent,'乙（待确认）');assert.equal(e.keep('丙').checked,false);
+  e.button('保存并重新识别').onclick();const roster=JSON.parse(f.map.get('uos_opening_cast_v1_draft.png'));assert.ok(roster.confirmed.includes('甲'));assert.ok(!roster.confirmed.includes('乙'));assert.ok(roster.excluded.includes('乙'));
+  await e.editor.open();await tick();e.button('取消全选').onclick();e.button('确认已勾选人物').onclick();assert.ok(e.dialog().querySelectorAll('[data-people-keep]').every(input=>!input.checked));e.editor.dispose();
+});
+
+test('delete unchecked and pending removes rows immediately, survives reread, cancels cleanly and persists only on save',async()=>{
+  const f=setup(),read=async()=>({people:[{name:'林安',trusted:true},{name:'乙',trusted:false},{name:'丙',trusted:false}],warnings:[]}),e=editorFixture(f,read);
+  await e.editor.open();await tick();e.keep('乙').checked=false;e.button('删除未勾选').onclick();assert.equal(e.keep('乙'),null);assert.ok(e.keep('丙'));assert.equal(f.map.size,0);
+  e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('乙'),null);e.button('删除待确认').onclick();assert.equal(e.keep('丙'),null);assert.ok(e.keep('林安'));e.button('取消').onclick();assert.equal(f.map.size,0);
+  await e.editor.open();await tick();assert.ok(e.keep('乙'));e.keep('乙').checked=false;e.button('删除未勾选').onclick();e.button('删除待确认').onclick();e.button('保存并重新识别').onclick();
+  const roster=JSON.parse(f.map.get('uos_opening_cast_v1_draft.png'));assert.deepEqual(roster.deleted,['乙','丙']);assert.ok(roster.excluded.includes('乙'));assert.ok(!roster.confirmed.includes('乙'));
+  await e.editor.open();await tick();assert.equal(e.keep('乙'),null);assert.equal(e.keep('丙'),null);e.button('恢复读取名单').onclick();assert.ok(e.keep('乙'));assert.ok(e.keep('丙'));assert.equal(e.keep('乙').checked,true);e.button('保存并重新识别').onclick();assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).deleted,[]);e.editor.dispose();
+});
+test('cancel-selection buttons keep rows; deletion respects confirmed status and operates across search-hidden rows',async()=>{
+  const f=setup(),e=editorFixture(f,async()=>({people:[{name:'甲',trusted:false},{name:'乙',trusted:false},{name:'丙',trusted:true}],warnings:[]}));await e.editor.open();await tick();
+  e.button('取消勾选待确认').onclick();assert.ok(e.keep('甲'));assert.equal(e.keep('甲').checked,false);assert.equal(e.keep('乙').checked,false);assert.equal(e.keep('丙').checked,true);
+  e.keep('甲').parent.querySelector('button').onclick();assert.equal(e.keep('甲').dataset.peoplePending,'false');const search=e.dialog().querySelector('[data-people-search]');search.value='丙';search.oninput();assert.equal(e.keep('乙').parent.hidden,true);
+  e.button('删除待确认').onclick();assert.equal(e.keep('乙'),null);assert.ok(e.keep('甲'));assert.ok(e.keep('丙'));e.button('取消全选').onclick();assert.ok(e.keep('甲'));e.button('删除未勾选').onclick();assert.equal(e.dialog().querySelectorAll('[data-people-keep]').length,0);e.button('保存并重新识别').onclick();assert.equal(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).confirmed.length,0);e.editor.dispose();
+});

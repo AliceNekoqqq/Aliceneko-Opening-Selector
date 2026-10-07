@@ -3,15 +3,27 @@ import {build} from 'esbuild';
 import {writeAuthorCss} from './build/write-author-css.mjs';
 // Maintainer build step. The same JSON runs in a global or character script.
 import fs from 'node:fs';
+import path from 'node:path';
 import {cdnLoader} from './cdn-loader.mjs';
 import {confirmedLoader} from './confirmed-loader.mjs';
-import {execFileSync} from 'node:child_process';
 
 const channel=process.argv[2]==='--preview'?'preview':process.argv[2]==='--stable'?'stable':null;
 if(!channel||process.argv.length!==3)throw Error('Specify exactly one build channel: --preview or --stable');
-const branch=execFileSync('git',['branch','--show-current'],{encoding:'utf8'}).trim();
+function currentBranch(){
+  try{
+    const marker=path.resolve('.git');let gitDir=marker;
+    if(!fs.statSync(marker).isDirectory()){
+      const match=/^gitdir:\s*(.+)$/m.exec(fs.readFileSync(marker,'utf8'));
+      if(!match)return '';
+      gitDir=path.resolve(path.dirname(marker),match[1].trim());
+    }
+    const head=fs.readFileSync(path.join(gitDir,'HEAD'),'utf8').trim();
+    return /^ref: refs\/heads\/(.+)$/.exec(head)?.[1]||'';
+  }catch{return ''}
+}
+const branch=currentBranch();
 if(branch!==(channel==='preview'?'develop':'main'))throw Error(`${channel} build must run on ${channel==='preview'?'develop':'main'}, current branch: ${branch||'(detached)'}`);
-const version=channel==='preview'?'1.0.16-beta.6':'1.0.17';
+const version=channel==='preview'?'1.0.17-beta.11':'1.0.18';
 const pointerBranch=channel==='preview'?'develop':'main';
 const pointerFile=channel==='preview'?'scripts/runtime-ref-preview.txt':'scripts/runtime-ref.txt';
 const versionPattern=channel==='preview'?String.raw`\d+\.\d+\.\d+-beta\.\d+`:String.raw`\d+\.\d+\.\d+`;

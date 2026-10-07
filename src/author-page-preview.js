@@ -8,11 +8,12 @@ import {createThemeBackgroundController} from './theme-backgrounds.js';
 import {lyricRows} from './media-player.js';
 import {RUNTIME_VERSION} from './version.js';
 import {bindBrandImages,createMascotNote} from './brand-mark.js';
+import {applyBrandVisibility} from './brand-visibility.js';
 
 // No author mount, helper, persistence or audio source in this visual-only view.
 export function renderAuthorPagePreview({doc,model,host,groups}){
   const el=(tag,cls='',text)=>{const node=doc.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=String(text);return node};
-  const root=doc.querySelector('[data-uos]');root.dataset.theme=model.theme;root.dataset.layout=model.layout;root.inert=true;
+  const root=doc.querySelector('[data-uos]');root.dataset.theme=model.theme;root.dataset.layout=model.layout;root.inert=true;applyBrandVisibility(root,model.branding);
   root.querySelector('[data-title]').textContent=model.title;
   root.querySelector('[data-subtitle]').textContent=model.subtitle==='选择一个开场，故事将从那里继续。'?'':model.subtitle;
   root.querySelector('[data-opening-count]').textContent=`共 ${model.items.length} 个开场`;

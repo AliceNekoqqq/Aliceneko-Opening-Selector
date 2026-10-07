@@ -1,3 +1,4 @@
+import {rosterAllowsName,rosterExcludesName,normalizePeopleRoster} from './people-roster-rules.js';
 import {isPersonName,isAutomaticPersonName,normalizePersonText,allowsPersonEvidence,extractPersonIdentities} from './worldbook-people.js';
 // Shared greeting analysis. No UI, storage or Tavern mutation dependencies.
 export function clean(text){return String(text||'').replace(/<[^>]*>/g,' ').replace(/\{\{[^}]*\}\}/g,' ').replace(/[#*_`>\[\]()]/g,' ').replace(/\s+/g,' ').trim()}
@@ -38,12 +39,13 @@ export function personAliases(value){
   result.conflicts=[...owners].filter(([alias,names])=>names.size>1&&!canonicalNames.has(alias)).map(([alias])=>alias);
   return result;
 }
-export function detectGreetingPeople(body,{knownNames=[],characterName='',aliases='',worldbookPeople=null}={}){
+export function detectGreetingPeople(body,{knownNames=[],characterName='',aliases='',worldbookPeople=null,peopleRoster=null}={}){
   const text=normalizePersonText(body);
   knownNames=knownNames.map(normalizePersonText);
   characterName=normalizePersonText(characterName).trim();
+  const roster=normalizePeopleRoster(peopleRoster);
   const manual=personAliases(aliases);
-  const userNames=new Set([...knownNames,...manual.values()]);
+  const userNames=new Set([...knownNames,...manual.values(),...roster.confirmed,...roster.added]);
   const names=[],evidence={},suggestions=[];
   const dictionary=new Map(),worldbookByName=new Map(),owners=new Map();
   for(const person of worldbookPeople||[]){
@@ -55,18 +57,21 @@ export function detectGreetingPeople(body,{knownNames=[],characterName='',aliase
   for(const [alias,people] of owners)if(people.size===1)dictionary.set(alias,[...people][0]);
   // Canonical names and explicit user rules take precedence over keyword aliases.
   for(const person of worldbookByName.values())dictionary.set(person.name,person.name);
-  for(const name of knownNames)if(PERSON_WORD.test(name))dictionary.set(name,name);
+  for(const name of [...knownNames,...roster.confirmed,...roster.added,...roster.excluded])if(PERSON_WORD.test(name))dictionary.set(name,name);
   for(const [alias,name] of manual)dictionary.set(alias,name);
   for(const alias of manual.conflicts)if(!userNames.has(alias)&&dictionary.get(alias)!==alias)dictionary.delete(alias);
   const weakCharacterName=isAutomaticPersonName(characterName)&&!manual.conflicts.includes(characterName)&&!dictionary.has(characterName)?characterName:'';
   if(weakCharacterName)dictionary.set(weakCharacterName,weakCharacterName);
+  const suggest=name=>{const canonical=dictionary.get(name)||name;if(!rosterExcludesName(name,roster)&&!rosterExcludesName(canonical,roster)&&!suggestions.includes(canonical))suggestions.push(canonical)};
   const add=(name,source)=>{
     if((owners.get(name)?.size>1||manual.conflicts.includes(name))&&!dictionary.has(name))return;
     const canonical=dictionary.get(name)||name;
     if(!PERSON_WORD.test(canonical)||NON_PERSON_LABELS.test(canonical)||!userNames.has(canonical)&&!isAutomaticPersonName(canonical))return;
-    const confirmed=userNames.has(canonical)||worldbookByName.has(canonical)&&worldbookByName.get(canonical).trusted!==false||names.includes(canonical);
+    if(rosterExcludesName(name,roster)||rosterExcludesName(canonical,roster))return;
+    if(!rosterAllowsName(canonical,roster)){suggest(canonical);return}
+    const confirmed=roster.managed||roster.added.includes(canonical)||userNames.has(canonical)||worldbookByName.has(canonical)&&worldbookByName.get(canonical).trusted!==false||names.includes(canonical);
     if(source!=='明确标注'&&!confirmed){
-      if(!suggestions.includes(canonical))suggestions.push(canonical);return;
+      suggest(canonical);return;
     }
     if(!names.includes(canonical))names.push(canonical);
     if(!evidence[canonical]||source==='明确标注')evidence[canonical]=source;
@@ -74,7 +79,7 @@ export function detectGreetingPeople(body,{knownNames=[],characterName='',aliase
   // The same scoped identity evidence is used by the worldbook reader and the opening parser.
   for(const identity of extractPersonIdentities(text,{descriptions:false})){
     if(identity.trusted)add(identity.name,'明确标注');
-    else if(!suggestions.includes(identity.name))suggestions.push(identity.name);
+    else suggest(identity.name);
   }
   for(const match of text.matchAll(/(?:^|[\n>])\s*(?:登场人物|在场角色)[：:]\s*([^\n<>。；;]{1,160})/gmu)){
     if(!allowsPersonEvidence(text,match.index+match[0].search(/登场人物|在场角色/u)))continue;
@@ -96,7 +101,7 @@ export function detectGreetingPeople(body,{knownNames=[],characterName='',aliase
       const name=costume?.[1]||head;
       if(isAutomaticPersonName(name)){
         if(dictionary.has(name)||costume||[...name].length<=4)add(name,'明确标注');
-        else if(!suggestions.includes(name))suggestions.push(name);
+        else suggest(name);
       }
     }
   }
@@ -129,7 +134,7 @@ export function detectGreetingPeople(body,{knownNames=[],characterName='',aliase
   }
   // A name seen only before a narrative action is offered for review, not silently added to filters.
   for(const match of story.matchAll(/(?:^|[。！？!?\n])\s*([\p{Script=Han}]{2,4})(?=走|说|问|答|望|看|笑|喊|推|抱|站|坐|跑|听|握|抬|转|递)/gmu)){
-    const name=match[1];if(isAutomaticPersonName(name)&&COMMON_SURNAMES.includes(name[0])&&!NON_PERSON_LABELS.test(name)&&!names.includes(name)&&!suggestions.includes(name))suggestions.push(name);
+    const name=match[1];if(isAutomaticPersonName(name)&&COMMON_SURNAMES.includes(name[0])&&!NON_PERSON_LABELS.test(name)&&!names.includes(name)&&!suggestions.includes(name))suggest(name);
   }
   return {names,evidence,suggestions:suggestions.filter(name=>!names.includes(name)).slice(0,3)};
 }

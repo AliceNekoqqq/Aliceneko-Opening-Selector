@@ -1,3 +1,4 @@
+import {createModuleHelp} from './module-help.js';
 import {keyedDrawItems,drawPoolName,DRAW_POOL_LIMIT} from './opening-blind-range.js';
 
 export const DRAW_RANGE_CSS=`
@@ -22,8 +23,9 @@ export const DRAW_RANGE_CSS=`
 `;
 
 export function createDrawRangePanel({doc,el,store,getAllItems,getFilteredItems,getPalette,isActive,onApply,onUnavailable}){
+  const moduleHelp=createModuleHelp({doc});
   let disposed=false,active=null;
-  function close(){const current=active;if(!current)return;active=null;current.dialog.removeEventListener('keydown',current.onKey);if(current.dialog.open)current.dialog.close();current.dialog.remove();try{if(current.trigger?.isConnected)current.trigger.focus()}catch{}}
+  function close(){moduleHelp.close();const current=active;if(!current)return;active=null;current.dialog.removeEventListener('keydown',current.onKey);if(current.dialog.open)current.dialog.close();current.dialog.remove();try{if(current.trigger?.isConnected)current.trigger.focus()}catch{}}
   function open(trigger){
     if(disposed||!isActive())return false;close();
     const items=keyedDrawItems(getAllItems()).map(item=>({...item})),prefs=store.read();
@@ -32,7 +34,7 @@ export function createDrawRangePanel({doc,el,store,getAllItems,getFilteredItems,
     const dialog=el('dialog','uos-blind-box uos-blind-range');dialog.setAttribute('aria-label','抽取范围');dialog.setAttribute('aria-modal','true');
     const palette=getPalette(),computed=palette.ownerDocument.defaultView.getComputedStyle(palette);dialog.dataset.theme=palette.dataset.theme||'archive';
     for(const key of ['--bg','--surface','--text','--muted','--accent','--line'])dialog.style.setProperty(key,computed.getPropertyValue(key)||computed.getPropertyValue('--panel'));
-    const header=el('div','uos-blind-header'),heading=el('h2','uos-blind-heading','卡池与抽卡设置'),exit=el('button','','关闭设置');exit.type='button';header.append(heading,exit);
+    const header=el('div','uos-blind-header'),heading=el('h2','uos-blind-heading','卡池与抽卡设置'),exit=el('button','','关闭设置');exit.type='button';header.append(heading,exit);const helpButton=moduleHelp.attach(header,'drawSettings',{before:exit});
     const body=el('div','uos-blind-range-body'),mode=el('select','uos-blind-range-mode'),search=el('input','uos-blind-range-search');
     const section=title=>{const node=el('fieldset','uos-blind-range-section');node.append(el('legend','',title));return node};
     const field=(text,control)=>{const label=el('label','uos-blind-range-field');label.append(el('span','',text),control);control.setAttribute('aria-label',text);return label};
@@ -83,8 +85,8 @@ export function createDrawRangePanel({doc,el,store,getAllItems,getFilteredItems,
     function select(next){if(!valid())return;mode.value='manual';keys=new Set(next);render()}
     all.onclick=()=>select(eligible.map(item=>item.drawKey));none.onclick=()=>select([]);filtered.onclick=()=>select(eligible.filter(item=>filteredIds.has(item.id)).map(item=>item.drawKey));
     exit.onclick=()=>{if(active===session)close()};save.onclick=()=>{if(!valid())return;const result=store.set({mode:mode.value,keys:[...keys],handSize:hand.value,performances:show.value==='theme',pools,activePoolId:editingId});close();onApply(result)};
-    session.onKey=event=>{if(active!==session)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();return}if(event.key==='Tab'){const controls=[exit,hand,show,poolSelect,name,addPool,updatePool,renamePool,deletePool,mode,search,all,none,filtered,...checkboxes,save].filter(node=>!node.disabled),first=controls[0],last=controls.at(-1);if(event.shiftKey&&doc.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&doc.activeElement===last){event.preventDefault();first.focus()}}};
+    session.onKey=event=>{if(active!==session)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();return}if(event.key==='Tab'){const controls=[helpButton,exit,hand,show,poolSelect,name,addPool,updatePool,renamePool,deletePool,mode,search,all,none,filtered,...checkboxes,save].filter(node=>!node.disabled),first=controls[0],last=controls.at(-1);if(event.shiftKey&&doc.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&doc.activeElement===last){event.preventDefault();first.focus()}}};
     active=session;dialog.addEventListener('keydown',session.onKey);dialog.addEventListener('cancel',event=>{event.preventDefault();if(active===session)close()});dialog.addEventListener('close',()=>{if(active===session)close()});renderPools();render();doc.body.append(dialog);try{dialog.showModal()}catch{dialog.setAttribute('open','');dialog.setAttribute('role','dialog')}exit.focus();return true;
   }
-  return {open,close,dispose(){if(disposed)return;disposed=true;close()}};
+  return {open,close,dispose(){if(disposed)return;disposed=true;moduleHelp.dispose();close()}};
 }

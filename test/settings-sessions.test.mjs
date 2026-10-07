@@ -83,6 +83,16 @@ test('late worldbook reads after character change or close cannot replace the ed
   assert.equal(fixture.panel.children,before);assert.equal(fixture.editor.commitPending(),false);
 });
 
+test('worldbook refresh button reads again and survives failed reads without destroying the preset draft',async()=>{
+  const fixture=editorFixture();await fixture.editor.refresh();fixture.button('新建预设').onclick();
+  const name=fixture.named('预设名称');name.value='未保存的预设';name.oninput();let reads=0;
+  fixture.setRead(async()=>{reads++;return {...fixture.data,entryCount:3}});
+  await fixture.button('刷新').onclick();assert.equal(reads,1);assert.equal(fixture.named('预设名称').value,'未保存的预设');assert.equal(fixture.editor.hasUnsaved(),true);
+  fixture.setRead(async()=>{throw Error('断开连接')});await fixture.button('刷新').onclick();
+  assert.equal(Boolean(fixture.button('刷新').disabled),false);assert.equal(fixture.named('预设名称').value,'未保存的预设');
+  fixture.setRead(async()=>fixture.data);await fixture.button('刷新').onclick();assert.equal(fixture.editor.commitPending(),true);
+});
+
 function guardFixture(choice='stay',groups=['people']) {
   const saved=[],messages=[];let restored=0;
   const guard=createPlayerDraftGuard({getGroups:()=>groups,prompt:async()=>choice,restore:()=>{restored++},

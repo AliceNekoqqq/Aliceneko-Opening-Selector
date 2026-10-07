@@ -74,8 +74,8 @@ test('reopening restores preferences and old reading controls cannot change a re
 
 test('keyboard users can reach reading controls when the only opening is already current',()=>{
  const {doc,preview,setItems}=setup();setItems([{id:0,number:1,title:'当前',body:'正文',isCurrent:true}]);preview.open(0);
- const dialog=doc.body.children[0],exit=button(doc,'关闭预览'),reading=byClass(doc,'uos-preview-reading'),summary=reading.children[0];let prevented=0;
+ const dialog=doc.body.children[0],help=all(doc.body,node=>node.dataset.moduleHelpTopic==='preview')[0],exit=button(doc,'关闭预览'),reading=byClass(doc,'uos-preview-reading'),summary=reading.children[0];let prevented=0;
  const tab=shiftKey=>dialog.dispatch('keydown',{key:'Tab',shiftKey,preventDefault(){prevented++}});
- exit.focus();tab(false);assert.equal(prevented,0);summary.focus();tab(false);assert.equal(doc.activeElement,exit);assert.equal(prevented,1);
- reading.open=true;exit.focus();tab(true);assert.equal(doc.activeElement,button(doc,'专注正文'));assert.equal(prevented,2);preview.dispose();
+ exit.focus();tab(false);assert.equal(prevented,0);summary.focus();tab(false);assert.equal(doc.activeElement,help);assert.equal(prevented,1);
+ reading.open=true;help.focus();tab(true);assert.equal(doc.activeElement,button(doc,'专注正文'));assert.equal(prevented,2);preview.dispose();
 });

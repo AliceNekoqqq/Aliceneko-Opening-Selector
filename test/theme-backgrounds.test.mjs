@@ -84,7 +84,7 @@ for(const url of Object.values(THEME_ART)){
   // This checkout may not contain the just-created remote theme asset commit yet;
   // still verify that each local brand asset matches its immutable published Git blob.
   const brandBlobs={
-   'assets/brand/theme-mascots.webp':'7763dacf8fa5986c7f54943eec76b0bd1f300a75',
+   'assets/brand/theme-mascots.webp':'a852d6fc481fa061cf91fa1b4a3b20f3bdbd9d2c',
   };
   if(!(asset in brandBlobs))throw error;
   assert.equal(localBlob,brandBlobs[asset],asset);

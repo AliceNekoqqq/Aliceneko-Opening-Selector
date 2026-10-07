@@ -346,7 +346,7 @@ export function createWorldbookPeopleReader(helper){
         if(!loaded)warnings.push(`世界书“${name}”读取失败${errorMessage?`：${errorMessage}`:''}`);
       }
       const diagnostics=[],people=extractWorldbookPeople(books,{diagnostics});
-      return {people,diagnostics,books:books.map(book=>book.name),boundBooks:bindings,entryCount:books.reduce((count,book)=>count+book.entries.length,0),warnings};
+      return {people,diagnostics,worldbooks:books,books:books.map(book=>book.name),boundBooks:bindings,entryCount:books.reduce((count,book)=>count+book.entries.length,0),warnings};
     })();
     if(cache.size>=8&&!cache.has(key))cache.delete(cache.keys().next().value);
     cache.set(key,pending);const result=await pending;if(result.warnings.length&&cache.get(key)===pending)cache.delete(key);return result;
