@@ -64,3 +64,29 @@ test('storage failure protects draft on ordinary close; switched characters cann
   f.button('关闭').onclick();assert.ok(f.dialog());assert.ok(f.button('仍然关闭'));assert.equal(await f.api.prepareForUpdate(),false);
   f.button('仍然关闭').onclick();assert.equal(f.dialog(),null);f.api.dispose();
 });
+
+import {createOpeningPeopleEditor} from '../src/opening-people-editor.js';
+import {readPeopleRoster,applyPeopleRoster} from '../src/opening-people.js';
+function editorFixture(f,readWorldbook){
+  const editor=createOpeningPeopleEditor({doc:f.doc,host:{localStorage:{getItem:key=>f.map.get(key)||null,setItem:(key,value)=>f.map.set(key,value)}},getContext:()=>f.context,readWorldbook,getKnownNames:()=>['卡中人物']});
+  const dialog=()=>f.doc.body.querySelector('[data-people-editor]');
+  return {editor,dialog,button:text=>dialog().querySelectorAll('button').find(node=>node.textContent===text),keep:name=>dialog().querySelector(`[data-people-keep="${name}"]`),added:()=>dialog().querySelector('[data-people-added]')};
+}
+test('independent roster saves exclusions and additions, cancels drafts, refresh preserves choices and generator uses it',async()=>{
+  const f=setup({readWorldbook:async()=>({people:[{name:'林安'},{name:'误识别'}],warnings:[],worldbooks:[]})});
+  const e=editorFixture(f,async()=>({people:[{name:'林安',trusted:true},{name:'误识别',trusted:false}],warnings:[]}));
+  await e.editor.open();await tick();assert.ok(e.keep('误识别'));e.keep('误识别').checked=false;e.added().value='乔乔、乔乔';e.button('重新读取人物').onclick();await tick();assert.equal(e.keep('误识别').checked,false);
+  e.button('保存人物列表').onclick();assert.equal(e.dialog(),null);assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')),{excluded:['误识别'],added:['乔乔']});
+  await e.editor.open();await tick();assert.equal(e.keep('误识别').checked,false);e.button('恢复读取名单').onclick();e.button('取消').onclick();assert.deepEqual(JSON.parse(f.map.get('uos_opening_cast_v1_draft.png')).excluded,['误识别']);
+  await f.api.open();await tick();const names=f.dialog().querySelectorAll('input').filter(input=>input.type==='checkbox').map(input=>input.value);assert.ok(names.includes('乔乔'));assert.ok(!names.includes('误识别'));f.api.dispose();e.editor.dispose();
+});
+test('roster preserves more than 24 exclusions and rejects switched character saves and late reads',async()=>{
+  const f=setup(),people=Array.from({length:40},(_,i)=>({name:`人物${i}`})),e=editorFixture(f,async()=>({people,warnings:[]}));await e.editor.open();await tick();e.button('全部移除').onclick();e.button('保存人物列表').onclick();
+  const host={localStorage:{getItem:key=>f.map.get(key)}};assert.equal(readPeopleRoster(host,'draft.png').excluded.length,42);assert.deepEqual(applyPeopleRoster(people,readPeopleRoster(host,'draft.png')),[]);
+  await e.editor.open();await tick();e.added().value='不应保存';f.context.characterId=1;e.button('保存人物列表').onclick();assert.ok(e.dialog());assert.deepEqual(readPeopleRoster(host,'draft.png').added,[]);e.editor.dispose();
+  let finish;f.context.characterId=0;const delayed=editorFixture(f,()=>new Promise(resolve=>finish=resolve));await delayed.editor.open();delayed.editor.dispose();finish({people,warnings:[]});await tick();assert.equal(delayed.dialog(),null);
+});
+test('failed roster storage leaves editor open and previous choices intact',async()=>{
+  const f=setup();const editor=createOpeningPeopleEditor({doc:f.doc,host:{localStorage:{getItem:()=>null,setItem(){throw Error('quota')}}},getContext:()=>f.context,readWorldbook:async()=>({people:[],warnings:[]})});
+  await editor.open();await tick();const dialog=f.doc.body.querySelector('[data-people-editor]');dialog.querySelector('[data-people-added]').value='乔乔';dialog.querySelectorAll('button').find(node=>node.textContent==='保存人物列表').onclick();assert.ok(f.doc.body.querySelector('[data-people-editor]'));assert.equal(dialog.querySelector('[data-people-added]').value,'乔乔');editor.dispose();
+});

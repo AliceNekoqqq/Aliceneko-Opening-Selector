@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.17-beta.2" : "development";
+var RUNTIME_VERSION = true ? "1.0.17-beta.3" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -171,6 +171,192 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
       if (ownsService) service.close();
     }
   };
+}
+
+// src/opening-people.js
+function rosterNames(value) {
+  return [...new Set((Array.isArray(value) ? value.join("、") : String(value || "")).split(/[、,，;；\n]/u).map((name) => name.trim().slice(0, 60)).filter(Boolean))].slice(0, 500);
+}
+function readPeopleRoster(host, avatar) {
+  let value;
+  try {
+    value = JSON.parse(host.localStorage.getItem(`uos_opening_cast_v1_${avatar}`));
+  } catch {
+  }
+  return { excluded: rosterNames(value?.excluded), added: rosterNames(value?.added) };
+}
+function writePeopleRoster(host, avatar, value) {
+  const added = rosterNames(value.added), excluded = rosterNames(value.excluded).filter((name) => !added.includes(name));
+  host.localStorage.setItem(`uos_opening_cast_v1_${avatar}`, JSON.stringify({ excluded, added }));
+  return { excluded, added };
+}
+function applyPeopleRoster(people, roster) {
+  const all = new Map(people.map((person) => [person.name, person]));
+  for (const name of roster.added) if (!all.has(name)) all.set(name, { name, aliases: [], sources: ["手动补充"], trusted: true });
+  return [...all.values()].filter((person) => !roster.excluded.includes(person.name));
+}
+
+// src/opening-people-editor.js
+var CSS = `.uos-people-editor{box-sizing:border-box;width:min(660px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#64748b);border-radius:14px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif}.uos-people-editor::backdrop{background:#0009}.uos-people-editor h2{margin:0 0 8px}.uos-people-editor p{color:var(--muted,#b7c3cc)}.uos-people-editor-actions,.uos-people-editor-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-people-editor-list{max-height:40dvh;overflow:auto}.uos-people-editor-list label{padding:6px 10px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-people-editor textarea{box-sizing:border-box;width:100%;min-height:90px;padding:8px;background:var(--panel,#23333b);color:inherit;border:1px solid var(--line,#64748b);border-radius:8px;font:inherit}.uos-people-editor button{padding:8px 12px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:inherit;cursor:pointer;font:inherit}.uos-people-editor button:disabled{opacity:.5;cursor:default}.uos-people-editor :focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}`;
+function createOpeningPeopleEditor({ doc, host, getContext, readWorldbook, getKnownNames = () => [], getPalette, beforeOpen = async () => true, onSaved = () => {
+} }) {
+  let session = null, disposed = false;
+  async function open() {
+    if (disposed) return false;
+    if (session) {
+      session.dialog.focus();
+      return true;
+    }
+    if (!await beforeOpen() || disposed) return false;
+    if (session) {
+      session.dialog.focus();
+      return true;
+    }
+    const context = getContext(), id = context?.characterId, card = context?.characters?.[id];
+    if (!card?.avatar) return false;
+    const avatar = card.avatar, roster = readPeopleRoster(host, avatar);
+    let closed = false, loading = false, available = /* @__PURE__ */ new Map();
+    const active = () => {
+      const current = getContext();
+      return !closed && current?.characterId === id && current?.characters?.[id]?.avatar === avatar;
+    };
+    const el = (tag, text2 = "") => {
+      const node = doc.createElement(tag);
+      node.textContent = text2;
+      return node;
+    };
+    const dialog = el("dialog");
+    dialog.className = "uos-people-editor";
+    dialog.dataset.peopleEditor = "";
+    dialog.setAttribute("aria-label", "人物列表");
+    const style = el("style", CSS);
+    dialog.append(style);
+    const palette = getPalette?.();
+    if (palette) {
+      const computed = host.getComputedStyle(palette);
+      for (const name of ["--bg", "--panel", "--text", "--muted", "--accent", "--line"]) dialog.style.setProperty(name, computed.getPropertyValue(name));
+    }
+    const previousFocus = doc.activeElement;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      dialog.remove();
+      if (session?.dialog === dialog) session = null;
+      try {
+        previousFocus?.focus();
+      } catch {
+      }
+    };
+    const button = (text2, fn) => {
+      const node = el("button", text2);
+      node.type = "button";
+      node.onclick = fn;
+      return node;
+    };
+    dialog.append(el("h2", "人物列表"), el("p", "勾选要保留的名字，取消勾选可移除误识别项。保存后的名单用于人物识别和开场白生成，作者版与玩家版共用。"), el("p", "按角色保存在本机；不会修改世界书或角色卡。关闭或取消会放弃本次编辑。"));
+    const status = el("p");
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    dialog.append(status);
+    const list = el("div");
+    list.className = "uos-people-editor-list";
+    dialog.append(list);
+    const actions = el("div");
+    actions.className = "uos-people-editor-actions";
+    dialog.append(actions);
+    const setChecks = (checked) => {
+      for (const input of list.querySelectorAll("input")) input.checked = checked;
+    };
+    const all = button("全部保留", () => setChecks(true)), none = button("全部移除", () => setChecks(false)), reset = button("恢复读取名单", () => {
+      setChecks(true);
+      added.value = "";
+    }), reload = button("重新读取人物", () => {
+      void load(true);
+    });
+    actions.append(all, none, reset, reload);
+    const label = el("label", "补充人物（可修改或删除）"), added = el("textarea");
+    added.dataset.peopleAdded = "";
+    added.setAttribute("aria-label", "补充人物");
+    added.placeholder = "用顿号、逗号或换行分隔";
+    added.maxLength = 3e4;
+    added.value = roster.added.join("、");
+    label.append(added);
+    dialog.append(label);
+    const footer = el("div");
+    footer.className = "uos-people-editor-actions";
+    dialog.append(footer);
+    const save = button("保存人物列表", () => {
+      if (loading || closed) return;
+      if (!active()) {
+        status.textContent = "角色已切换，请回到原角色再保存。";
+        return;
+      }
+      const excluded = roster.excluded.filter((name) => !available.has(name));
+      for (const input of list.querySelectorAll("input")) if (!input.checked) excluded.push(input.value);
+      try {
+        writePeopleRoster(host, avatar, { excluded, added: rosterNames(added.value) });
+      } catch {
+        status.textContent = "本机保存失败，编辑仍保留，请稍后重试。";
+        return;
+      }
+      close();
+      onSaved();
+    });
+    footer.append(save, button("取消", close));
+    async function load(refresh = false) {
+      if (loading || closed) return;
+      const draft = new Map([...list.querySelectorAll("input")].map((input) => [input.value, input.checked]));
+      loading = true;
+      for (const node of [save, reload, all, none, reset]) node.disabled = true;
+      status.textContent = "正在读取人物名单…";
+      try {
+        const result = await readWorldbook(card, { refresh });
+        if (!active()) {
+          if (!closed) status.textContent = "角色已切换，请回到原角色后重新读取。";
+          return;
+        }
+        available = new Map(result.people.map((person) => [person.name, person]));
+        for (const name of rosterNames([card.data?.name || card.name, ...getKnownNames()])) if (!available.has(name)) available.set(name, { name, sources: ["角色卡"], trusted: true });
+        list.replaceChildren();
+        for (const person of available.values()) {
+          const row = el("label"), input = el("input");
+          input.type = "checkbox";
+          input.value = person.name;
+          input.dataset.peopleKeep = person.name;
+          input.checked = draft.has(person.name) ? draft.get(person.name) : !roster.excluded.includes(person.name);
+          input.setAttribute("aria-label", `保留人物 ${person.name}`);
+          row.title = person.sources?.join("；") || "";
+          row.append(input, el("span", person.name + (person.trusted === false ? "（待确认）" : "")));
+          list.append(row);
+        }
+        status.textContent = `读取 ${result.people.length} 位世界书人物，共 ${available.size} 位候选。${result.warnings?.length ? result.warnings.join("；") : ""}`;
+      } catch {
+        if (!closed) status.textContent = "世界书读取失败，可重新读取；仍可保存手动补充的人物。";
+      } finally {
+        loading = false;
+        for (const node of [save, reload, all, none, reset]) node.disabled = false;
+      }
+    }
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      close();
+    });
+    session = { dialog, close };
+    (doc.body || doc.documentElement).append(dialog);
+    try {
+      dialog.showModal();
+      reload.focus();
+    } catch {
+      close();
+      return false;
+    }
+    void load();
+    return true;
+  }
+  return { open, dispose() {
+    disposed = true;
+    session?.close();
+  }, close: () => session?.close() };
 }
 
 // src/opening-blind-draw.js
@@ -2602,7 +2788,7 @@ function createReadingPreferences(host) {
 }
 
 // src/opening-preview.js
-var CSS = `
+var CSS2 = `
 dialog.uos-opening-preview{position:fixed;inset:0;width:min(760px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:min(850px,calc(100vh - 24px));height:min(850px,calc(100dvh - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);margin:auto;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text);box-shadow:0 22px 70px #0007;font:14px/1.7 system-ui,sans-serif;z-index:2147483646;overflow:hidden;color-scheme:dark}
 dialog.uos-opening-preview:is([data-theme=paper],[data-theme=school]){color-scheme:light}
 .uos-opening-preview::backdrop{background:#0009}
@@ -2647,7 +2833,7 @@ function createOpeningPreview({ doc, getItems, getPalette, onChoose, host = doc.
   const preferences = createReadingPreferences(host);
   const style = doc.createElement("style");
   style.dataset.uosPreviewStyle = "";
-  style.textContent = CSS + defaultCoverStyles(".uos-opening-preview");
+  style.textContent = CSS2 + defaultCoverStyles(".uos-opening-preview");
   (doc.head || doc.documentElement).append(style);
   const el = (tag, cls = "", text2) => {
     const node = doc.createElement(tag);
@@ -3233,7 +3419,7 @@ async function appendGeneratedOpening({ host, getContext, helper, identity, mode
 }
 
 // src/opening-generator.js
-var CSS2 = `
+var CSS3 = `
 .uos-generator{box-sizing:border-box;width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line,#64748b);border-radius:16px;background:var(--bg,#17252d);color:var(--text,#f4ecda);font:14px/1.6 system-ui,sans-serif;overflow:auto;overscroll-behavior:contain}.uos-generator::backdrop{background:#0009}.uos-generator *{box-sizing:border-box}.uos-generator [hidden]{display:none!important}.uos-generator-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line,#64748b);background:var(--bg,#17252d)}.uos-generator h2{font-size:19px;margin:0}.uos-generator h3{font-size:16px;margin:18px 0 8px}.uos-generator-main{padding:0 20px 20px}.uos-generator p{margin:8px 0;color:var(--muted,#b7c3cc)}.uos-generator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.uos-generator-field{display:flex;flex-direction:column;gap:5px;min-width:0;margin:10px 0}.uos-generator-field>span{font-size:13px;color:var(--muted,#b7c3cc)}.uos-generator :is(input:not([type=checkbox]),textarea,select){display:block;width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:var(--text,#f4ecda);font:inherit}.uos-generator textarea{resize:vertical;min-height:80px}.uos-generator .uos-generator-body{min-height:280px;white-space:pre-wrap}.uos-generator button{padding:8px 13px;border:1px solid var(--line,#64748b);border-radius:8px;background:var(--panel,#23333b);color:var(--text,#f4ecda);font:inherit;cursor:pointer}.uos-generator button:disabled{opacity:.5;cursor:default}.uos-generator :is(button,input,textarea,select):focus-visible{outline:2px solid var(--accent,#c99d67);outline-offset:2px}.uos-generator .uos-generator-primary{border-color:var(--accent,#c99d67);font-weight:650}.uos-generator-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.uos-generator-cast{display:flex;flex-wrap:wrap;gap:6px;max-height:180px;overflow:auto}.uos-generator-person{display:flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--line,#64748b);border-radius:8px;overflow-wrap:anywhere}.uos-generator-person input{width:16px;height:16px;accent-color:var(--accent,#c99d67)}.uos-generator details{margin:14px 0;padding:10px 12px;border:1px solid var(--line,#64748b);border-radius:10px}.uos-generator summary{cursor:pointer}.uos-generator-status{white-space:pre-wrap;overflow-wrap:anywhere;min-height:24px}.uos-generator-review{border-top:1px solid var(--line,#64748b);margin-top:18px;padding-top:4px}.uos-generator-check{display:flex;align-items:center;gap:8px;margin:12px 0}.uos-generator small{color:var(--muted,#b7c3cc)}@media(max-width:520px){.uos-generator-grid{grid-template-columns:1fr;gap:0}.uos-generator-head{padding:12px}.uos-generator-main{padding:0 12px 12px}.uos-generator h2{font-size:17px}.uos-generator-head button{flex:none}}
 `;
 function createOpeningGenerator({ doc, host, sources, getContext, helper, readWorldbook, getPalette, getKnownNames = () => [], onSaved = () => {
@@ -3267,7 +3453,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
     dialog.dataset.openingGenerator = mode;
     dialog.setAttribute("aria-labelledby", "uos-generator-title");
     const style = doc.createElement("style");
-    style.textContent = CSS2;
+    style.textContent = CSS3;
     dialog.append(style);
     const palette = getPalette?.();
     if (palette) {
@@ -3454,9 +3640,13 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
         cast.replaceChildren();
         const saved = (data.extensions?.universal_opening_selector ?? card.extensions?.universal_opening_selector) || {};
         const known = openingNames([data.name || card.name, ...(saved.entries || []).map((entry) => entry.names || ""), ...getKnownNames()]);
-        const all = new Map(result.people.map((person) => [person.name, person]));
-        for (const name of known) if (!all.has(name)) all.set(name, { name, sources: ["角色卡"], trusted: true });
-        for (const person of all.values()) {
+        const rawPeople = new Map(result.people.map((person) => [person.name, person]));
+        for (const name of known) if (!rawPeople.has(name)) rawPeople.set(name, { name, sources: ["角色卡"], trusted: true });
+        const roster = readPeopleRoster(host, card.avatar), people = applyPeopleRoster([...rawPeople.values()], roster);
+        controls.names.value = openingNames(controls.names.value).filter((name) => !roster.excluded.includes(name)).join("、");
+        capture();
+        persist();
+        for (const person of people) {
           const label = el("label", "", "uos-generator-person"), input = el("input");
           input.type = "checkbox";
           input.value = person.name;
@@ -3473,7 +3663,7 @@ function createOpeningGenerator({ doc, host, sources, getContext, helper, readWo
           };
         }
         syncCast();
-        castHint.textContent = `读取 ${result.people.length} 位世界书人物，可勾选或直接填写姓名。${result.warnings?.length ? result.warnings.join("；") : ""}`;
+        castHint.textContent = `读取 ${result.people.length} 位世界书人物，候选列表保留 ${people.length} 位。可在选择器主界面的「人物列表」整理名单。${result.warnings?.length ? result.warnings.join("；") : ""}`;
       } catch {
         if (!closed) castHint.textContent = "世界书读取失败，仍可手动填写人物；生成会保留角色卡背景。";
       } finally {
@@ -3929,7 +4119,7 @@ var WATERMARK = "唯一来源Discord:♡Aliceneko♡/红豆粉丨本插件完全
 var VERSION = RUNTIME_VERSION;
 var THEME_ORNAMENT_SPRITE = THEME_ART.ornaments;
 var THEME_ICON_SPRITE = THEME_ART.icons;
-var CSS3 = `
+var CSS4 = `
 .uos-user-trigger{display:flex;align-items:center;gap:8px;width:156px;max-width:calc(100% - 24px);min-height:54px;box-sizing:border-box;margin:10px 12px;padding:5px 9px 5px 5px;border:1px solid #b99669;border-radius:13px;background:#17242d;color:#f3e9d7;font:13px/1.3 system-ui,sans-serif;text-align:left;cursor:pointer;box-shadow:0 4px 14px #0004;overflow:hidden}
 .uos-user-trigger .uos-brand-avatar{width:42px;height:42px;border-radius:9px;background-color:#ffffff12;flex:none}
 .uos-user-trigger-copy{display:grid;gap:2px;flex:1;min-width:0}
@@ -4229,7 +4419,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
   });
   const style = doc.createElement("style");
   style.dataset.uosUserStyle = "";
-  style.textContent = CSS3 + BRAND_CSS + PLAYER_BRAND_SETTINGS_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
+  style.textContent = CSS4 + BRAND_CSS + PLAYER_BRAND_SETTINGS_CSS + defaultCoverStyles(".uos-user-panel") + OPENING_LAYOUT_CSS + OPENING_CATEGORY_CSS + OPENING_ACTION_CSS + OPENING_FAVORITES_CSS + BLIND_BOX_CONTROL_CSS + "\n.uos-user-default-cover{height:120px;margin:0 0 12px;border-radius:10px;background-position:center;background-size:cover;background-color:var(--surface)}.uos-user-panel[data-theme] .uos-user-card::before{position:absolute;float:none;top:22px;left:22px;margin:0;z-index:2;padding:2px 7px;border-radius:5px;background:#111a20b3;color:#fff;opacity:1}";
   (doc.head || doc.documentElement).append(style);
   let trigger = null, triggerDrag = null, stopTriggerBrand = () => {
   }, triggerCount = null, panelSession = null, updating = false;
@@ -4380,6 +4570,26 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
       void generator.open();
     };
     tools.append(generateOpening);
+    const peopleEditor = createOpeningPeopleEditor({
+      doc,
+      host,
+      getContext: () => host.SillyTavern?.getContext?.(),
+      readWorldbook: readWorldbookPeople,
+      getPalette: () => panel,
+      getKnownNames: () => [...snapshot.entries.flatMap((entry) => entry.names), ...personAliases(aliasInput.value).values()],
+      beforeOpen: async () => await generator.prepareForUpdate() && confirmPlayerChanges(),
+      onSaved: () => {
+        void refreshWorldbook();
+      }
+    });
+    session.own(() => peopleEditor.dispose());
+    const peopleButton = el("button", "uos-user-settings-button", "人物列表");
+    peopleButton.type = "button";
+    peopleButton.dataset.peopleList = "";
+    peopleButton.onclick = () => {
+      void peopleEditor.open();
+    };
+    tools.append(peopleButton);
     const select = el("select", "");
     select.setAttribute("aria-label", "选择主题");
     for (const [id, name] of THEMES) {
@@ -5035,7 +5245,10 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         status.textContent = message;
       }
     });
-    session.setGuard({ confirm: async () => await generator.prepareForUpdate() && playerDraftGuard.confirm(), close: () => playerDraftGuard.close() });
+    session.setGuard({ confirm: async () => {
+      peopleEditor.close();
+      return await generator.prepareForUpdate() && playerDraftGuard.confirm();
+    }, close: () => playerDraftGuard.close() });
     const confirmPlayerChanges = () => playerDraftGuard.confirm();
     async function refreshWorldbook(refresh = false) {
       reloadWorldbook.disabled = true;
@@ -5044,7 +5257,7 @@ function mountPlayerSelector(startDocument = document, helperApi, { backgroundSe
         const result = await readWorldbookPeople(character, { refresh });
         const current = host.SillyTavern?.getContext?.();
         if (panelSession !== session || session.disposed || current?.characterId !== snapshot.characterId || current?.characters?.[current.characterId]?.avatar !== character?.avatar) return;
-        worldbookPeople = result.people;
+        worldbookPeople = applyPeopleRoster(result.people, readPeopleRoster(host, snapshot.avatar));
         renderWorldbookPeopleList(doc, worldbookList, worldbookPeople, result.diagnostics);
         worldbookStatus.textContent = formatWorldbookPeopleStatus(result);
         updatePeople();
@@ -6675,9 +6888,10 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   root.__uosDispose?.();
   const stopMascot = bindBrandImages(root);
   const backgroundControl = createThemeBackgroundController(root, "--uos-theme-bg-active", doc.defaultView, { service: backgroundService });
-  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox, generator;
+  let mediaPlayer, settingsFields, worldbookEditor, openingPreview, pagePreview, favoriteUI, blindBox, generator, peopleEditor;
   let previewItems = [], allDrawItems = [];
   root.__uosDispose = () => {
+    peopleEditor?.dispose();
     generator?.dispose();
     stopMascot();
     blindBox?.dispose();
@@ -6731,7 +6945,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     try {
       const result = await readWorldbookPeople(card, { refresh });
       if (root.isConnected === false || character2()?.avatar !== identity) return;
-      worldbookPeople = result.people;
+      worldbookPeople = applyPeopleRoster(result.people, readPeopleRoster(host, identity));
       worldbookDiagnostics = result.diagnostics || [];
       worldbookMessage = formatWorldbookPeopleStatus(result);
       render();
@@ -6793,6 +7007,25 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       config = normalize2(result.settings);
       render();
       status(result.message);
+    }
+  });
+  peopleEditor = createOpeningPeopleEditor({
+    doc: host.document,
+    host,
+    getContext: context,
+    readWorldbook: readWorldbookPeople,
+    getPalette: () => root,
+    getKnownNames: () => [...entries().flatMap((entry) => String(entry.names || "").split(/[、,，]/)), ...personAliases(config.personAliases).values()],
+    beforeOpen: async () => {
+      if (!await generator.prepareForUpdate()) return false;
+      if (activePopup) {
+        await activePopup.complete();
+        if (activePopup) return false;
+      }
+      return true;
+    },
+    onSaved: () => {
+      void refreshWorldbookPeople();
     }
   });
   const openingGroups = createOpeningGroupRenderer({ el, gridClass: "uos-grid" });
@@ -7741,6 +7974,13 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     void generator.open();
   };
   root.querySelector(".uos-actions")?.prepend(generateButton);
+  const peopleButton = el("button", "uos-icon", "人物列表");
+  peopleButton.type = "button";
+  peopleButton.dataset.peopleList = "";
+  peopleButton.onclick = () => {
+    void peopleEditor.open();
+  };
+  root.querySelector(".uos-actions")?.prepend(peopleButton);
   root.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => activePopup?.complete(null));
   render();
   ensureUpdateSettings($("[data-settings-dialog]"));
@@ -7748,6 +7988,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   void worldbookEditor.refresh();
   root.dataset.uosMounted = "1";
   root.__uosPrepareForUpdate = async () => {
+    peopleEditor?.close();
     if (!await generator.prepareForUpdate()) return false;
     if (!hasUnsavedSettings()) return true;
     await activePopup?.complete();

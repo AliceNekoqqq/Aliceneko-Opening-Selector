@@ -1,3 +1,5 @@
+import {readPeopleRoster,applyPeopleRoster} from './opening-people.js';
+import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
 import {BLIND_BOX_CONTROL_CSS} from './opening-blind-box-styles.js';
 import {createOpeningFavorites} from './opening-favorites.js';
@@ -372,6 +374,11 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       beforeOpen:()=>confirmPlayerChanges(),onSaved:result=>{session.close();scan();if(state()?.avatar===snapshot.avatar){openPanel();const note=doc.querySelector('.uos-user-status');if(note)note.textContent=result.message}}});
     session.own(()=>generator.dispose());
     const generateOpening=el('button','uos-user-settings-button','＋ 创建新开场白');generateOpening.type='button';generateOpening.onclick=()=>{void generator.open()};tools.append(generateOpening);
+    const peopleEditor=createOpeningPeopleEditor({doc,host,getContext:()=>host.SillyTavern?.getContext?.(),readWorldbook:readWorldbookPeople,getPalette:()=>panel,
+      getKnownNames:()=>[...snapshot.entries.flatMap(entry=>entry.names),...personAliases(aliasInput.value).values()],
+      beforeOpen:async()=>await generator.prepareForUpdate()&&confirmPlayerChanges(),onSaved:()=>{void refreshWorldbook()}});
+    session.own(()=>peopleEditor.dispose());
+    const peopleButton=el('button','uos-user-settings-button','人物列表');peopleButton.type='button';peopleButton.dataset.peopleList='';peopleButton.onclick=()=>{void peopleEditor.open()};tools.append(peopleButton);
     const select=el('select','');select.setAttribute('aria-label','选择主题');for(const [id,name] of THEMES){const option=el('option','',name);option.value=id;select.append(option)}select.value=panel.dataset.theme;select.onchange=()=>{panel.dataset.theme=select.value;setBlindBoxTheme(blindTrigger,select.value);void backgroundControl?.setTheme(select.value);kicker.textContent=THEME_CAPTIONS[select.value];kicker.append(headerArt);if(trigger)trigger.dataset.theme=select.value;try{host.localStorage.setItem('uos_player_theme',select.value)}catch{}};const themeControl=el('label','uos-user-theme-control');themeControl.append(el('span','uos-user-theme-label','主题'),select);tools.append(themeControl);
     const list=el('div','uos-user-list'),status=el('p','uos-user-status');
     const settingsLayout=createPlayerSettingsLayout(el);
@@ -615,13 +622,13 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       restore:restorePlayerDraft,saveCard:saveCardDraft,saveLocal:saveLocalDraft,
       isActive:()=>panelSession===session&&!session.disposed,status:message=>{status.textContent=message},
     });
-    session.setGuard({confirm:async()=>await generator.prepareForUpdate()&&playerDraftGuard.confirm(),close:()=>playerDraftGuard.close()});
+    session.setGuard({confirm:async()=>{peopleEditor.close();return await generator.prepareForUpdate()&&playerDraftGuard.confirm()},close:()=>playerDraftGuard.close()});
     const confirmPlayerChanges=()=>playerDraftGuard.confirm();
     async function refreshWorldbook(refresh=false){
       reloadWorldbook.disabled=true;worldbookStatus.textContent='正在读取角色世界书人物名单…';
       try{const result=await readWorldbookPeople(character,{refresh});const current=host.SillyTavern?.getContext?.();
         if(panelSession!==session||session.disposed||current?.characterId!==snapshot.characterId||current?.characters?.[current.characterId]?.avatar!==character?.avatar)return;
-        worldbookPeople=result.people;renderWorldbookPeopleList(doc,worldbookList,worldbookPeople,result.diagnostics);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
+        worldbookPeople=applyPeopleRoster(result.people,readPeopleRoster(host,snapshot.avatar));renderWorldbookPeopleList(doc,worldbookList,worldbookPeople,result.diagnostics);worldbookStatus.textContent=formatWorldbookPeopleStatus(result);updatePeople();renderCards();
       }catch{if(panelSession===session&&!session.disposed)worldbookStatus.textContent='世界书读取失败，继续识别正文中的明确姓名；可重新读取。'}finally{reloadWorldbook.disabled=false}
     }
     reloadWorldbook.onclick=()=>refreshWorldbook(true);void refreshWorldbook();
