@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.20-beta.1" : "development";
+var RUNTIME_VERSION = true ? "1.0.20-beta.2" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -175,7 +175,7 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
 
 // src/module-help-content.js
 var MODULE_HELP = {
-  authorMenu: { title: "开场白选择器入口", purpose: "从酒馆左下角菜单打开作者设置，按确认结果准备角色卡。", steps: ["先选择一张单人角色卡，再打开左下角菜单中的「开场白选择器入口」。", "已有标记时直接打开；没有标记时先确认是否自动添加并迁移原主开场。", "编辑后保存到角色卡，再导出分享。"], options: [["自动添加并迁移", "原主开场完整移至备用开场第一条，其他顺序顺延；空主开场不新增空条目。"]], buttons: [["取消", "关闭提示，不修改角色卡。"]], notes: ["这是手动入口，加载脚本不会自动迁移任何卡。", "已经开始的聊天保持原样；新建聊天使用选择页。"] },
+  authorMenu: { title: "开场白选择器入口", purpose: "从酒馆左下角菜单打开作者设置，按确认结果准备角色卡。", steps: ["先选择一张单人角色卡，再打开左下角扩展菜单（附加文件、生成图片所在菜单）中的「开场白选择器入口」。", "已有标记时直接打开；没有标记时先确认是否自动添加并迁移原主开场。", "编辑后保存到角色卡，再导出分享。"], options: [["自动添加并迁移", "原主开场完整移至备用开场第一条，其他顺序顺延；空主开场不新增空条目。"]], buttons: [["取消", "关闭提示，不修改角色卡。"]], notes: ["这是手动入口，加载脚本不会自动迁移任何卡。", "已经开始的聊天保持原样；新建聊天使用选择页。"] },
   order: { title: "开场顺序", purpose: "在插件内调整备用开场顺序，确认保存后生效。", steps: ["拖动左侧手柄把开场移到想要的位置；手机上从手柄拖动，其他位置可正常滚动。", "也可点击上下箭头，或聚焦手柄后按键盘上下方向键微调。", "通过整页实时预览检查新顺序，最后点击「保存到角色卡」。"], options: [["编号与配置", "保存后重新编号，正文、封面、人物、标签和世界书预设保持对应。"]], buttons: [["恢复原顺序", "恢复本次打开设置时的顺序，保留其他编辑。"], ["保存到角色卡", "将开场顺序与当前作者设置一起保存。"]], notes: ["拖动只调整草稿；放弃修改不会改变角色卡。", "主开场的选择器标记固定在第一条，不参与排序；已开始的其他聊天不会被改写。"] },
   playerSettings: { title: "玩家设置", purpose: "按需要调整显示与识别结果，保留作者默认配置。", steps: ["展开需要修改的分区。", "显示信息与识别规则使用分区内的保存按钮；外观选择会立即记住。", "关闭时如有未保存修改，可保存、放弃或返回继续编辑。"], options: [["开场显示", "修正标题、人物或显示标注。"], ["界面外观", "调整悬浮入口、看板娘 Logo 与插件大标题。"], ["功能开关", "启用或关闭盲盒抽卡；立即生效，按角色保存在本机，重新开启保留卡池。"], ["识别规则／插件", "修正标签提取和别名，或检查更新。"]], buttons: [["仅保存到本机／保存到角色卡", "前者只影响本机；后者将允许分享的修正写入角色配置。"]], notes: ["人物列表有独立保存按钮，两版按角色共用本机名单。", "此页不会替换开场正文；生成新开场请使用主界面的创建入口。"] },
   titleRules: { title: "标题提取规则", purpose: "避免状态栏或辅助标签被误当作开场标题。", steps: ["查看自动标题，找出需要跳过的标签。", "填写标签名称，用逗号分隔；不用填写整段正文。", "保存后检查卡片标题和简介。"], options: [["排除标题中的 <字段>", "例如填写 SceneInfo，会在提取标题和简介时跳过该标签。"]], buttons: [["仅保存到本机／保存到角色卡", "保存玩家本机修正或作者默认规则。"]], notes: ["此设置不修改正文，也不排除人物识别中的这些标签。", "手工填写的标题优先于自动提取。"] },
@@ -9140,10 +9140,6 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
   }
   function open() {
     if (closed || busy) return;
-    try {
-      host.$?.("#options")?.hide?.();
-    } catch {
-    }
     const card = selected();
     if (!card?.avatar) {
       notify("请先打开一张单人角色卡，再使用开场白选择器入口。");
@@ -9167,10 +9163,11 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
   }
   function scan() {
     if (closed) return;
-    const target = doc.querySelector("#options .options-content");
+    const target = doc.querySelector("#extensionsMenu");
     if (target && item?.parentElement !== target) {
       item?.remove();
-      item = el("a");
+      item = el("div");
+      item.className = "list-group-item flex-container flexGap5 interactable";
       item.dataset.uosAuthorMenu = "";
       item.setAttribute("role", "button");
       item.tabIndex = 0;
@@ -9182,7 +9179,7 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
       item.onkeydown = (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          open();
+          item.click();
         }
       };
       target.append(item);

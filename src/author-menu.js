@@ -41,7 +41,6 @@ export function createAuthorMenu({doc,host,helper,getContext,authorHtml,mount,ba
   }
   function open(){
     if(closed||busy)return;
-    try{host.$?.('#options')?.hide?.()}catch{}
     const card=selected();if(!card?.avatar){notify('请先打开一张单人角色卡，再使用开场白选择器入口。');return}
     if(workshop){workshop.frame.focus();return}if(prompt){prompt.dialog.focus();return}
     const c=getContext(),identity={characterId:c.characterId,avatar:card.avatar,chatId:c.chatId};
@@ -49,8 +48,8 @@ export function createAuthorMenu({doc,host,helper,getContext,authorHtml,mount,ba
   }
   function scan(){
     if(closed)return;
-    const target=doc.querySelector('#options .options-content');
-    if(target&&item?.parentElement!==target){item?.remove();item=el('a');item.dataset.uosAuthorMenu='';item.setAttribute('role','button');item.tabIndex=0;item.style.cursor='pointer';const icon=el('i');icon.className='fa-lg fa-solid fa-book-open';item.append(icon,el('span','开场白选择器入口'));item.onclick=open;item.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open()}};target.append(item)}
+    const target=doc.querySelector('#extensionsMenu');
+    if(target&&item?.parentElement!==target){item?.remove();item=el('div');item.className='list-group-item flex-container flexGap5 interactable';item.dataset.uosAuthorMenu='';item.setAttribute('role','button');item.tabIndex=0;item.style.cursor='pointer';const icon=el('i');icon.className='fa-lg fa-solid fa-book-open';item.append(icon,el('span','开场白选择器入口'));item.onclick=open;item.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();item.click()}};target.append(item)}
     if(workshop&&!current(workshop.identity))removeWorkshop();if(prompt&&!current(prompt.identity)){prompt.dialog.remove();prompt=null}
   }
   return {scan,open,prepareForUpdate:async()=>!busy&&await closeWorkshop(),close(){closed=true;item?.remove();prompt?.dialog.remove();prompt=null;removeWorkshop()}};
