@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.20-beta.4" : "development";
+var RUNTIME_VERSION = true ? "1.0.20-beta.5" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -31,12 +31,15 @@ function themeDraw(theme) {
 
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
+var REMASTERED_BACKGROUND_ASSET_REF = "98eb4b2418e5e05a50ec3730c4cd31555cb69d6b";
 var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
 var BRAND_ASSET_REF = "354db09485df9c48356bc484ede26f5e07b118a4";
 var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
 var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
 function themeAssetRef(path) {
+  const background = /^assets\/theme-background-([a-z]+)\.webp$/.exec(path);
+  if (background && THEME_IDS.slice(0, THEME_IDS.indexOf("lasttrain")).includes(background[1])) return REMASTERED_BACKGROUND_ASSET_REF;
   if (path === "assets/brand/theme-mascots.webp") return BRAND_ASSET_REF;
   if (/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path)) return SCHOOL_THEME_ASSET_REF;
   if (path.startsWith("assets/default-covers/")) return DEFAULT_COVER_ASSET_REF;
@@ -67,6 +70,7 @@ function themeAssetCandidates(path) {
 }
 
 // src/theme-backgrounds.js
+var REMASTERED_BACKGROUND_IDS = Object.freeze(THEME_IDS.slice(0, THEME_IDS.indexOf("lasttrain")));
 function themeBackgroundCandidates(theme) {
   return THEME_IDS.includes(theme) ? themeAssetCandidates(`assets/theme-background-${theme}.webp`) : [];
 }
@@ -153,21 +157,48 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
   service || (service = createThemeBackgroundService(view, { timeoutMs }));
   let sequence = 0, closed = false, previousTheme = null;
   const write = (url) => element.style.setProperty(property, url ? `url("${url}")` : "none");
+  const usesLayout = property === "--uos-theme-bg-active" || property === "--uos-user-background";
+  let observer = null;
+  const observedHeaders = /* @__PURE__ */ new Set();
+  function fitScene() {
+    if (closed || !usesLayout || !REMASTERED_BACKGROUND_IDS.includes(previousTheme)) return;
+    const header = element.querySelector?.(".uos-masthead"), tools = element.querySelector?.(".uos-user-tools");
+    const endpoint = header || tools || element.querySelector?.(".uos-user-head");
+    if (!endpoint || !element.getBoundingClientRect) return;
+    if (observer && !observedHeaders.has(endpoint)) {
+      observedHeaders.add(endpoint);
+      observer.observe(endpoint);
+    }
+    const extent = endpoint.getBoundingClientRect().bottom - element.getBoundingClientRect().top + (element.scrollTop || 0);
+    element.style.setProperty("--uos-scene-height", `${Math.ceil(Math.max(420, extent + 150))}px`);
+  }
+  if (usesLayout && typeof view?.ResizeObserver === "function") {
+    observer = new view.ResizeObserver(fitScene);
+    observer.observe(element);
+    const header = element.querySelector?.(".uos-masthead");
+    if (header) observer.observe(header);
+  }
+  if (usesLayout) view?.addEventListener?.("resize", fitScene);
   return {
     async setTheme(theme) {
       if (closed) return null;
       const request = ++sequence;
       if (ownsService && previousTheme !== theme) service.cancel(previousTheme);
       previousTheme = theme;
+      if (usesLayout) element.setAttribute?.("data-background-generation", REMASTERED_BACKGROUND_IDS.includes(theme) ? "2" : "1");
+      fitScene();
       write(service.cached(theme) || themeBackgroundCandidates(theme)[0]);
       const url = await service.load(theme);
       if (closed || request !== sequence) return null;
       write(url);
+      fitScene();
       return url;
     },
     close() {
       closed = true;
       ++sequence;
+      observer?.disconnect();
+      if (usesLayout) view?.removeEventListener?.("resize", fitScene);
       if (ownsService) service.close();
     }
   };
@@ -4802,6 +4833,7 @@ dialog.uos-user-overlay::backdrop{background:transparent}
 .uos-user-panel[data-theme=wasteland]{--bg:#1c2225;--surface:#292c2d;--text:#f5ece2;--muted:#c9bcb2;--accent:#f3a969;--line:#c9805488;--glow:#a75b3c65;--wash:#78524044;--frame:#d18a5e;border-radius:5px}.uos-user-panel[data-theme=wasteland] .uos-user-card{border-radius:3px;border-left:5px solid var(--accent);background:repeating-linear-gradient(135deg,#f3a96916 0 5px,transparent 6px 19px),#292c2d}.uos-user-panel[data-theme=wasteland] .uos-user-card::before{font-family:system-ui,sans-serif;font-weight:800}.uos-user-trigger[data-theme=wasteland]{background:#292c2d;border-color:#f3a969;color:#f5ece2}
 
 .uos-user-background{position:absolute;z-index:0;top:0;left:0;right:0;height:min(420px,62dvh);pointer-events:none;background-image:var(--uos-user-background,none);background-repeat:no-repeat;background-position:center top;background-size:cover;opacity:.42;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 17%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 17%,transparent 100%)}
+.uos-user-panel[data-background-generation="2"] .uos-user-background{background-image:linear-gradient(90deg,color-mix(in srgb,var(--bg) 34%,transparent),transparent 70%),var(--uos-user-background);height:var(--uos-scene-height,520px);opacity:.5;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 52%,#0009 76%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 52%,#0009 76%,transparent 100%)}
 .uos-user-panel>:not(.uos-user-background){position:relative;z-index:1}
 .uos-user-panel::before{z-index:2}
 .uos-user-panel[data-theme=paper] .uos-user-background{opacity:.82;mix-blend-mode:multiply}
@@ -7081,15 +7113,15 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos{
   --uos-empty-opening-art:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/tab-openings.webp");
   --uos-diagnostics-art:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/tab-diagnostics.webp");
-  --uos-theme-bg-archive:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-archive.webp");
-  --uos-theme-bg-neon:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-neon.webp");
-  --uos-theme-bg-paper:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-paper.webp");
-  --uos-theme-bg-noir:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-noir.webp");
-  --uos-theme-bg-meadow:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-meadow.webp");
-  --uos-theme-bg-ancient:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-ancient.webp");
-  --uos-theme-bg-starmap:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-starmap.webp");
-  --uos-theme-bg-rose:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-rose.webp");
-  --uos-theme-bg-wasteland:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-wasteland.webp");
+  --uos-theme-bg-archive:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-archive.webp");
+  --uos-theme-bg-neon:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-neon.webp");
+  --uos-theme-bg-paper:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-paper.webp");
+  --uos-theme-bg-noir:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-noir.webp");
+  --uos-theme-bg-meadow:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-meadow.webp");
+  --uos-theme-bg-ancient:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-ancient.webp");
+  --uos-theme-bg-starmap:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-starmap.webp");
+  --uos-theme-bg-rose:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-rose.webp");
+  --uos-theme-bg-wasteland:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-wasteland.webp");
 }
 .uos[data-theme=archive]{--uos-theme-bg-active:var(--uos-theme-bg-archive)}
 .uos[data-theme=neon]{--uos-theme-bg-active:var(--uos-theme-bg-neon)}
@@ -7105,8 +7137,9 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
   pointer-events:none;background-image:var(--uos-theme-bg-active);background-repeat:no-repeat;background-position:center top;background-size:cover;
   opacity:.68;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 44%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 44%,transparent 100%);
 }
+.uos[data-background-generation="2"] .uos-background-art{background-image:linear-gradient(90deg,color-mix(in srgb,var(--bg) 34%,transparent),transparent 70%),var(--uos-theme-bg-active);height:var(--uos-scene-height,640px);opacity:.68;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 58%,#0009 78%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 58%,#0009 78%,transparent 100%)}
 .uos[data-theme=paper] .uos-background-art{opacity:.92;mix-blend-mode:multiply}
-.uos[data-theme=neon] .uos-background-art{opacity:.56}
+.uos[data-theme=neon] .uos-background-art{opacity:.68}
 .uos[data-theme=meadow] .uos-background-art{opacity:.56}
 .uos[data-theme=rose] .uos-background-art{opacity:.56}
 .uos[data-theme=wasteland] .uos-background-art{opacity:.60}
@@ -7179,7 +7212,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 @media(prefers-reduced-motion:reduce){.uos .uos-card-shell:active{transform:none}}
 
 /* Three additional themes complete the same background, palette and icon system. */
-.uos{--uos-theme-bg-deepsea:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-deepsea.webp");--uos-theme-bg-amber:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-amber.webp");--uos-theme-bg-theatre:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-theatre.webp")}
+.uos{--uos-theme-bg-deepsea:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-deepsea.webp");--uos-theme-bg-amber:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-amber.webp");--uos-theme-bg-theatre:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@98eb4b2418e5e05a50ec3730c4cd31555cb69d6b/assets/theme-background-theatre.webp")}
 .uos[data-theme=deepsea]{--bg:#071a24;--panel:#10303d;--surface:#0d2835;--text:#e8f7f5;--muted:#a9c8cc;--accent:#84dadd;--line:#72b8c57a;--art:#18566a;--cover:radial-gradient(circle at 73% 25%,#72dce566,transparent 34%),linear-gradient(145deg,#15536a,#0a2635 75%);background:radial-gradient(ellipse at 85% 0%,#21728a55,transparent 44%),linear-gradient(160deg,#0b2a39,#071a24 75%)}
 .uos[data-theme=deepsea] .uos-card{border-radius:16px 5px 16px 5px;border-color:#72b8c599;box-shadow:0 12px 34px #020e17aa,0 0 15px #45bac022}
 .uos[data-theme=deepsea] .uos-kicker{color:#9ce6df}.uos[data-theme=deepsea] .uos-number{text-shadow:0 0 20px #51c6dd66}
