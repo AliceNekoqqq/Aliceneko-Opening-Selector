@@ -11,11 +11,16 @@ export function moveOpening(order,from,to){
   const next=order.slice(),[item]=next.splice(from,1);next.splice(to,0,item);return next;
 }
 const dataOf=card=>card?.data||card||{};
-const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function same(a,b){
+  if(a===b)return true;
+  if(!a||!b||typeof a!=='object'||typeof b!=='object'||Array.isArray(a)!==Array.isArray(b))return false;
+  const keys=Object.keys(a);
+  return keys.length===Object.keys(b).length&&keys.every(key=>Object.hasOwn(b,key)&&same(a[key],b[key]));
+}
 
 // Save the real greetings and their metadata together, then verify before
 // updating local state. A stale workshop must never overwrite another edit.
-export async function saveOpeningOrder({host,getContext,helper,identity,expectedStamp,expectedSettings,order,settings,isActive=()=>true}){
+export async function saveOpeningOrder({host,getContext,helper,identity,expectedStamp,expectedSettings,order,settings,normalizeSettings=value=>value,isActive=()=>true}){
   const key='universal_opening_selector',context=getContext(),card=context?.characters?.[identity.characterId];
   const current=()=>isActive()&&getContext()?.characterId===identity.characterId&&getContext()?.characters?.[identity.characterId]===card&&card?.avatar===identity.avatar;
   if(!current()||openingStamp(card)!==expectedStamp)throw Error('角色或开场已变化，请重新打开设置后排序。');
@@ -26,7 +31,10 @@ export async function saveOpeningOrder({host,getContext,helper,identity,expected
     if(!r.ok)throw Error(`角色卡读取失败（HTTP ${r.status}）`);return r.data;
   };
   const latest=await read(),data=dataOf(latest),existing=data.extensions?.[key]??latest.extensions?.[key];
-  if(openingStamp(latest)!==expectedStamp||!same(existing,expectedSettings))throw Error('服务器上的开场或设置已变化，未覆盖；请重新打开设置。');
+  if(openingStamp(latest)!==expectedStamp)throw Error('服务器上的开场正文或顺序已变化，未覆盖；请重新打开设置。');
+  // ST may serialize keys in another order or explicitly fill defaults. Use
+  // the same configuration normalization as the UI, rather than raw JSON.
+  if(!same(normalizeSettings(existing),normalizeSettings(expectedSettings)))throw Error('服务器上的选择页设置已变化，未覆盖；请重新打开设置。');
   const first=String(data.first_mes??latest.first_mes??''),original=data.alternate_greetings??latest.alternate_greetings??[];
   if(!first.trimStart().startsWith('<UniversalOpeningSelector/>')||!Array.isArray(original))throw Error('角色卡已不处于作者模式，请重新打开设置。');
   validateOpeningOrder(order,original.length);
@@ -35,7 +43,7 @@ export async function saveOpeningOrder({host,getContext,helper,identity,expected
   const response=await requestCharacterCard(host,'/api/characters/merge-attributes',{method:'POST',headers,body:JSON.stringify({avatar:identity.avatar,data:{alternate_greetings:alternates,extensions:{[key]:settings}}})});
   if(!response.ok)throw Error(`开场排序写入失败（HTTP ${response.status}），编辑仍保留。`);
   const persisted=dataOf(await read());
-  if(!same(persisted.alternate_greetings,alternates)||!same(persisted.extensions?.[key],settings))throw Error('排序请求已提交，但复核结果不一致；请检查角色卡，编辑仍保留。');
+  if(!same(persisted.alternate_greetings,alternates)||!same(normalizeSettings(persisted.extensions?.[key]),normalizeSettings(settings)))throw Error('排序请求已提交，但复核结果不一致；请检查角色卡，编辑仍保留。');
   if(!current())throw Error('原角色卡已保存，但当前角色或窗口已变化，请重新打开角色卡。');
   card.alternate_greetings=alternates.slice();if(card.data)card.data.alternate_greetings=alternates.slice();
   card.extensions={...card.extensions,[key]:settings};if(card.data)card.data.extensions={...card.data.extensions,[key]:settings};

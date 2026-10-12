@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.19-beta.2" : "development";
+var RUNTIME_VERSION = true ? "1.0.19-beta.3" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -5895,8 +5895,13 @@ function moveOpening(order, from, to) {
   return next;
 }
 var dataOf3 = (card) => card?.data || card || {};
-var same2 = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-async function saveOpeningOrder({ host, getContext, helper, identity, expectedStamp, expectedSettings, order, settings, isActive = () => true }) {
+function same2(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && same2(a[key], b[key]));
+}
+async function saveOpeningOrder({ host, getContext, helper, identity, expectedStamp, expectedSettings, order, settings, normalizeSettings = (value) => value, isActive = () => true }) {
   const key = "universal_opening_selector", context = getContext(), card = context?.characters?.[identity.characterId];
   const current = () => isActive() && getContext()?.characterId === identity.characterId && getContext()?.characters?.[identity.characterId] === card && card?.avatar === identity.avatar;
   if (!current() || openingStamp(card) !== expectedStamp) throw Error("角色或开场已变化，请重新打开设置后排序。");
@@ -5908,7 +5913,8 @@ async function saveOpeningOrder({ host, getContext, helper, identity, expectedSt
     return r.data;
   };
   const latest = await read(), data = dataOf3(latest), existing = data.extensions?.[key] ?? latest.extensions?.[key];
-  if (openingStamp(latest) !== expectedStamp || !same2(existing, expectedSettings)) throw Error("服务器上的开场或设置已变化，未覆盖；请重新打开设置。");
+  if (openingStamp(latest) !== expectedStamp) throw Error("服务器上的开场正文或顺序已变化，未覆盖；请重新打开设置。");
+  if (!same2(normalizeSettings(existing), normalizeSettings(expectedSettings))) throw Error("服务器上的选择页设置已变化，未覆盖；请重新打开设置。");
   const first = String(data.first_mes ?? latest.first_mes ?? ""), original = data.alternate_greetings ?? latest.alternate_greetings ?? [];
   if (!first.trimStart().startsWith("<UniversalOpeningSelector/>") || !Array.isArray(original)) throw Error("角色卡已不处于作者模式，请重新打开设置。");
   validateOpeningOrder(order, original.length);
@@ -5917,7 +5923,7 @@ async function saveOpeningOrder({ host, getContext, helper, identity, expectedSt
   const response = await requestCharacterCard(host, "/api/characters/merge-attributes", { method: "POST", headers, body: JSON.stringify({ avatar: identity.avatar, data: { alternate_greetings: alternates, extensions: { [key]: settings } } }) });
   if (!response.ok) throw Error(`开场排序写入失败（HTTP ${response.status}），编辑仍保留。`);
   const persisted = dataOf3(await read());
-  if (!same2(persisted.alternate_greetings, alternates) || !same2(persisted.extensions?.[key], settings)) throw Error("排序请求已提交，但复核结果不一致；请检查角色卡，编辑仍保留。");
+  if (!same2(persisted.alternate_greetings, alternates) || !same2(normalizeSettings(persisted.extensions?.[key]), normalizeSettings(settings))) throw Error("排序请求已提交，但复核结果不一致；请检查角色卡，编辑仍保留。");
   if (!current()) throw Error("原角色卡已保存，但当前角色或窗口已变化，请重新打开角色卡。");
   card.alternate_greetings = alternates.slice();
   if (card.data) card.data.alternate_greetings = alternates.slice();
@@ -8770,7 +8776,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         const reordered = draftOpeningOrder.some((value, index) => value !== index);
         if (reordered) {
           saveData.entries = draftOpeningOrder.map((i) => ({ ...saveData.entries[i], coverSeedIndex: saveData.entries[i]?.coverSeedIndex ?? i }));
-          const result = await saveOpeningOrder({ host, getContext: context, helper: helper(), identity: settingsIdentity, expectedStamp: openingBaseline, expectedSettings: savedSettingsBaseline, order: draftOpeningOrder.slice(), settings: saveData, isActive: () => !disposed && root.isConnected !== false });
+          const result = await saveOpeningOrder({ host, getContext: context, helper: helper(), identity: settingsIdentity, expectedStamp: openingBaseline, expectedSettings: savedSettingsBaseline, normalizeSettings: normalize2, order: draftOpeningOrder.slice(), settings: saveData, isActive: () => !disposed && root.isConnected !== false });
           if (disposed || context()?.characterId !== settingsIdentity.characterId || character()?.avatar !== settingsIdentity.avatar) throw Error("原角色卡已保存，但当前角色或窗口已变化，请重新打开设置");
           config = normalize2(saveData);
           draft = null;

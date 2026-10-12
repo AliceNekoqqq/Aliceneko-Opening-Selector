@@ -477,7 +477,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
         const reordered=draftOpeningOrder.some((value,index)=>value!==index);
         if(reordered){
           saveData.entries=draftOpeningOrder.map(i=>({...saveData.entries[i],coverSeedIndex:saveData.entries[i]?.coverSeedIndex??i}));
-          const result=await saveOpeningOrder({host,getContext:context,helper:helper(),identity:settingsIdentity,expectedStamp:openingBaseline,expectedSettings:savedSettingsBaseline,order:draftOpeningOrder.slice(),settings:saveData,isActive:()=>!disposed&&root.isConnected!==false});
+          const result=await saveOpeningOrder({host,getContext:context,helper:helper(),identity:settingsIdentity,expectedStamp:openingBaseline,expectedSettings:savedSettingsBaseline,normalizeSettings:normalize,order:draftOpeningOrder.slice(),settings:saveData,isActive:()=>!disposed&&root.isConnected!==false});
           if(disposed||context()?.characterId!==settingsIdentity.characterId||character()?.avatar!==settingsIdentity.avatar)throw Error('原角色卡已保存，但当前角色或窗口已变化，请重新打开设置');
           config=normalize(saveData);draft=null;draftOpeningOrder=null;settingsDraftBaseline=null;worldbookEditor.reset();render();status(result.message);savedClose=closeOnSuccess;return true;
         }

@@ -44,6 +44,20 @@ test('server greeting/settings conflicts and a replacement card prevent writes',
     await assert.rejects(saveOpeningOrder(f.args));assert.equal(f.writes,0);
   }
 });
+test('equivalent settings with different object key order do not block save or verification',async()=>{
+  const f=fixture(),reverse=value=>Array.isArray(value)?value.map(reverse):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).reverse().map(([key,value])=>[key,reverse(value)])):value;
+  f.server.data.extensions[key]=reverse(f.server.data.extensions[key]);
+  const fetch=f.host.fetch;f.host.fetch=async(...args)=>{const r=await fetch(...args);if(args[0].endsWith('/get')){const json=r.json;r.json=async()=>reverse(await json())}return r};
+  assert.equal((await saveOpeningOrder(f.args)).chatSynced,true);assert.equal(f.writes,1);
+});
+test('UI-normalized omitted/default fields are equivalent, but real setting edits are still rejected',async()=>{
+  const normalize=value=>({title:value?.title||'选择故事的起点',entries:(value?.entries||[]).map(e=>({title:e.title||'',image:e.image||'',names:e.names||'',coverFocus:{x:e.coverFocus?.x??50,y:e.coverFocus?.y??50}}))});
+  const f=fixture();f.args.normalizeSettings=normalize;
+  f.server.data.extensions[key].title='选择故事的起点';f.server.data.extensions[key].entries.forEach(e=>{e.coverFocus={x:50,y:50}});
+  await saveOpeningOrder(f.args);assert.equal(f.writes,1);
+  const changed=fixture();changed.args.normalizeSettings=normalize;changed.server.data.extensions[key].entries[0].title='实际修改';
+  await assert.rejects(saveOpeningOrder(changed.args),/选择页设置已变化/);assert.equal(changed.writes,0);
+});
 test('continued or changed chats are untouched while saved order remains ready for new chats',async()=>{
   for(const kind of ['continued','otherChat','otherSwipe','chatEdited']){
     const f=fixture();if(kind==='continued')f.helper.getLastMessageId=()=>2;if(kind==='otherChat')f.context.chatId='other';
