@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.19" : "development";
+var RUNTIME_VERSION = true ? "1.0.20" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -175,6 +175,7 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
 
 // src/module-help-content.js
 var MODULE_HELP = {
+  order: { title: "开场顺序", purpose: "在插件内调整备用开场顺序，确认保存后生效。", steps: ["拖动左侧手柄把开场移到想要的位置；手机上从手柄拖动，其他位置可正常滚动。", "也可点击上下箭头，或聚焦手柄后按键盘上下方向键微调。", "通过整页实时预览检查新顺序，最后点击「保存到角色卡」。"], options: [["编号与配置", "保存后重新编号，正文、封面、人物、标签和世界书预设保持对应。"]], buttons: [["恢复原顺序", "恢复本次打开设置时的顺序，保留其他编辑。"], ["保存到角色卡", "将开场顺序与当前作者设置一起保存。"]], notes: ["拖动只调整草稿；放弃修改不会改变角色卡。", "主开场的选择器标记固定在第一条，不参与排序；已开始的其他聊天不会被改写。"] },
   playerSettings: { title: "玩家设置", purpose: "按需要调整显示与识别结果，保留作者默认配置。", steps: ["展开需要修改的分区。", "显示信息与识别规则使用分区内的保存按钮；外观选择会立即记住。", "关闭时如有未保存修改，可保存、放弃或返回继续编辑。"], options: [["开场显示", "修正标题、人物或显示标注。"], ["界面外观", "调整悬浮入口、看板娘 Logo 与插件大标题。"], ["功能开关", "启用或关闭盲盒抽卡；立即生效，按角色保存在本机，重新开启保留卡池。"], ["识别规则／插件", "修正标签提取和别名，或检查更新。"]], buttons: [["仅保存到本机／保存到角色卡", "前者只影响本机；后者将允许分享的修正写入角色配置。"]], notes: ["人物列表有独立保存按钮，两版按角色共用本机名单。", "此页不会替换开场正文；生成新开场请使用主界面的创建入口。"] },
   titleRules: { title: "标题提取规则", purpose: "避免状态栏或辅助标签被误当作开场标题。", steps: ["查看自动标题，找出需要跳过的标签。", "填写标签名称，用逗号分隔；不用填写整段正文。", "保存后检查卡片标题和简介。"], options: [["排除标题中的 <字段>", "例如填写 SceneInfo，会在提取标题和简介时跳过该标签。"]], buttons: [["仅保存到本机／保存到角色卡", "保存玩家本机修正或作者默认规则。"]], notes: ["此设置不修改正文，也不排除人物识别中的这些标签。", "手工填写的标题优先于自动提取。"] },
   openings: { title: "开场浏览与选择", purpose: "找到想玩的故事起点，阅读后再决定是否进入。", steps: ["用搜索和人物、分组、标签筛选缩小范围。", "点击「预览完整正文」查看内容；也可通过命运盲盒随机挑选。", "确认后点击进入开场。仅浏览、收藏和抽卡不会自动切换。"], options: [["搜索与筛选", "搜索标题、人物和正文；多个筛选条件同时生效。分组折叠只隐藏列表。"], ["收藏", "点击 ☆ 收藏或取消收藏；「只看收藏」与其他筛选组合使用。"]], buttons: [["人物列表", "整理统一人物名单，影响识别、人物筛选及生成器。"], ["创建／生成开场白", "使用当前主 API 生成草稿，编辑确认后追加备用开场。"], ["预览完整正文／进入开场", "预览只阅读；进入才执行开场切换及已分配的世界书预设。"], ["主题／设置", "主题调整外观，设置修改显示、识别与作者配置。"]], notes: ["人物是全文提及匹配，回忆、标签和状态栏里的姓名也可能命中。", "收藏、抽卡偏好按角色保存在本机；作者配置需保存到角色卡。"] },
@@ -1068,13 +1069,14 @@ function coverPresentation(entry = {}) {
   const point = (value) => typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 50;
   return {
     coverSlot: Number.isInteger(entry.coverSlot) && entry.coverSlot >= 1 && entry.coverSlot <= 5 ? entry.coverSlot : 0,
+    ...Number.isInteger(entry.coverSeedIndex) && entry.coverSeedIndex >= 0 ? { coverSeedIndex: entry.coverSeedIndex } : {},
     coverFocus: { x: point(entry.coverFocus?.x), y: point(entry.coverFocus?.y) }
   };
 }
 function applyOpeningCover(cover, entry, identity, index, host, { shade = false } = {}) {
-  const { coverSlot, coverFocus } = coverPresentation(entry);
+  const { coverSlot, coverFocus, coverSeedIndex } = coverPresentation(entry);
   const custom = /^(data:image\/(?:png|jpeg|webp|gif);base64,|https?:\/\/)/i.test(entry?.image || "");
-  const image = custom ? `url("${entry.image.replace(/["\\\r\n]/g, "")}")` : `var(--uos-default-cover-${coverSlot || defaultCoverSlot(identity, index, host)})`;
+  const image = custom ? `url("${entry.image.replace(/["\\\r\n]/g, "")}")` : `var(--uos-default-cover-${coverSlot || defaultCoverSlot(identity, coverSeedIndex ?? index, host)})`;
   cover.classList.add("has-image");
   cover.style.backgroundImage = (shade ? "linear-gradient(0deg,#0005,transparent)," : "") + image;
   cover.style.backgroundPosition = `${coverFocus.x}% ${coverFocus.y}%`;
@@ -5880,6 +5882,217 @@ function createAuthorPopupSession({ frame, sheet, isActive, canClose = () => tru
   return { frame, sheet, complete, dispose: () => cleanup(true) };
 }
 
+// src/opening-order.js
+function validateOpeningOrder(order, count) {
+  if (!Array.isArray(order) || order.length !== count || new Set(order).size !== count || order.some((i) => !Number.isInteger(i) || i < 0 || i >= count)) throw Error("开场顺序无效，请重新打开设置。");
+  return order;
+}
+function moveOpening(order, from, to) {
+  validateOpeningOrder(order, order.length);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= order.length || to >= order.length) return order.slice();
+  const next = order.slice(), [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+var dataOf3 = (card) => card?.data || card || {};
+function same2(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && same2(a[key], b[key]));
+}
+async function saveOpeningOrder({ host, getContext, helper, identity, expectedStamp, expectedSettings, order, settings, normalizeSettings = (value) => value, isActive = () => true }) {
+  const key = "universal_opening_selector", context = getContext(), card = context?.characters?.[identity.characterId];
+  const current = () => isActive() && getContext()?.characterId === identity.characterId && getContext()?.characters?.[identity.characterId] === card && card?.avatar === identity.avatar;
+  if (!current() || openingStamp(card) !== expectedStamp) throw Error("角色或开场已变化，请重新打开设置后排序。");
+  if (typeof context.getRequestHeaders !== "function") throw Error("当前酒馆未提供保存请求接口");
+  const headers = context.getRequestHeaders();
+  const read = async () => {
+    const r = await requestCharacterCard(host, "/api/characters/get", { method: "POST", headers, body: JSON.stringify({ avatar_url: identity.avatar }) }, { readJson: true });
+    if (!r.ok) throw Error(`角色卡读取失败（HTTP ${r.status}）`);
+    return r.data;
+  };
+  const latest = await read(), data = dataOf3(latest), existing = data.extensions?.[key] ?? latest.extensions?.[key];
+  if (openingStamp(latest) !== expectedStamp) throw Error("服务器上的开场正文或顺序已变化，未覆盖；请重新打开设置。");
+  if (!same2(normalizeSettings(existing), normalizeSettings(expectedSettings))) throw Error("服务器上的选择页设置已变化，未覆盖；请重新打开设置。");
+  const first = String(data.first_mes ?? latest.first_mes ?? ""), original = data.alternate_greetings ?? latest.alternate_greetings ?? [];
+  if (!first.trimStart().startsWith("<UniversalOpeningSelector/>") || !Array.isArray(original)) throw Error("角色卡已不处于作者模式，请重新打开设置。");
+  validateOpeningOrder(order, original.length);
+  const alternates = order.map((i) => original[i]);
+  if (!current() || openingStamp(card) !== expectedStamp) throw Error("角色或开场已变化，未写入。");
+  const response = await requestCharacterCard(host, "/api/characters/merge-attributes", { method: "POST", headers, body: JSON.stringify({ avatar: identity.avatar, data: { alternate_greetings: alternates, extensions: { [key]: settings } } }) });
+  if (!response.ok) throw Error(`开场排序写入失败（HTTP ${response.status}），编辑仍保留。`);
+  const persisted = dataOf3(await read());
+  if (!same2(persisted.alternate_greetings, alternates) || !same2(normalizeSettings(persisted.extensions?.[key]), normalizeSettings(settings))) throw Error("排序请求已提交，但复核结果不一致；请检查角色卡，编辑仍保留。");
+  if (!current()) throw Error("原角色卡已保存，但当前角色或窗口已变化，请重新打开角色卡。");
+  card.alternate_greetings = alternates.slice();
+  if (card.data) card.data.alternate_greetings = alternates.slice();
+  card.extensions = { ...card.extensions, [key]: settings };
+  if (card.data) card.data.extensions = { ...card.data.extensions, [key]: settings };
+  let chatSynced = false;
+  try {
+    const c = getContext(), message = helper?.getChatMessages?.(0, { include_swipes: true })?.[0];
+    if (current() && c.chatId === identity.chatId && Number(helper?.getLastMessageId?.() ?? 0) === 0 && Number(message?.swipe_id ?? 0) === 0 && message?.role === "assistant" && same2(message.swipes, [first, ...original]) && typeof helper.setChatMessages === "function") {
+      await helper.setChatMessages([{ message_id: 0, swipes: [first, ...alternates], swipe_id: 0 }], { refresh: "none" });
+      chatSynced = same2(helper.getChatMessages(0, { include_swipes: true })?.[0]?.swipes, [first, ...alternates]);
+    }
+  } catch {
+  }
+  return { chatSynced, message: chatSynced ? "已保存开场顺序与设置，当前选择页立即生效。" : "已保存开场顺序与设置；当前聊天未同步，请新建聊天使用。" };
+}
+
+// src/opening-order-editor.js
+function createOpeningOrderEditor({ el, doc, getOrder, getItems, onChange, isDisabled = () => false }) {
+  const section = el("section", "uos-settings-group uos-order"), heading = el("h3", "", "开场顺序");
+  section.append(heading, el("p", "uos-help", "拖动左侧手柄调整顺序，也可用上下箭头微调。保存到角色卡后生效，封面和世界书预设一起移动。"));
+  const list = el("div", "uos-order-list"), note = el("p", "uos-help"), reset = el("button", "uos-icon", "恢复原顺序");
+  list.setAttribute("role", "list");
+  note.setAttribute("role", "status");
+  reset.type = "button";
+  section.append(list, note, reset);
+  let drag = null, animation = null, closed = false;
+  const rows = /* @__PURE__ */ new Map(), view = doc.defaultView;
+  function apply(order) {
+    onChange(order);
+    refresh();
+  }
+  function finish(cancel = false) {
+    const active = drag;
+    if (!active) return;
+    drag = null;
+    view.cancelAnimationFrame?.(animation);
+    animation = null;
+    active.row.classList.remove("is-dragging");
+    try {
+      active.handle.releasePointerCapture(active.id);
+    } catch {
+    }
+    if (cancel && !closed) apply(active.before);
+    else refresh();
+  }
+  function position(y) {
+    if (!drag || isDisabled()) return;
+    const order = getOrder(), from = order.indexOf(drag.index);
+    let to = from;
+    for (let i = 0; i < order.length; i++) {
+      if (i === from) continue;
+      const rect = rows.get(order[i]).row.getBoundingClientRect(), middle = (rect.top + rect.bottom) / 2;
+      if (i < from && y < middle) {
+        to = i;
+        break;
+      }
+      if (i > from && y > middle) to = i;
+    }
+    if (to !== from) apply(moveOpening(order, from, to));
+  }
+  function tick() {
+    if (!drag || closed) return;
+    if (drag.moved && !isDisabled()) {
+      const sheet = section.closest(".uos-sheet"), rect = sheet?.getBoundingClientRect();
+      if (rect) {
+        const speed = drag.y < rect.top + 65 ? -12 : drag.y > rect.bottom - 75 ? 12 : 0;
+        if (speed) {
+          sheet.scrollTop += speed;
+          position(drag.y);
+        }
+      }
+    }
+    animation = view.requestAnimationFrame(tick);
+  }
+  function refresh() {
+    if (closed) return;
+    const order = getOrder(), items = getItems();
+    if (!rows.size) items.forEach((entry, index) => {
+      const row = el("div", "uos-order-row"), handle = el("button", "uos-order-handle", "⠿"), number = el("span", "uos-order-number"), title = el("span", "uos-order-title"), actions = el("div", "uos-order-actions");
+      row.setAttribute("role", "listitem");
+      handle.type = "button";
+      handle.setAttribute("aria-label", `拖动开场 ${index + 1} 调整顺序`);
+      const up = el("button", "uos-icon", "↑"), down = el("button", "uos-icon", "↓");
+      up.type = down.type = "button";
+      up.setAttribute("aria-label", `上移开场 ${index + 1}`);
+      down.setAttribute("aria-label", `下移开场 ${index + 1}`);
+      const move = (direction) => {
+        if (drag || isDisabled()) return;
+        const order2 = getOrder(), from = order2.indexOf(index);
+        apply(moveOpening(order2, from, from + direction));
+        handle.focus();
+      };
+      up.onclick = () => move(-1);
+      down.onclick = () => move(1);
+      handle.onkeydown = (event) => {
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+          event.preventDefault();
+          move(event.key === "ArrowUp" ? -1 : 1);
+        }
+      };
+      handle.onpointerdown = (event) => {
+        if (closed || isDisabled() || drag || getOrder().length < 2 || event.button !== 0 || event.isPrimary === false) return;
+        event.preventDefault();
+        event.stopPropagation();
+        handle.focus();
+        drag = { index, id: event.pointerId, y: event.clientY, start: event.clientY, before: getOrder().slice(), handle, row, moved: false };
+        try {
+          handle.setPointerCapture(event.pointerId);
+        } catch {
+          finish(true);
+          return;
+        }
+        row.classList.add("is-dragging");
+        tick();
+      };
+      handle.onpointermove = (event) => {
+        if (!drag || drag.id !== event.pointerId) return;
+        event.preventDefault();
+        drag.y = event.clientY;
+        if (Math.abs(drag.y - drag.start) > 5) drag.moved = true;
+        if (drag.moved) position(drag.y);
+      };
+      handle.onpointerup = (event) => {
+        if (drag?.id === event.pointerId) finish();
+      };
+      handle.onpointercancel = (event) => {
+        if (drag?.id === event.pointerId) finish(true);
+      };
+      handle.onlostpointercapture = () => {
+        if (drag?.handle === handle) finish(true);
+      };
+      actions.append(up, down);
+      row.append(handle, number, title, actions);
+      rows.set(index, { row, handle, number, title, up, down });
+    });
+    for (const [position2, index] of order.entries()) {
+      const item = rows.get(index);
+      item.number.textContent = String(position2 + 1).padStart(2, "0");
+      item.title.textContent = items[index]?.title || `原开场 ${index + 1}`;
+      item.up.disabled = isDisabled() || position2 === 0;
+      item.down.disabled = isDisabled() || position2 === order.length - 1;
+      item.handle.disabled = isDisabled() || order.length < 2;
+      const desired = list.children[position2];
+      if (desired !== item.row) {
+        if (drag?.row === item.row) {
+          while (list.children[position2] !== item.row) list.append(list.children[position2]);
+        } else list.insertBefore(item.row, desired || null);
+      }
+    }
+    const changed = order.some((value, i) => value !== i);
+    reset.disabled = isDisabled() || !changed;
+    note.textContent = order.length < 2 ? "至少两条备用开场时可以调整顺序。" : changed ? "顺序已调整，尚未保存。" : "拖动手柄排序；也支持键盘上下方向键。";
+  }
+  reset.onclick = () => {
+    if (isDisabled()) return;
+    finish(true);
+    apply(getOrder().map((_, i) => i));
+  };
+  refresh();
+  return { element: section, heading, refresh, finishDrag: () => finish(), dispose() {
+    if (closed) return;
+    closed = true;
+    finish();
+    rows.clear();
+    section.remove();
+  } };
+}
+
 // src/worldbook-preset-editor.js
 function createWorldbookPresetEditor({
   doc,
@@ -6977,6 +7190,18 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-settings-group>summary,.uos-settings-entry>summary{cursor:pointer;color:var(--accent);font-weight:650;line-height:1.6;overflow-wrap:anywhere}
 .uos-settings-group .uos-field{margin:14px 0}.uos-settings-group .uos-help{margin:8px 0}
 .uos-settings-entry{margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.uos-order-list{display:grid;gap:8px;min-width:0}
+.uos-order-row{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0;scroll-margin:80px}
+.uos-order-row.is-dragging{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--panel));box-shadow:0 3px 12px #0003}
+.uos-order-handle{flex:none;width:44px;height:44px;padding:0!important;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--accent);font-size:26px;cursor:grab;touch-action:none;user-select:none}
+.uos-order-handle:active{cursor:grabbing}
+.uos-order-number{flex:none;font:700 16px/1.4 Georgia,serif;color:var(--accent);min-width:22px}
+.uos-order-title{flex:1;min-width:0;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.uos-order-actions{display:flex;flex:none;gap:4px}
+.uos-order-actions button{width:44px;min-height:44px;padding:0!important;font-size:18px}
+.uos-order button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.uos-order button:disabled{opacity:.4;cursor:default}
+@media(max-width:380px){.uos-order-row{gap:6px}}
 .uos-settings-entry[open]>summary{padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .uos-settings-entry .uos-card-preview{max-width:100%;width:300px}
 .uos-settings-savebar{position:sticky;bottom:-20px;z-index:5;background:var(--bg);padding:12px 0 8px;border-top:1px solid var(--line);margin-top:18px}
@@ -7510,6 +7735,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     peopleEditor?.dispose();
     generator?.dispose();
     stopMascot();
+    orderEditor?.dispose();
     blindBox?.dispose();
     favoriteUI?.dispose();
     pagePreview?.dispose();
@@ -7557,6 +7783,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   const worldbookPresetManager = createWorldbookPresetManager(() => [helperApi, doc.defaultView?.TavernHelper, doc.defaultView, host.TavernHelper, host], character);
   let worldbookPeople = [], worldbookDiagnostics = [], worldbookMessage = "正在读取角色世界书人物名单…";
   let settingsDraftBaseline = null, pendingSettingsTasks = 0, settingsSaving = false, saveSettingsToCard = async () => false;
+  let draftOpeningOrder = null, orderEditor = null;
   async function refreshWorldbookPeople(refresh = false) {
     const card = character(), identity = card?.avatar, id = context()?.characterId;
     const isCurrent = worldbookRequests.begin(() => !disposed && root.isConnected !== false && context()?.characterId === id && character()?.avatar === identity);
@@ -7760,8 +7987,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   function suggest(text2, i) {
     return infer(text2, i);
   }
-  function entries(settings = config) {
-    const greetings = greetingList();
+  function entries(settings = config, greetings = greetingList()) {
     const count = greetings.length;
     const people = detectGreetingCollection(greetings, { characterName: character()?.data?.name || character()?.name, knownNames: settings.entries.flatMap((entry) => typeof entry.names === "string" ? entry.names.split(/[、，,\/]/).map((x) => x.trim()) : []), aliases: settings.personAliases, worldbookPeople, peopleRoster: readPeopleRoster(host, character()?.avatar) });
     return Array.from({ length: count }, (_, i) => {
@@ -7801,6 +8027,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   }
   function hasUnsavedSettings() {
     if (!draft) return false;
+    if (draftOpeningOrder?.some((value, index) => value !== index)) return true;
     if (worldbookEditor.hasUnsaved() || pendingSettingsTasks > 0) return true;
     try {
       return settingsDraftBaseline !== null && JSON.stringify(normalize2({ ...draft, theme: displayTheme })) !== settingsDraftBaseline;
@@ -8017,6 +8244,9 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           activePopup = null;
           moduleHelp.close();
           if (selector.includes("settings")) {
+            orderEditor?.dispose();
+            orderEditor = null;
+            draftOpeningOrder = null;
             pagePreview?.dispose();
             pagePreview = null;
             const hadDraft = Boolean(draft);
@@ -8123,7 +8353,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       grid.before(result);
     }
     result.textContent = favoriteUI.onlyFavorites() || query || person.value || categoryValues.group !== null || categoryValues.tag ? `找到 ${visible} / ${items.length} 个开场` : `${items.length} 个开场 · 点击卡片进入`;
-    if (!visible) grid.append(createMascotNote(el, "search", favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。", "uos-search-empty").element);
+    if (!visible) grid.append(createMascotNote(el, "search", !items.length ? "还没有备用开场。可以先打开「设置」设计选择页、配置世界书和音乐，再用「生成开场白」创作第一条；也可以在酒馆角色编辑器中手动添加备用开场，保存后新建聊天。" : favoriteUI.onlyFavorites() ? "没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。" : "没有匹配的开场，请调整关键词或筛选条件。", "uos-search-empty").element);
     renderMusic(config.music);
     const actions = root.querySelector(".uos-actions");
     if (actions && !actions.querySelector(".uos-version-badge")) actions.append(el("small", "uos-version-badge", `v${VERSION2}`));
@@ -8267,6 +8497,10 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     }
     draft || (draft = normalize2(config));
     pagePreview?.dispose();
+    orderEditor?.dispose();
+    const openingBaseline = openingStamp(character()), savedSettingsBaseline = structuredClone(character()?.data?.extensions?.[KEY3] ?? character()?.extensions?.[KEY3]);
+    const settingsIdentity = { characterId: context()?.characterId, avatar: character()?.avatar, chatId: context()?.chatId };
+    draftOpeningOrder = greetingList().map((_, i) => i);
     const manuallyEditedNames = /* @__PURE__ */ new Set(), fields = $("[data-settings-fields]");
     fields.replaceChildren();
     const pageFields = el("section", "uos-settings-group");
@@ -8314,13 +8548,14 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       backgroundService,
       readModel: () => {
         if (draft !== previewDraft || root.isConnected === false || character()?.avatar !== previewAvatar || context()?.characterId !== previewCharacterId) return null;
-        const settings = normalize2({ ...draft, theme: displayTheme, entries: draft.entries.map((entry, i) => {
+        const originalSettings = normalize2({ ...draft, theme: displayTheme, entries: draft.entries.map((entry, i) => {
           if (manuallyEditedNames.has(i) || typeof config.entries[i]?.names === "string") return entry;
           const { names, ...automatic } = entry;
           return automatic;
-        }) }), greetings2 = greetingList();
+        }) }), originalGreetings = greetingList();
+        const order = draftOpeningOrder || originalGreetings.map((_, i) => i), settings = { ...originalSettings, entries: order.map((i) => ({ ...originalSettings.entries[i], coverSeedIndex: originalSettings.entries[i]?.coverSeedIndex ?? i })) }, greetings2 = order.map((i) => originalGreetings[i]);
         const favoriteKeys = favoritesStore.keys(greetings2), savedFavorites = favoritesStore.snapshot();
-        return { ...settings, blindBoxEnabled: blindBox.enabled(), items: entries(settings).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", favoriteKey: favoriteKeys[i], favorite: savedFavorites.has(favoriteKeys[i]), names: String(entry.names || "").split(/[、，,\/]/).map((name2) => name2.trim()).filter(Boolean) })) };
+        return { ...settings, blindBoxEnabled: blindBox.enabled(), items: entries(settings, greetings2).map((entry, i) => ({ ...entry, ...openingMetadata(entry), id: i, body: greetings2[i] || "", favoriteKey: favoriteKeys[i], favorite: savedFavorites.has(favoriteKeys[i]), names: String(entry.names || "").split(/[、，,\/]/).map((name2) => name2.trim()).filter(Boolean) })) };
       }
     });
     fields.append(pagePreview.element);
@@ -8397,6 +8632,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         categoryPreview.replaceChildren();
         for (const text2 of [metadata.group ? `分组 · ${metadata.group}` : "", ...metadata.tags].filter(Boolean)) categoryPreview.append(el("span", "", text2));
         coverSettings?.refresh();
+        orderEditor?.refresh();
         pagePreview?.refresh();
       };
       updatePreview();
@@ -8478,6 +8714,12 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       box.append(clear);
       list.append(box);
     });
+    orderEditor = createOpeningOrderEditor({ el, doc: activePopup.frame.contentDocument, getOrder: () => draftOpeningOrder || [], getItems: () => draft?.entries || [], isDisabled: () => settingsSaving || disposed, onChange: (order) => {
+      draftOpeningOrder = order;
+      pagePreview?.refresh();
+    } });
+    list.before(orderEditor.element);
+    moduleHelp.attach(orderEditor.heading, "order");
     renderMusicSettings({
       root: dlg,
       settings: draft,
@@ -8517,10 +8759,12 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         status("无法写入角色卡：请在支持角色卡扩展字段的酒馆中编辑。");
         return false;
       }
+      orderEditor?.finishDrag();
       const button = $("[data-save]"), controls = [...dlg.querySelectorAll("input,textarea,select,button")], disabled = controls.map((control) => control.disabled);
       controls.forEach((control) => control.disabled = true);
       button.textContent = "正在保存…";
       settingsSaving = true;
+      orderEditor?.refresh();
       let savedClose = false;
       try {
         const saveData = { ...draft, theme: displayTheme, entries: draft.entries.slice(0, greetingList().length).map((entry, i) => {
@@ -8529,6 +8773,21 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
           const { names, ...rest } = saved2;
           return rest;
         }) };
+        const reordered = draftOpeningOrder.some((value, index) => value !== index);
+        if (reordered) {
+          saveData.entries = draftOpeningOrder.map((i) => ({ ...saveData.entries[i], coverSeedIndex: saveData.entries[i]?.coverSeedIndex ?? i }));
+          const result = await saveOpeningOrder({ host, getContext: context, helper: helper(), identity: settingsIdentity, expectedStamp: openingBaseline, expectedSettings: savedSettingsBaseline, normalizeSettings: normalize2, order: draftOpeningOrder.slice(), settings: saveData, isActive: () => !disposed && root.isConnected !== false });
+          if (disposed || context()?.characterId !== settingsIdentity.characterId || character()?.avatar !== settingsIdentity.avatar) throw Error("原角色卡已保存，但当前角色或窗口已变化，请重新打开设置");
+          config = normalize2(saveData);
+          draft = null;
+          draftOpeningOrder = null;
+          settingsDraftBaseline = null;
+          worldbookEditor.reset();
+          render();
+          status(result.message);
+          savedClose = closeOnSuccess;
+          return true;
+        }
         if (typeof c.getRequestHeaders !== "function") throw Error("当前酒馆未提供保存请求接口");
         const card = character(), saveCharacterId = c.characterId;
         if (!card?.avatar) throw Error("无法确认当前角色卡的文件名");
@@ -8538,14 +8797,14 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         if (!verified.ok) throw Error(`角色卡复核失败（HTTP ${verified.status}），请重新打开角色卡检查保存结果`);
         const persisted = verified.data;
         const saved = persisted?.data?.extensions?.[KEY3] ?? persisted?.extensions?.[KEY3];
-        const same2 = (actual, expected) => {
+        const same3 = (actual, expected) => {
           if (expected && typeof expected === "object") {
             if (!actual || typeof actual !== "object") return false;
-            return Object.keys(expected).every((key) => same2(actual[key], expected[key]));
+            return Object.keys(expected).every((key) => same3(actual[key], expected[key]));
           }
           return actual === expected;
         };
-        if (!same2(saved, saveData)) throw Error("角色卡复核未找到刚保存的设置，请重新打开角色卡检查");
+        if (!same3(saved, saveData)) throw Error("角色卡复核未找到刚保存的设置，请重新打开角色卡检查");
         if (disposed || context()?.characterId !== saveCharacterId || character() !== card) throw Error("原角色卡已保存，但当前角色或窗口已变化，请重新打开设置");
         await c.writeExtensionField(saveCharacterId, KEY3, saveData);
         if (disposed || context()?.characterId !== saveCharacterId || character() !== card) throw Error("原角色卡已保存，但当前角色或窗口已变化，请重新打开设置");
@@ -8562,6 +8821,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         return false;
       } finally {
         settingsSaving = false;
+        if (draft) orderEditor?.refresh();
         controls.forEach((control, index) => {
           if (control.isConnected) control.disabled = disabled[index];
         });
@@ -8640,8 +8900,9 @@ function inspectAuthorState(context, helper) {
   } catch {
     return { state: null, reason: "读取首条消息失败。请保存角色卡并新建聊天。" };
   }
-  if (Number(last ?? 0) > 0 || Number(message?.swipe_id) !== 0) return { state: null, reason: null };
-  if (message?.role !== "assistant" || !String(message.swipes?.[0] || "").includes(AUTHOR_MARKER))
+  if (Number(last ?? 0) > 0 || Number(message?.swipe_id ?? 0) !== 0) return { state: null, reason: null };
+  const entryMessage = Array.isArray(message?.swipes) && message.swipes.length ? message.swipes[0] : message?.message;
+  if (message?.role !== "assistant" || !String(entryMessage || "").trimStart().startsWith(AUTHOR_MARKER))
     return { state: null, reason: "角色卡标记已准备好，但当前首条消息不是选择页。请保存角色卡并新建聊天。" };
   return { state: { characterId: context.characterId, avatar: card.avatar, entries: greetings || [] }, reason: null };
 }

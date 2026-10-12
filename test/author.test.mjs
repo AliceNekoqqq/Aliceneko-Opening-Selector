@@ -23,6 +23,20 @@ assert.match(inspectAuthorState(context,helper).reason,/主开场第一行/);
 last=1;assert.equal(inspectAuthorState(context,helper).reason,null);last=0;
 card.data.first_mes=AUTHOR_MARKER;card.data.alternate_greetings=[];
 assert.deepEqual(inspectAuthorState(context,helper).state.entries,[],'empty author cards can create their first opening in the generator');
+const freshHelper={getChatMessages:()=>[{role:'assistant',message:AUTHOR_MARKER}],getLastMessageId:()=>0};
+assert.deepEqual(readAuthorState(context,freshHelper).entries,[],'fresh author entry without swipe metadata can open the editor');
+for(const alternates of [undefined,[],['第一条正文。']]){
+  card.data.alternate_greetings=alternates;
+  assert.deepEqual(readAuthorState(context,freshHelper).entries,alternates||[]);
+}
+card.data.alternate_greetings=[];
+const messageHelper=message=>({...freshHelper,getChatMessages:()=>[message]});
+assert.ok(readAuthorState(context,messageHelper({role:'assistant',message:AUTHOR_MARKER,swipes:[],swipe_id:0})));
+assert.equal(readAuthorState(context,messageHelper({role:'assistant',message:AUTHOR_MARKER,swipe_id:1})),null);
+assert.equal(readAuthorState(context,messageHelper({role:'assistant',message:'普通正文。'})),null);
+assert.equal(readAuthorState(context,messageHelper({role:'user',message:AUTHOR_MARKER})),null);
+assert.equal(readAuthorState(context,messageHelper({role:'assistant',message:AUTHOR_MARKER,swipes:['普通正文。']})),null,'existing swipe data takes precedence');
+assert.equal(readAuthorState(context,{...freshHelper,getLastMessageId:()=>1}),null);
 import {payload,stable,runtimeVersion,pointerFile,bootstrapScript} from './release-fixture.mjs';
 const remote=fs.readFileSync('remote.js','utf8')+'\n'+authorHtml(1);
 const containsMarkup=value=>authorHtml(1).includes(value.replace(/\\+"/g,'"'));

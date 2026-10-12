@@ -2,6 +2,9 @@ import {createModuleHelp} from './module-help.js';
 import {createLatestRequest} from './latest-request.js';
 import {createAuthorPopupSession} from './author-popup-session.js';
 import {requestCharacterCard} from './character-card-request.js';
+import {openingStamp} from './opening-generation.js';
+import {saveOpeningOrder} from './opening-order.js';
+import {createOpeningOrderEditor} from './opening-order-editor.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createWorldbookPresetEditor} from './worldbook-preset-editor.js';
@@ -61,7 +64,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   const worldbookRequests=createLatestRequest();
   let previewItems=[],allDrawItems=[];
   moduleHelp=createModuleHelp({doc,getDialogDocument:source=>source===doc?(root.__uosHostDocument||host.document||doc):source});
-  root.__uosDispose=()=>{if(disposed)return;disposed=true;activePopup?.dispose();closeThemePreviews();moduleHelp?.dispose();peopleEditor?.dispose();generator?.dispose();stopMascot();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();if(ownsBackgroundService)backgroundService.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
+  root.__uosDispose=()=>{if(disposed)return;disposed=true;activePopup?.dispose();closeThemePreviews();moduleHelp?.dispose();peopleEditor?.dispose();generator?.dispose();stopMascot();orderEditor?.dispose();blindBox?.dispose();favoriteUI?.dispose();pagePreview?.dispose();openingPreview?.dispose();backgroundControl?.close();if(ownsBackgroundService)backgroundService.close();mediaPlayer?.close();settingsFields?.close();worldbookEditor?.close()};
   const seed = JSON.parse(doc.getElementById('uos-seed').textContent);
   let host = doc.defaultView || window;
   for (let i=0;i<8;i++) {
@@ -85,6 +88,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   const worldbookPresetManager=createWorldbookPresetManager(()=>[helperApi,doc.defaultView?.TavernHelper,doc.defaultView,host.TavernHelper,host],character);
   let worldbookPeople=[],worldbookDiagnostics=[],worldbookMessage='正在读取角色世界书人物名单…';
   let settingsDraftBaseline=null,pendingSettingsTasks=0,settingsSaving=false,saveSettingsToCard=async()=>false;
+  let draftOpeningOrder=null,orderEditor=null;
   async function refreshWorldbookPeople(refresh=false){
     const card=character(),identity=card?.avatar,id=context()?.characterId;
     const isCurrent=worldbookRequests.begin(()=>!disposed&&root.isConnected!==false
@@ -175,8 +179,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     return {title,description:body.slice(title.length).trim().slice(0,140),names:detected.names.join('、'),nameSuggestions:detected.suggestions};
   }
   function suggest(text,i){return infer(text,i)}
-  function entries(settings=config){
-    const greetings=greetingList();
+  function entries(settings=config,greetings=greetingList()){
     const count=greetings.length;
     const people=detectGreetingCollection(greetings,{characterName:character()?.data?.name||character()?.name,knownNames:settings.entries.flatMap(entry=>typeof entry.names==='string'?entry.names.split(/[、，,\/]/).map(x=>x.trim()):[]),aliases:settings.personAliases,worldbookPeople,peopleRoster:readPeopleRoster(host,character()?.avatar)});
     return Array.from({length:count},(_,i)=>{const generated=infer(greetings[i],i,people[i],settings),saved=settings.entries[i]||{};const merged=isLegacyGeneratedEntry(greetings[i],saved,i)?{...generated,...saved,title:generated.title,description:generated.description}:{...generated,...saved};return {...merged,names:filterRosterNames(merged.names,readPeopleRoster(host,character()?.avatar)).join('、')}});
@@ -187,6 +190,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
   function syncDialogTheme(){const style=doc.defaultView.getComputedStyle(root);for(const dlg of portaled){dlg.style.setProperty('color-scheme',style.colorScheme);for(const key of ['--bg','--panel','--text','--muted','--accent','--line','--art',...Array.from({length:5},(_,i)=>`--uos-default-cover-${i+1}`)])dlg.style.setProperty(key,style.getPropertyValue(key));}}
   function hasUnsavedSettings(){
     if(!draft)return false;
+    if(draftOpeningOrder?.some((value,index)=>value!==index))return true;
     if(worldbookEditor.hasUnsaved()||pendingSettingsTasks>0)return true;
     try{return settingsDraftBaseline!==null&&JSON.stringify(normalize({...draft,theme:displayTheme}))!==settingsDraftBaseline}catch{return true}
   }
@@ -274,6 +278,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
           original.append(sheet);portaled=[];frame.remove();activePopup=null;
           moduleHelp.close();
           if(selector.includes('settings')){
+            orderEditor?.dispose();orderEditor=null;draftOpeningOrder=null;
             pagePreview?.dispose();pagePreview=null;
             const hadDraft=Boolean(draft);draft=null;settingsDraftBaseline=null;
             applyBrandVisibility(root,config.branding);worldbookEditor.reset();renderMusic(config.music);
@@ -314,7 +319,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     },rows);
     updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:displayTheme,manual:blindBox.rangeMode()==='manual',enabled:blindBox.enabled()});blindRangeTrigger.hidden=!blindBox.enabled();blindRangeTrigger.textContent=blindBox.rangeSummary();
     let result=root.querySelector('.uos-results');if(!result){result=el('p','uos-results');result.setAttribute('role','status');grid.before(result)}result.textContent=favoriteUI.onlyFavorites()||query||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${items.length} 个开场`:`${items.length} 个开场 · 点击卡片进入`;
-    if(!visible)grid.append(createMascotNote(el,'search',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-search-empty').element);
+    if(!visible)grid.append(createMascotNote(el,'search',!items.length?'还没有备用开场。可以先打开「设置」设计选择页、配置世界书和音乐，再用「生成开场白」创作第一条；也可以在酒馆角色编辑器中手动添加备用开场，保存后新建聊天。':favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-search-empty').element);
     renderMusic(config.music);
     const actions=root.querySelector('.uos-actions');if(actions&&!actions.querySelector('.uos-version-badge'))actions.append(el('small','uos-version-badge',`v${VERSION}`));
     let watermark=root.querySelector('[data-uos-watermark]');
@@ -388,7 +393,11 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     ensureUpdateSettings(dlg);
     moduleHelp.attach(dlg.querySelector('.uos-sheet-head'),'authorSettings',{before:dlg.querySelector('[data-close]')});
     for(const [tab,topic,title] of [['openings','cards','开场白设置'],['worldbooks','worldbooks','世界书预设'],['bgm','music','BGM 与歌词'],['diagnostics','diagnostics','制卡检查'],['updates','updates','插件更新']]){const panel=dlg.querySelector(`[data-tab-panel="${tab}"]`);if(panel&&!panel.querySelector(`[data-module-help-heading="${topic}"]`))moduleHelp.heading(panel,topic,title)}
-    draft ||= normalize(config);pagePreview?.dispose();const manuallyEditedNames=new Set(),fields=$('[data-settings-fields]');fields.replaceChildren();
+    draft ||= normalize(config);pagePreview?.dispose();orderEditor?.dispose();
+    const openingBaseline=openingStamp(character()),savedSettingsBaseline=structuredClone(character()?.data?.extensions?.[KEY]??character()?.extensions?.[KEY]);
+    const settingsIdentity={characterId:context()?.characterId,avatar:character()?.avatar,chatId:context()?.chatId};
+    draftOpeningOrder=greetingList().map((_,i)=>i);
+    const manuallyEditedNames=new Set(),fields=$('[data-settings-fields]');fields.replaceChildren();
     const pageFields=el('section','uos-settings-group');pageFields.append(el('h3','','页面信息'),el('p','uos-help','先设置选择页的标题与导语，再编辑每条开场。'),field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));fields.append(pageFields);moduleHelp.attach(pageFields.querySelector('h3'),'page');
     const brandOptions=el('div','uos-branding-options');brandOptions.append(el('strong','uos-branding-title','页眉显示'));
     const addBrandToggle=(key,label)=>{const row=el('label','uos-toggle'),input=el('input');input.type='checkbox';input.checked=draft.branding[key];input.setAttribute('aria-label',label);row.append(input,el('span','',label));input.onchange=()=>{draft.branding[key]=input.checked;applyBrandVisibility(root,draft.branding);pagePreview?.refresh()};brandOptions.append(row)};
@@ -400,12 +409,13 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     pagePreview=createAuthorPagePreview({doc:activePopup.frame.contentDocument,watch:dlg,host,backgroundService,
       readModel:()=>{
         if(draft!==previewDraft||root.isConnected===false||character()?.avatar!==previewAvatar||context()?.characterId!==previewCharacterId)return null;
-        const settings=normalize({...draft,theme:displayTheme,entries:draft.entries.map((entry,i)=>{
+        const originalSettings=normalize({...draft,theme:displayTheme,entries:draft.entries.map((entry,i)=>{
           if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return entry;
           const {names,...automatic}=entry;return automatic;
-        })}),greetings=greetingList();
+        })}),originalGreetings=greetingList();
+        const order=draftOpeningOrder||originalGreetings.map((_,i)=>i),settings={...originalSettings,entries:order.map(i=>({...originalSettings.entries[i],coverSeedIndex:originalSettings.entries[i]?.coverSeedIndex??i}))},greetings=order.map(i=>originalGreetings[i]);
         const favoriteKeys=favoritesStore.keys(greetings),savedFavorites=favoritesStore.snapshot();
-        return {...settings,blindBoxEnabled:blindBox.enabled(),items:entries(settings).map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',favoriteKey:favoriteKeys[i],favorite:savedFavorites.has(favoriteKeys[i]),names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}))};
+        return {...settings,blindBoxEnabled:blindBox.enabled(),items:entries(settings,greetings).map((entry,i)=>({...entry,...openingMetadata(entry),id:i,body:greetings[i]||'',favoriteKey:favoriteKeys[i],favorite:savedFavorites.has(favoriteKeys[i]),names:String(entry.names||'').split(/[、，,\/]/).map(name=>name.trim()).filter(Boolean)}))};
       }});fields.append(pagePreview.element);moduleHelp.attach(pagePreview.element.querySelector('summary'),'pagePreview');
     const recognition=el('details','uos-settings-group');recognition.append(el('summary','','高级 · 标题与人物识别'),field('标题中排除的 <字段>（逗号分隔）',draft.excludedTags,v=>draft.excludedTags=v));fields.append(recognition);moduleHelp.attach(recognition.querySelector('summary'),'titleRules');
     const personRules=el('details','uos-person-rules');personRules.append(el('summary','','人物识别规则'));recognition.append(personRules);moduleHelp.attach(personRules.querySelector('summary'),'recognition');
@@ -422,7 +432,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
       const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description'),namesPreview=el('p','uos-card-names'),categoryPreview=el('div','uos-opening-tags');body.append(label,title,description,namesPreview,categoryPreview);preview.append(cover,body);previewWrap.append(preview);box.append(previewWrap);
       let coverSettings;
-      const updatePreview=()=>{entryHeading.textContent=`第 ${i+1} 条 · ${entry.title||'未命名开场'}`;label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;applyOpeningCover(cover,entry,greetings[i]||entry.title,i,host,{shade:true});const metadata=openingMetadata(entry);categoryPreview.replaceChildren();for(const text of [metadata.group?`分组 · ${metadata.group}`:'',...metadata.tags].filter(Boolean))categoryPreview.append(el('span','',text));coverSettings?.refresh();pagePreview?.refresh()};updatePreview();
+      const updatePreview=()=>{entryHeading.textContent=`第 ${i+1} 条 · ${entry.title||'未命名开场'}`;label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;applyOpeningCover(cover,entry,greetings[i]||entry.title,i,host,{shade:true});const metadata=openingMetadata(entry);categoryPreview.replaceChildren();for(const text of [metadata.group?`分组 · ${metadata.group}`:'',...metadata.tags].filter(Boolean))categoryPreview.append(el('span','',text));coverSettings?.refresh();orderEditor?.refresh();pagePreview?.refresh()};updatePreview();
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
         field('卡片标注',entry.label,v=>{entry.label=v;updatePreview()}),
@@ -436,6 +446,8 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[3].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
       const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
     });
+    orderEditor=createOpeningOrderEditor({el,doc:activePopup.frame.contentDocument,getOrder:()=>draftOpeningOrder||[],getItems:()=>draft?.entries||[],isDisabled:()=>settingsSaving||disposed,onChange:order=>{draftOpeningOrder=order;pagePreview?.refresh()}});
+    list.before(orderEditor.element);moduleHelp.attach(orderEditor.heading,'order');
     renderMusicSettings({root:dlg,settings:draft,isCurrent:settingsFields.isCurrent,
       fields:settingsFields,renderMusic});
     const diag=$('[data-diagnostics]');diag.replaceChildren();for(const [key,value] of diagnostics()){const row=el('div','uos-diagnostic-row');row.append(el('span','',key),el('strong','',value));diag.append(row)}
@@ -453,14 +465,22 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
         if(!worldbookEditor.commitPending())return false;
       }
       const c=context();if(!c || c.characterId==null || !c.writeExtensionField){status('无法写入角色卡：请在支持角色卡扩展字段的酒馆中编辑。');return false}
+      orderEditor?.finishDrag();
       const button=$('[data-save]'),controls=[...dlg.querySelectorAll('input,textarea,select,button')],disabled=controls.map(control=>control.disabled);controls.forEach(control=>control.disabled=true);button.textContent='正在保存…';
-      settingsSaving=true;let savedClose=false;
+      settingsSaving=true;orderEditor?.refresh();let savedClose=false;
       try{
         const saveData={...draft,theme:displayTheme,entries:draft.entries.slice(0,greetingList().length).map((entry,i)=>{
           const {nameSuggestions,...saved}=entry;
           if(manuallyEditedNames.has(i)||typeof config.entries[i]?.names==='string')return saved;
           const {names,...rest}=saved;return rest;
         })};
+        const reordered=draftOpeningOrder.some((value,index)=>value!==index);
+        if(reordered){
+          saveData.entries=draftOpeningOrder.map(i=>({...saveData.entries[i],coverSeedIndex:saveData.entries[i]?.coverSeedIndex??i}));
+          const result=await saveOpeningOrder({host,getContext:context,helper:helper(),identity:settingsIdentity,expectedStamp:openingBaseline,expectedSettings:savedSettingsBaseline,normalizeSettings:normalize,order:draftOpeningOrder.slice(),settings:saveData,isActive:()=>!disposed&&root.isConnected!==false});
+          if(disposed||context()?.characterId!==settingsIdentity.characterId||character()?.avatar!==settingsIdentity.avatar)throw Error('原角色卡已保存，但当前角色或窗口已变化，请重新打开设置');
+          config=normalize(saveData);draft=null;draftOpeningOrder=null;settingsDraftBaseline=null;worldbookEditor.reset();render();status(result.message);savedClose=closeOnSuccess;return true;
+        }
         // ST may update the in-memory character while a failed server merge is
         // only logged. Verify persistence before reporting export readiness.
         if(typeof c.getRequestHeaders!=='function')throw Error('当前酒馆未提供保存请求接口');
@@ -482,6 +502,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       }catch(e){status(`保存失败：${e.message||e}`);return false}
       finally{
         settingsSaving=false;
+        if(draft)orderEditor?.refresh();
         controls.forEach((control,index)=>{if(control.isConnected)control.disabled=disabled[index]});button.textContent='保存到角色卡';
         if(savedClose&&!disposed)void activePopup?.complete();
       }
