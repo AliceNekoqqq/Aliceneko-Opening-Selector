@@ -7,9 +7,10 @@ import {THEME_IDS} from '../src/themes.js';
 import {themeBackgroundCandidates,THEME_BACKGROUND_REF,createThemeBackgroundController,createThemeBackgroundService} from '../src/theme-backgrounds.js';
 import {buildAuthorHtml} from '../src/author-template.js';
 
+const remasterManifest=JSON.parse(fs.readFileSync('assets/background-remaster/manifest.json','utf8'));
 for(const id of THEME_IDS){
   const asset=`assets/theme-background-${id}.webp`;
-  const expected=execFileSync('git',['rev-parse',`${themeAssetRef(asset)}:${asset}`],{encoding:'utf8'}).trim();
+  const expected=remasterManifest[id]?.sha||execFileSync('git',['rev-parse',`${themeAssetRef(asset)}:${asset}`],{encoding:'utf8'}).trim();
   assert.equal(execFileSync('git',['hash-object',asset],{encoding:'utf8'}).trim(),expected,'pinned file matches current image');
 }
 assert.deepEqual(themeBackgroundCandidates('../bad'),[]);
@@ -91,3 +92,19 @@ for(const url of Object.values(THEME_ART)){
  }
 }
 console.log('All shared theme artwork references existing immutable repository files');
+
+// Header wrapping and mobile tools determine the visible scene extent; switching
+// to later themes restores their existing layout, and teardown removes observers.
+{
+ const values=new Map(),attributes=new Map(),listeners=new Map();let callback,disconnected=false;
+ const header={getBoundingClientRect:()=>({bottom:590})};
+ const root={style:{setProperty:(k,v)=>values.set(k,v)},setAttribute:(k,v)=>attributes.set(k,v),querySelector:s=>s==='.uos-masthead'?header:null,getBoundingClientRect:()=>({top:30}),scrollTop:0};
+ const view={ResizeObserver:class{constructor(cb){callback=cb}observe(){}disconnect(){disconnected=true}},addEventListener:(k,v)=>listeners.set(k,v),removeEventListener:k=>listeners.delete(k)};
+ const service={cached:()=>null,load:async()=>null};
+ const controller=createThemeBackgroundController(root,'--uos-theme-bg-active',view,{service});
+ await controller.setTheme('neon');assert.equal(values.get('--uos-scene-height'),'710px');assert.equal(attributes.get('data-background-generation'),'2');
+ header.getBoundingClientRect=()=>({bottom:710});callback();assert.equal(values.get('--uos-scene-height'),'830px');
+ await controller.setTheme('glasshouse');assert.equal(attributes.get('data-background-generation'),'1');callback();assert.equal(values.get('--uos-scene-height'),'830px');
+ controller.close();assert.ok(disconnected);assert.equal(listeners.size,0);
+}
+console.log('Remastered scene covers wrapped header controls and cleans up layout observers');

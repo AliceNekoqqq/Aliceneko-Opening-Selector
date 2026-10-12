@@ -2,6 +2,7 @@ import {THEME_IDS} from './themes.js';
 
 import {THEME_ASSET_REF,themeAssetCandidates} from './asset-source.js';
 export const THEME_BACKGROUND_REF=THEME_ASSET_REF;
+export const REMASTERED_BACKGROUND_IDS=Object.freeze(THEME_IDS.slice(0,THEME_IDS.indexOf('lasttrain')));
 export function themeBackgroundCandidates(theme){
   return THEME_IDS.includes(theme)?themeAssetCandidates(`assets/theme-background-${theme}.webp`):[];
 }
@@ -54,17 +55,37 @@ export function createThemeBackgroundController(element,property,view,{timeoutMs
   const ownsService=!service;service ||= createThemeBackgroundService(view,{timeoutMs});
   let sequence=0,closed=false,previousTheme=null;
   const write=url=>element.style.setProperty(property,url?`url("${url}")`:'none');
+  const usesLayout=property==='--uos-theme-bg-active'||property==='--uos-user-background';
+  let observer=null;const observedHeaders=new Set();
+  function fitScene(){
+    if(closed||!usesLayout||!REMASTERED_BACKGROUND_IDS.includes(previousTheme))return;
+    const header=element.querySelector?.('.uos-masthead'),tools=element.querySelector?.('.uos-user-tools');
+    const endpoint=header||tools||element.querySelector?.('.uos-user-head');
+    if(!endpoint||!element.getBoundingClientRect)return;
+    if(observer&&!observedHeaders.has(endpoint)){observedHeaders.add(endpoint);observer.observe(endpoint);}
+    const extent=endpoint.getBoundingClientRect().bottom-element.getBoundingClientRect().top+(element.scrollTop||0);
+    element.style.setProperty('--uos-scene-height',`${Math.ceil(Math.max(420,extent+150))}px`);
+  }
+  if(usesLayout&&typeof view?.ResizeObserver==='function'){
+    observer=new view.ResizeObserver(fitScene);observer.observe(element);
+    // Author headers already exist; player headers are appended after controller creation.
+    const header=element.querySelector?.('.uos-masthead');if(header)observer.observe(header);
+  }
+  if(usesLayout)view?.addEventListener?.('resize',fitScene);
+
   return {
     async setTheme(theme){
       if(closed)return null;
       const request=++sequence;
       if(ownsService&&previousTheme!==theme)service.cancel(previousTheme);
       previousTheme=theme;
+      if(usesLayout)element.setAttribute?.('data-background-generation',REMASTERED_BACKGROUND_IDS.includes(theme)?'2':'1');
+      fitScene();
       write(service.cached(theme)||themeBackgroundCandidates(theme)[0]);
       const url=await service.load(theme);
       if(closed||request!==sequence)return null;
-      write(url);return url;
+      write(url);fitScene();return url;
     },
-    close(){closed=true;++sequence;if(ownsService)service.close();},
+    close(){closed=true;++sequence;observer?.disconnect();if(usesLayout)view?.removeEventListener?.('resize',fitScene);if(ownsService)service.close();},
   };
 }

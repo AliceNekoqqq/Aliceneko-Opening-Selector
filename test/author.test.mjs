@@ -125,7 +125,7 @@ assert.ok(remote.includes('uos-user-background'));
 assert.doesNotMatch(remote,/__THEME_BG_[A-Z]+__/);
 const backgroundFiles=['archive','neon','paper','noir','meadow','ancient','starmap','rose','wasteland','deepsea','amber','theatre','lasttrain','aurora','glasshouse','japan'].map(theme=>`assets/theme-background-${theme}.webp`);
 assert.ok(backgroundFiles.every(file=>fs.statSync(file).size>1000));
-assert.ok(backgroundFiles.reduce((sum,file)=>sum+fs.statSync(file).size,0)<1_300_000);
+assert.ok(backgroundFiles.reduce((sum,file)=>sum+fs.statSync(file).size,0)<6_000_000);
 assert.match(remote,/搜索作者开场/);
 const original='data:image/png;base64,'+'x'.repeat(2000);
 class MockImage{naturalWidth=1920;naturalHeight=1080;set src(_value){queueMicrotask(()=>this.onload())}}

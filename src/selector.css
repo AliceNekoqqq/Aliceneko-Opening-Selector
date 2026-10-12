@@ -193,8 +193,9 @@
   pointer-events:none;background-image:var(--uos-theme-bg-active);background-repeat:no-repeat;background-position:center top;background-size:cover;
   opacity:.68;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 44%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 44%,transparent 100%);
 }
+.uos[data-background-generation="2"] .uos-background-art{background-image:linear-gradient(90deg,color-mix(in srgb,var(--bg) 34%,transparent),transparent 70%),var(--uos-theme-bg-active);height:var(--uos-scene-height,640px);opacity:.68;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 58%,#0009 78%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 58%,#0009 78%,transparent 100%)}
 .uos[data-theme=paper] .uos-background-art{opacity:.92;mix-blend-mode:multiply}
-.uos[data-theme=neon] .uos-background-art{opacity:.56}
+.uos[data-theme=neon] .uos-background-art{opacity:.68}
 .uos[data-theme=meadow] .uos-background-art{opacity:.56}
 .uos[data-theme=rose] .uos-background-art{opacity:.56}
 .uos[data-theme=wasteland] .uos-background-art{opacity:.60}
