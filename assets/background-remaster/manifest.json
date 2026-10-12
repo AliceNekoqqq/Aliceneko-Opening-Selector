@@ -46,5 +46,25 @@
   "theatre": {
     "path": "assets/theme-background-theatre.webp",
     "sha": "a6aa910d9905c361363ad735f62fd27941274737"
+  },
+  "lasttrain": {
+    "path": "assets/theme-background-lasttrain.webp",
+    "sha": "9111c9f828a82bffd7894e5eb66f3056e440f9ce"
+  },
+  "aurora": {
+    "path": "assets/theme-background-aurora.webp",
+    "sha": "240a19dc31c547d502663482d5a58d9009dfd902"
+  },
+  "glasshouse": {
+    "path": "assets/theme-background-glasshouse.webp",
+    "sha": "348992360c5bba611d9827aa542fef33a3399c3b"
+  },
+  "japan": {
+    "path": "assets/theme-background-japan.webp",
+    "sha": "7c1aed4e0e365fdf02ed9f1a6f870dc4b4a66932"
+  },
+  "school": {
+    "path": "assets/theme-background-school.webp",
+    "sha": "0ffd9100af91d0ae8ba0a2474f8d324b783f3698"
   }
 }
