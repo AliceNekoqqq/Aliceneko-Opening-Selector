@@ -1,9 +1,9 @@
 # PROJECT_STATE.md
 
 ## 当前正式版：v1.0.20
-- 用户明确要求将 v1.0.19-beta.1～beta.3 发布正式版，候选为 develop `d2d8825a4be3d6682aa2f837419080baed98dd87`；只增加正式版本号、正式更新说明与必要文档／产物。
+- 已发布 main，正式运行指针指向源码提交 `d1696ee126112aeee9b789f15df401d224d4b8c5`。用户明确要求将 v1.0.19-beta.1～beta.3 发布正式版，候选为 develop `d2d8825a4be3d6682aa2f837419080baed98dd87`；只增加正式版本号、正式更新说明与必要文档／产物。
 - 纳入空备用开场作者入口、拖动排序与真实正文／元数据一起保存、自动封面对应保持，以及规范化配置对比修复。
-- 正式源码提交后才推进 main/scripts/runtime-ref.txt；develop 测试指针和所有固定 bootstrap 锚点不变，既有 JSON content／ID／导出选项保持稳定。
+- 源码发布后推进 main/scripts/runtime-ref.txt；develop 测试指针和所有固定 bootstrap 锚点不变，既有 JSON content／ID／导出选项保持稳定。
 - 正式构建、Node 全量 186/186、运行模块及 bootstrap 语法、差异空白检查通过。当前环境没有 Chromium，真实酒馆／手机触摸未实测；用户已授权在此验证限制下发布。下一测试周期先同步正式源码，从 v1.0.20-beta.1 开始，未开发不生成测试版。
 
 ## 上一测试候选：v1.0.19-beta.3
