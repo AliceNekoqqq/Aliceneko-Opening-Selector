@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.20-beta.3" : "development";
+var RUNTIME_VERSION = true ? "1.0.20-beta.4" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -9023,16 +9023,24 @@ async function initializeAuthorCard({ host, getContext, helper, identity, expect
     if (jsonField && jsonField.value === card.json_data) jsonField.value = verified.json_data;
     card.json_data = verified.json_data;
   }
+  let chatSynced = false;
   try {
-    const message = helper?.getChatMessages?.(0, { include_swipes: true })?.[0], matches = Array.isArray(message?.swipes) ? JSON.stringify(message.swipes) === JSON.stringify([plan.first, ...plan.alternates]) : message?.message === plan.first;
-    if (current() && getContext()?.chatId === identity.chatId && Number(helper?.getLastMessageId?.() ?? 0) === 0 && Number(message?.swipe_id ?? 0) === 0 && message?.role === "assistant" && matches && typeof helper?.setChatMessages === "function") await helper.setChatMessages([{ message_id: 0, swipe_id: 0, swipes: [AUTHOR_ENTRY_TEXT, ...plan.nextAlternates] }], { refresh: "none" });
+    const message = helper?.getChatMessages?.(0, { include_swipes: true })?.[0], expected = [plan.first, ...plan.alternates];
+    const equals = (actual, raw) => actual === raw || typeof context.substituteParams === "function" && actual === context.substituteParams(raw);
+    const swipes = message?.swipes, matches = Array.isArray(swipes) && swipes.length ? swipes.length <= expected.length && swipes.every((value, i) => equals(value, expected[i])) : equals(message?.message, plan.first);
+    if (current() && getContext()?.chatId === identity.chatId && Number(helper?.getLastMessageId?.() ?? 0) === 0 && Number(message?.swipe_id ?? 0) === 0 && message?.role === "assistant" && matches && typeof helper?.setChatMessages === "function") {
+      await helper.setChatMessages([{ message_id: 0, message: AUTHOR_ENTRY_TEXT, swipe_id: 0, swipes: [AUTHOR_ENTRY_TEXT, ...plan.nextAlternates] }], { refresh: "all" });
+      const after = helper.getChatMessages(0, { include_swipes: true })?.[0];
+      chatSynced = Number(after?.swipe_id ?? 0) === 0 && String(after?.swipes?.[0] ?? after?.message ?? "").trimStart().startsWith("<UniversalOpeningSelector/>");
+    }
   } catch {
   }
-  return { migrated: true };
+  return { migrated: true, chatSynced };
 }
 
 // src/author-menu.js
-function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtml2, mount, backgroundService, getExistingRoot = () => null }) {
+function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtml2, mount, backgroundService, getExistingRoot = () => null, afterMigration = () => {
+} }) {
   let item = null, workshop = null, prompt = null, closed = false, busy = false;
   const el = (tag, text2) => {
     const node = doc.createElement(tag);
@@ -9061,11 +9069,12 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
     removeWorkshop();
     return true;
   }
-  function showWorkshop(identity) {
+  function showWorkshop(identity, { openSettings = true } = {}) {
     if (!current(identity)) return;
     const existing = getExistingRoot();
     if (existing) {
-      existing.querySelector("[data-settings-button]")?.click();
+      if (openSettings) existing.querySelector("[data-settings-button]")?.click();
+      else existing.scrollIntoView?.({ block: "start" });
       return;
     }
     const overlay = el("section");
@@ -9073,7 +9082,7 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-label", "开场白选择器入口");
-    overlay.style.cssText = "position:fixed;inset:12px;z-index:99980;display:flex;flex-direction:column;background:var(--SmartThemeBlurTintColor,#17252d);border:1px solid var(--SmartThemeBorderColor,#65747d);border-radius:14px;overflow:hidden;box-shadow:0 16px 70px #0008";
+    overlay.style.cssText = "position:fixed;inset:12px;z-index:99980;display:flex;flex-direction:column;background:var(--SmartThemeBlurTintColor,#17252d);border:1px solid #8992a5!important;border-radius:14px;overflow:hidden;box-shadow:0 16px 70px #0008";
     const head = el("div"), title = el("strong", "开场白选择器入口"), close = el("button", "关闭");
     close.type = "button";
     head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;color:var(--SmartThemeBodyColor,#eee)";
@@ -9097,7 +9106,7 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
       root.__uosHostDocument = doc;
       workshop.root = root;
       if (!mount(frameDoc, helper, { backgroundService })) throw Error("作者界面未能加载");
-      root.querySelector("[data-settings-button]")?.click();
+      if (openSettings) root.querySelector("[data-settings-button]")?.click();
     } catch (error) {
       removeWorkshop();
       notify(`打开失败：${error.message}`);
@@ -9106,17 +9115,20 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
   function showSetup(identity, card) {
     const plan = authorSetupPlan(card), stamp = openingStamp(card), dialog = el("dialog");
     dialog.dataset.uosSetup = "";
-    dialog.style.cssText = "max-width:460px;width:calc(100% - 40px);padding:22px;border:1px solid var(--SmartThemeBorderColor,#65747d);border-radius:14px;background:var(--SmartThemeBlurTintColor,#17252d);color:var(--SmartThemeBodyColor,#eee);font:14px/1.7 system-ui";
+    dialog.style.cssText = "box-sizing:border-box!important;width:min(480px,calc(100vw - 32px))!important;max-width:480px!important;min-width:0!important;max-height:calc(100dvh - 32px)!important;margin:auto!important;padding:24px!important;overflow:auto!important;border:1px solid #8992a5!important;border-radius:16px!important;box-shadow:0 18px 70px #0005;background:var(--SmartThemeBlurTintColor,#17252d);color:var(--SmartThemeBodyColor,#eee);font:14px/1.7 system-ui!important";
     dialog.setAttribute("aria-labelledby", "uos-setup-title");
     const title = el("h2", "为这张卡启用选择器？");
     title.id = "uos-setup-title";
-    title.style.cssText = "font-size:19px;margin:0 0 12px";
+    title.style.cssText = "font:700 19px/1.4 system-ui!important;margin:0 0 16px!important";
     const copy = el("p", plan.first.trim() ? "将自动添加选择页标记，把当前主开场完整移到第一条备用开场，其余备用开场依次顺延。" : "将自动添加选择页标记。当前主开场为空，不增加空白备用条目。");
     const details = el("p", `角色：${card.data?.name || card.name || "当前角色"} · 迁移后 ${plan.nextAlternates.length} 条备用开场。原文和已有配置保留，已开始的聊天不会被改写。`), status = el("p"), actions = el("div"), cancel = el("button", "取消"), confirm = el("button", "自动添加并迁移");
-    actions.style.cssText = "display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap";
+    actions.style.cssText = "display:flex!important;gap:12px!important;width:100%!important;justify-content:flex-end;flex-wrap:wrap;margin-top:18px";
     status.setAttribute("role", "status");
     cancel.type = confirm.type = "button";
-    cancel.className = confirm.className = "menu_button";
+    const buttonStyle = "box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;max-width:none!important;min-height:44px!important;height:auto!important;padding:12px 16px!important;white-space:nowrap!important;word-break:normal!important;writing-mode:horizontal-tb!important;border-radius:9px!important;font:600 14px/1.4 system-ui!important;cursor:pointer;";
+    cancel.style.cssText = buttonStyle + "flex:1 1 68px!important;min-width:68px!important;border:1px solid #8992a5!important;background:transparent!important;color:var(--SmartThemeBodyColor,#eee)!important;";
+    confirm.style.cssText = buttonStyle + "flex:2 1 128px!important;min-width:128px!important;border:1px solid #735ba6!important;background:#735ba6!important;color:#fff!important;";
+    for (const paragraph of [copy, details, status]) paragraph.style.cssText = "font:14px/1.7 system-ui!important;margin:12px 0!important;overflow-wrap:anywhere";
     const cleanup = () => {
       if (prompt?.dialog !== dialog) return;
       dialog.remove();
@@ -9137,12 +9149,14 @@ function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtm
       cancel.disabled = confirm.disabled = true;
       status.textContent = "正在迁移并保存…";
       try {
-        await initializeAuthorCard({ host, getContext, helper, identity, expectedStamp: stamp, isActive: () => !closed && prompt?.dialog === dialog });
+        const result = await initializeAuthorCard({ host, getContext, helper, identity, expectedStamp: stamp, isActive: () => !closed && prompt?.dialog === dialog });
         if (!current(identity)) return;
         cleanup();
-        showWorkshop(identity);
+        await afterMigration(result);
+        if (current(identity)) showWorkshop(identity, { openSettings: false });
       } catch (error) {
         if (prompt?.dialog === dialog) status.textContent = error.message || String(error);
+        else notify(error.message || String(error));
       } finally {
         busy = false;
         cancel.disabled = confirm.disabled = false;
@@ -9376,6 +9390,7 @@ function mountAuthorSelector(startDocument = document, helperApi, { showSetupHin
     authorHtml,
     mount: mountInDocument,
     backgroundService,
+    afterMigration: () => scan(),
     getExistingRoot: () => active?.key.split("\0")[0] === host.SillyTavern?.getContext?.()?.characters?.[host.SillyTavern?.getContext?.()?.characterId]?.avatar ? active.frame.contentDocument?.querySelector("[data-uos]") : null
   });
   const observer = new host.MutationObserver(scan);

@@ -38,10 +38,19 @@ export async function initializeAuthorCard({host,getContext,helper,identity,expe
     if(jsonField&&jsonField.value===card.json_data)jsonField.value=verified.json_data;
     card.json_data=verified.json_data;
   }
-  // Never alter an ongoing or independently edited chat.
+  // Refresh the visible message as well as its swipe data. Fresh ST chats
+  // can expose just the main swipe, or texts with user macros substituted.
+  let chatSynced=false;
   try{
-    const message=helper?.getChatMessages?.(0,{include_swipes:true})?.[0],matches=Array.isArray(message?.swipes)?JSON.stringify(message.swipes)===JSON.stringify([plan.first,...plan.alternates]):message?.message===plan.first;
-    if(current()&&getContext()?.chatId===identity.chatId&&Number(helper?.getLastMessageId?.()??0)===0&&Number(message?.swipe_id??0)===0&&message?.role==='assistant'&&matches&&typeof helper?.setChatMessages==='function')await helper.setChatMessages([{message_id:0,swipe_id:0,swipes:[AUTHOR_ENTRY_TEXT,...plan.nextAlternates]}],{refresh:'none'});
+    const message=helper?.getChatMessages?.(0,{include_swipes:true})?.[0],expected=[plan.first,...plan.alternates];
+    const equals=(actual,raw)=>actual===raw||(typeof context.substituteParams==='function'&&actual===context.substituteParams(raw));
+    const swipes=message?.swipes,matches=Array.isArray(swipes)&&swipes.length
+      ?swipes.length<=expected.length&&swipes.every((value,i)=>equals(value,expected[i])):equals(message?.message,plan.first);
+    if(current()&&getContext()?.chatId===identity.chatId&&Number(helper?.getLastMessageId?.()??0)===0&&Number(message?.swipe_id??0)===0&&message?.role==='assistant'&&matches&&typeof helper?.setChatMessages==='function'){
+      await helper.setChatMessages([{message_id:0,message:AUTHOR_ENTRY_TEXT,swipe_id:0,swipes:[AUTHOR_ENTRY_TEXT,...plan.nextAlternates]}],{refresh:'all'});
+      const after=helper.getChatMessages(0,{include_swipes:true})?.[0];
+      chatSynced=Number(after?.swipe_id??0)===0&&String(after?.swipes?.[0]??after?.message??'').trimStart().startsWith('<UniversalOpeningSelector/>');
+    }
   }catch{}
-  return {migrated:true};
+  return {migrated:true,chatSynced};
 }

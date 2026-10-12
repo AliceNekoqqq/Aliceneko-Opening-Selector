@@ -15,7 +15,16 @@ test('confirmed setup preserves complete main text and original alternate order 
   const f=fixture(),first=f.card.data.first_mes,settings=clone(f.server.data.extensions);
   const result=await initializeAuthorCard(f.args);assert.equal(result.migrated,true);
   assert.equal(f.server.data.first_mes,AUTHOR_ENTRY_TEXT);assert.deepEqual(f.server.data.alternate_greetings,[first,'备用甲','备用乙']);assert.deepEqual(f.server.data.extensions,settings);
-  assert.deepEqual(f.message.swipes,[AUTHOR_ENTRY_TEXT,first,'备用甲','备用乙']);assert.equal(f.writes,1);
+  assert.deepEqual(f.message.swipes,[AUTHOR_ENTRY_TEXT,first,'备用甲','备用乙']);assert.equal(f.message.message,AUTHOR_ENTRY_TEXT);assert.equal(result.chatSynced,true);assert.equal(f.writes,1);
+});
+test('fresh partial swipe data or substituted macros still refresh the visible homepage',async()=>{
+  for(const kind of ['partial','macros','noSwipes']){
+    const f=fixture(kind==='macros'?'你好 {{user}}':'原主开场'),first=f.card.data.first_mes;let refreshed;
+    f.message.swipes=[first];if(kind==='macros'){f.context.substituteParams=text=>text.replace('{{user}}','小明');f.message.swipes=['你好 小明']}
+    if(kind==='noSwipes'){delete f.message.swipes;f.message.message=first}
+    f.helper.setChatMessages=async([value],options)=>{Object.assign(f.message,value);refreshed=options.refresh};
+    const result=await initializeAuthorCard(f.args);assert.equal(refreshed,'all');assert.equal(result.chatSynced,true);assert.equal(f.message.message,AUTHOR_ENTRY_TEXT);
+  }
 });
 test('empty main adds only marker; already initialized cards do not migrate twice',async()=>{
   const empty=fixture('');await initializeAuthorCard(empty.args);assert.deepEqual(empty.server.data.alternate_greetings,['备用甲','备用乙']);

@@ -108,7 +108,7 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
     }catch(error){closeFrame();console.warn('[Aliceneko Opening Selector] 作者选择页加载失败',error)}
     finally{updating=false}
   }
-  const menu=createAuthorMenu({doc,host,helper,getContext:()=>host.SillyTavern?.getContext?.(),authorHtml,mount:mountInDocument,backgroundService,
+  const menu=createAuthorMenu({doc,host,helper,getContext:()=>host.SillyTavern?.getContext?.(),authorHtml,mount:mountInDocument,backgroundService,afterMigration:()=>scan(),
     getExistingRoot:()=>active?.key.split('\u0000')[0]===(host.SillyTavern?.getContext?.()?.characters?.[host.SillyTavern?.getContext?.()?.characterId]?.avatar)?active.frame.contentDocument?.querySelector('[data-uos]'):null});
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;

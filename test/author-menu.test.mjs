@@ -21,9 +21,15 @@ test('menu has the exact requested name, remains unique and cancel performs no w
   const f=fixture();f.menu.scan();f.menu.scan();assert.equal(f.target.children.length,1);assert.equal(f.legacy.children.length,0,'no entry is added to the ordinary chat menu');assert.equal(f.target.children[0].children[1].textContent,'开场白选择器入口');
   f.menu.open();const dialog=f.body.children[0];assert.equal(dialog.dataset.uosSetup,'');dialog.children.at(-1).children[0].onclick();assert.equal(f.writes,0);assert.equal(f.card.data.first_mes,'原主开场');f.menu.close();assert.equal(f.target.children.length,0);
 });
-test('explicit confirmation migrates before opening settings; existing markers skip confirmation',async()=>{
-  const f=fixture();f.menu.scan();f.menu.open();const dialog=f.body.children[0];await dialog.children.at(-1).children[1].onclick();assert.equal(f.writes,1);assert.equal(f.opened,1);assert.equal(f.card.data.first_mes,AUTHOR_ENTRY_TEXT);assert.deepEqual(f.card.data.alternate_greetings,['原主开场','原备用']);
-  f.menu.open();assert.equal(f.opened,2);assert.equal(f.body.children.length,0);assert.equal(f.writes,1);f.menu.close();
+test('explicit confirmation migrates then presents the homepage; existing markers open settings',async()=>{
+  const f=fixture();f.menu.scan();f.menu.open();const dialog=f.body.children[0];await dialog.children.at(-1).children[1].onclick();assert.equal(f.writes,1);assert.equal(f.opened,0,'migration must not cover the refreshed homepage with settings');assert.equal(f.card.data.first_mes,AUTHOR_ENTRY_TEXT);assert.deepEqual(f.card.data.alternate_greetings,['原主开场','原备用']);
+  f.menu.open();assert.equal(f.opened,1);assert.equal(f.body.children.length,0);assert.equal(f.writes,1);f.menu.close();
+});
+test('setup dialog has a visible border and insulated, horizontal, readable buttons',()=>{
+  const f=fixture();f.menu.scan();f.menu.open();const dialog=f.body.children[0],buttons=dialog.children.at(-1).children;
+  assert.match(dialog.style.cssText,/border:1px solid #8992a5!important/);
+  for(const button of buttons){assert.notEqual(button.className,'menu_button');assert.match(button.style.cssText,/width:auto!important/);assert.match(button.style.cssText,/white-space:nowrap!important/);assert.match(button.style.cssText,/writing-mode:horizontal-tb!important/);assert.match(button.style.cssText,/min-height:44px!important/)}
+  f.menu.close();
 });
 test('no selection/group chat gets a clear hint and role switching removes stale confirmation',()=>{
   const f=fixture();f.menu.scan();f.context.groupId=2;f.menu.open();assert.equal(f.body.children.length,0);assert.match(f.notices[0],/单人角色卡/);
