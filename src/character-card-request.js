@@ -1,6 +1,16 @@
 // Bound both the request and JSON body read. Aborting client waiting cannot
 // undo a server write, so callers must preserve drafts and report uncertainty.
+export function characterAttributeUpdate(changes){
+  // /merge-attributes merges a whole card, not its V2 data object. Keep
+  // compatibility fields and canonical data in sync; arrays are replaced.
+  if(!changes||typeof changes!=='object'||Array.isArray(changes)||Object.hasOwn(changes,'data'))return changes;
+  const canonical={};for(const key of ['first_mes','alternate_greetings','extensions'])if(Object.hasOwn(changes,key))canonical[key]=changes[key];
+  return Object.keys(canonical).length?{...changes,data:canonical}:changes;
+}
 export async function requestCharacterCard(host,url,options,{readJson=false,timeoutMs=60000}={}){
+  if(url.endsWith('/merge-attributes')&&typeof options.body==='string'){
+    const payload=JSON.parse(options.body);options={...options,body:JSON.stringify({...payload,data:characterAttributeUpdate(payload.data)})};
+  }
   const controller=new AbortController();
   const schedule=host.setTimeout?.bind(host)||globalThis.setTimeout;
   const cancel=host.clearTimeout?.bind(host)||globalThis.clearTimeout;

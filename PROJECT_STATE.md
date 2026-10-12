@@ -1,5 +1,11 @@
 # PROJECT_STATE.md
 
+## 当前测试候选：v1.0.20-beta.3
+- 用户反馈迁移后角色编辑框仍是原 <opening>。核对酒馆官方接口：/merge-attributes 合并整张卡，而旧请求只发送兼容顶层字段，缺少 canonical data.first_mes／alternate_greetings／extensions。
+- `character-card-request.js` 统一将明确写入的三个字段同时放入顶层和 V2 data，已正确嵌套的请求不重复包装；迁移、排序、生成和设置保存均复用，保留其他角色字段。
+- 迁移后只刷新仍等于原主开场的 #firstmessage_textarea，不触发重复自动保存、不覆盖新的手工输入；同步服务器返回的 json_data 缓存。
+- 新增真实 V2 整卡 deepMerge + readFromV2 行为回归，验证正确标记、完整原文、其他扩展与手工编辑保护；Node 全量 199/199、preview 构建通过，真实酒馆仍待验证。
+
 ## 当前测试候选：v1.0.20-beta.2
 - 用户通过截图更正菜单位置：入口挂在 `#extensionsMenu`，与附加文件／生成图片／变量管理器同一菜单；不挂在 `#options .options-content`。
 - 入口名称仍为「开场白选择器入口」，使用原生 list-group-item 样式和点击冒泡关闭菜单，键盘触发原生 click。迁移确认与作者设置行为不变。

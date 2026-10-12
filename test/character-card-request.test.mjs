@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {requestCharacterCard} from '../src/character-card-request.js';
+import {requestCharacterCard,characterAttributeUpdate} from '../src/character-card-request.js';
+test('attribute writes populate canonical V2 data and legacy fields without modifying the caller',async()=>{
+  const changes={first_mes:'<UniversalOpeningSelector/>',alternate_greetings:['<opening>原文</opening>'],extensions:{universal_opening_selector:{title:'页面'}}},options={method:'POST',body:JSON.stringify({avatar:'card.png',data:changes})},original=options.body;
+  let sent;const host={fetch:async(_url,opts)=>{sent=JSON.parse(opts.body);return {ok:true}}};
+  await requestCharacterCard(host,'/api/characters/merge-attributes',options);assert.deepEqual(sent.data.data,changes);assert.deepEqual(sent.data.first_mes,changes.first_mes);assert.equal(options.body,original);
+  const canonical={data:{first_mes:'已正确嵌套'}};assert.equal(characterAttributeUpdate(canonical),canonical);
+});
 function fixture(fetch){
   const timers=new Map();let signal;
   const host={setTimeout(fn,ms){assert.equal(ms,60000);timers.set(1,fn);return 1},clearTimeout:id=>timers.delete(id),

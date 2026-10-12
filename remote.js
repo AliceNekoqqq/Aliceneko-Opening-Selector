@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.20-beta.2" : "development";
+var RUNTIME_VERSION = true ? "1.0.20-beta.3" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -454,7 +454,17 @@ function generationResultText(result) {
 }
 
 // src/character-card-request.js
+function characterAttributeUpdate(changes) {
+  if (!changes || typeof changes !== "object" || Array.isArray(changes) || Object.hasOwn(changes, "data")) return changes;
+  const canonical = {};
+  for (const key of ["first_mes", "alternate_greetings", "extensions"]) if (Object.hasOwn(changes, key)) canonical[key] = changes[key];
+  return Object.keys(canonical).length ? { ...changes, data: canonical } : changes;
+}
 async function requestCharacterCard(host, url, options, { readJson = false, timeoutMs = 6e4 } = {}) {
+  if (url.endsWith("/merge-attributes") && typeof options.body === "string") {
+    const payload = JSON.parse(options.body);
+    options = { ...options, body: JSON.stringify({ ...payload, data: characterAttributeUpdate(payload.data) }) };
+  }
   const controller = new AbortController();
   const schedule = host.setTimeout?.bind(host) || globalThis.setTimeout;
   const cancel = host.clearTimeout?.bind(host) || globalThis.clearTimeout;
@@ -8997,7 +9007,7 @@ async function initializeAuthorCard({ host, getContext, helper, identity, expect
   if (!current() || openingStamp(card) !== expectedStamp) throw Error("角色或开场已变化，未迁移。");
   const r = await requestCharacterCard(host, "/api/characters/merge-attributes", { method: "POST", headers, body: JSON.stringify({ avatar: identity.avatar, data: { first_mes: AUTHOR_ENTRY_TEXT, alternate_greetings: plan.nextAlternates } }) });
   if (!r.ok) throw Error(`迁移保存失败（HTTP ${r.status}）`);
-  const saved = dataOf4(await read());
+  const verified = await read(), saved = dataOf4(verified);
   if (saved.first_mes !== AUTHOR_ENTRY_TEXT || JSON.stringify(saved.alternate_greetings) !== JSON.stringify(plan.nextAlternates)) throw Error("迁移请求已提交，但复核失败；请重新打开角色卡检查。");
   if (!current()) throw Error("原角色卡已迁移，但当前角色或窗口已变化，请重新打开角色卡。");
   card.first_mes = AUTHOR_ENTRY_TEXT;
@@ -9005,6 +9015,13 @@ async function initializeAuthorCard({ host, getContext, helper, identity, expect
   if (card.data) {
     card.data.first_mes = AUTHOR_ENTRY_TEXT;
     card.data.alternate_greetings = plan.nextAlternates.slice();
+  }
+  const firstField = host.document?.querySelector?.("#firstmessage_textarea");
+  if (firstField && firstField.value === plan.first) firstField.value = AUTHOR_ENTRY_TEXT;
+  if (typeof verified.json_data === "string") {
+    const jsonField = host.document?.querySelector?.("#character_json_data");
+    if (jsonField && jsonField.value === card.json_data) jsonField.value = verified.json_data;
+    card.json_data = verified.json_data;
   }
   try {
     const message = helper?.getChatMessages?.(0, { include_swipes: true })?.[0], matches = Array.isArray(message?.swipes) ? JSON.stringify(message.swipes) === JSON.stringify([plan.first, ...plan.alternates]) : message?.message === plan.first;

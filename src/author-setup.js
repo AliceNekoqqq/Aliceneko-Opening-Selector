@@ -25,10 +25,19 @@ export async function initializeAuthorCard({host,getContext,helper,identity,expe
   if(!current()||openingStamp(card)!==expectedStamp)throw Error('角色或开场已变化，未迁移。');
   const r=await requestCharacterCard(host,'/api/characters/merge-attributes',{method:'POST',headers,body:JSON.stringify({avatar:identity.avatar,data:{first_mes:AUTHOR_ENTRY_TEXT,alternate_greetings:plan.nextAlternates}})});
   if(!r.ok)throw Error(`迁移保存失败（HTTP ${r.status}）`);
-  const saved=dataOf(await read());
+  const verified=await read(),saved=dataOf(verified);
   if(saved.first_mes!==AUTHOR_ENTRY_TEXT||JSON.stringify(saved.alternate_greetings)!==JSON.stringify(plan.nextAlternates))throw Error('迁移请求已提交，但复核失败；请重新打开角色卡检查。');
   if(!current())throw Error('原角色卡已迁移，但当前角色或窗口已变化，请重新打开角色卡。');
   card.first_mes=AUTHOR_ENTRY_TEXT;card.alternate_greetings=plan.nextAlternates.slice();if(card.data){card.data.first_mes=AUTHOR_ENTRY_TEXT;card.data.alternate_greetings=plan.nextAlternates.slice()}
+  // The editor does not rerender when we update the context object. Refresh
+  // only unchanged fields; never trigger a second autosave or erase typing.
+  const firstField=host.document?.querySelector?.('#firstmessage_textarea');
+  if(firstField&&firstField.value===plan.first)firstField.value=AUTHOR_ENTRY_TEXT;
+  if(typeof verified.json_data==='string'){
+    const jsonField=host.document?.querySelector?.('#character_json_data');
+    if(jsonField&&jsonField.value===card.json_data)jsonField.value=verified.json_data;
+    card.json_data=verified.json_data;
+  }
   // Never alter an ongoing or independently edited chat.
   try{
     const message=helper?.getChatMessages?.(0,{include_swipes:true})?.[0],matches=Array.isArray(message?.swipes)?JSON.stringify(message.swipes)===JSON.stringify([plan.first,...plan.alternates]):message?.message===plan.first;

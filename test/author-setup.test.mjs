@@ -34,3 +34,19 @@ test('ongoing or edited chats retain their original messages after explicit card
 test('failed migration persistence/verification retains local card',async()=>{
   for(const kind of ['write','verify']){const f=fixture(),before=clone(f.card),fetch=f.host.fetch;f.host.fetch=async(url,options)=>{if(kind==='write'&&url.endsWith('/merge-attributes'))return {ok:false,status:500};const r=await fetch(url,options);if(kind==='verify'&&f.writes&&url.endsWith('/get'))return {ok:true,status:200,json:async()=>before};return r};await assert.rejects(initializeAuthorCard(f.args));assert.deepEqual(f.card,before)}
 });
+test('real V2 whole-card merge replaces the marker and refreshes only an unchanged editor field',async()=>{
+  for(const editing of [false,true]){
+    const f=fixture('<opening>\n完整原主开场\n</opening>'),first=f.card.data.first_mes,field={value:editing?'还没保存的手动修改':first};
+    // Simulate ST: merge into the entire stored V2 card; /get copies canonical
+    // data.first_mes to the compatibility first_mes. A flat write is ignored.
+    let stored={spec:'chara_card_v2',first_mes:first,...structuredClone(f.card)};
+    const merge=(target,source)=>{const result={...target};for(const [key,value] of Object.entries(source)){result[key]=value&&typeof value==='object'&&!Array.isArray(value)?merge(result[key]||{},value):structuredClone(value)}return result};
+    f.host.document={querySelector:selector=>selector==='#firstmessage_textarea'?field:null};
+    f.host.fetch=async(url,options)=>{
+      if(url.endsWith('/get'))return {ok:true,status:200,json:async()=>({...structuredClone(stored),first_mes:stored.data.first_mes})};
+      stored=merge(stored,JSON.parse(options.body).data);return {ok:true,status:200};
+    };
+    await initializeAuthorCard(f.args);assert.equal(stored.data.first_mes,AUTHOR_ENTRY_TEXT);assert.equal(stored.first_mes,AUTHOR_ENTRY_TEXT);assert.deepEqual(stored.data.alternate_greetings,[first,'备用甲','备用乙']);
+    assert.equal(field.value,editing?'还没保存的手动修改':AUTHOR_ENTRY_TEXT);assert.deepEqual(stored.data.extensions,f.card.data.extensions);
+  }
+});
