@@ -359,6 +359,21 @@
 .uos-settings-group h3,.uos-settings-entries h3{font-size:16px;margin:0 0 8px;color:var(--text)}
 .uos-settings-group>summary,.uos-settings-entry>summary{cursor:pointer;color:var(--accent);font-weight:650;line-height:1.6;overflow-wrap:anywhere}
 .uos-settings-group .uos-field{margin:14px 0}.uos-settings-group .uos-help{margin:8px 0}
+.uos-settings-views{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 18px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.uos-settings-views button{flex:1;min-height:44px;white-space:nowrap}
+.uos-settings-views button[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.uos-openings-settings>.uos-settings-group{border:0;border-radius:0;background:transparent;padding:4px 0;margin:8px 0}
+.uos-openings-settings .uos-settings-entry{border:0;border-radius:0;background:transparent;margin:0;padding:0}
+.uos-openings-settings .uos-settings-entry>summary{display:none}
+.uos-openings-settings .uos-settings-entry .uos-fields{gap:16px}
+.uos-opening-picker{display:grid;grid-template-columns:minmax(0,1fr) 44px 44px;gap:8px;align-items:end;padding:0 0 16px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.uos-opening-picker label{display:grid;gap:6px;min-width:0;font-size:12px;color:var(--muted)}
+.uos-opening-picker select{width:100%;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel);color:var(--text);font:inherit}
+.uos-opening-picker button{height:44px;padding:0!important;font-size:18px}
+.uos-openings-settings>.uos-settings-entries>h3{margin:0 0 6px}
+.uos-openings-settings .uos-order-row{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent}
+.uos-openings-settings .uos-order-row.is-dragging{background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
+.uos-openings-settings [hidden]{display:none!important}
 .uos-settings-entry{margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 .uos-order-list{display:grid;gap:8px;min-width:0}
 .uos-order-row{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0;scroll-margin:80px}

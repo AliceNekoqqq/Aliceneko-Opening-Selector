@@ -5,6 +5,7 @@ import {requestCharacterCard} from './character-card-request.js';
 import {openingStamp} from './opening-generation.js';
 import {saveOpeningOrder} from './opening-order.js';
 import {createOpeningOrderEditor} from './opening-order-editor.js';
+import {createSettingsViews,createOpeningPicker} from './author-settings-layout.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
 import {createWorldbookPresetEditor} from './worldbook-preset-editor.js';
@@ -397,7 +398,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     const openingBaseline=openingStamp(character()),savedSettingsBaseline=structuredClone(character()?.data?.extensions?.[KEY]??character()?.extensions?.[KEY]);
     const settingsIdentity={characterId:context()?.characterId,avatar:character()?.avatar,chatId:context()?.chatId};
     draftOpeningOrder=greetingList().map((_,i)=>i);
-    const manuallyEditedNames=new Set(),fields=$('[data-settings-fields]');fields.replaceChildren();
+    const manuallyEditedNames=new Set(),fields=$('[data-settings-fields]');fields.replaceChildren();fields.classList.add('uos-openings-settings');let openingPicker;const editorRows=[];
     const pageFields=el('section','uos-settings-group');pageFields.append(el('h3','','页面信息'),el('p','uos-help','先设置选择页的标题与导语，再编辑每条开场。'),field('页面标题',draft.title,v=>draft.title=v),field('页面导语',draft.subtitle,v=>draft.subtitle=v,true));fields.append(pageFields);moduleHelp.attach(pageFields.querySelector('h3'),'page');
     const brandOptions=el('div','uos-branding-options');brandOptions.append(el('strong','uos-branding-title','页眉显示'));
     const addBrandToggle=(key,label)=>{const row=el('label','uos-toggle'),input=el('input');input.type='checkbox';input.checked=draft.branding[key];input.setAttribute('aria-label',label);row.append(input,el('span','',label));input.onchange=()=>{draft.branding[key]=input.checked;applyBrandVisibility(root,draft.branding);pagePreview?.refresh()};brandOptions.append(row)};
@@ -422,7 +423,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
     const worldbookList=el('ul');worldbookList.dataset.worldbookList='';renderWorldbookPeopleList(doc,worldbookList,applyPeopleRoster(worldbookPeople,readPeopleRoster(host,character()?.avatar)),worldbookDiagnostics);
     const aliasWarning=el('p','uos-help');aliasWarning.textContent=personAliases(draft.personAliases).conflicts.length?`重复别名未参与匹配：${personAliases(draft.personAliases).conflicts.join('、')}。请只保留一个归属。`:'';personRules.append(aliasWarning);
     const worldbookNote=el('p','uos-help',worldbookMessage);worldbookNote.dataset.worldbookStatus='';const reloadWorldbook=el('button','uos-icon','重新读取世界书');reloadWorldbook.type='button';reloadWorldbook.onclick=async()=>{reloadWorldbook.disabled=true;await refreshWorldbookPeople(true);reloadWorldbook.disabled=false};personRules.append(worldbookNote,worldbookList,reloadWorldbook,el('p','uos-help','仅读取角色绑定的世界书，明确姓名参与全文匹配，包含所有标签。普通触发关键词需手动确认；缺少明确姓名证据的标题、台词署名和人物标签先列为候选。'),field('人物与别名（每行一人：沈挽昼=挽昼,小沈）',draft.personAliases,v=>{draft.personAliases=v;aliasWarning.textContent=personAliases(v).conflicts.length?`重复别名未参与匹配：${personAliases(v).conflicts.join('、')}。请只保留一个归属。`:''},true));
-    const list=el('div','uos-settings-entries');list.append(el('h3','','开场卡片'),el('p','uos-help','展开要修改的开场。收起只隐藏编辑项，不会清除修改。'));fields.append(list);moduleHelp.attach(list.querySelector('h3'),'cards');
+    const list=el('div','uos-settings-entries');list.append(el('h3','','编辑开场'),el('p','uos-help','选择一条开场编辑。切换不会丢失修改，完成后统一保存。'));fields.append(list);moduleHelp.attach(list.querySelector('h3'),'cards');
     const greetings=greetingList();const items=entries();items.forEach((entry,i)=>{
       draft.entries[i]={...entry,...draft.entries[i]};entry=draft.entries[i];const box=el('details','uos-entry uos-settings-entry');box.open=i===0;const entryHeading=el('summary','',`第 ${i+1} 条 · ${entry.title||'未命名开场'}`);box.append(entryHeading);box.addEventListener('toggle',()=>{if(box.open)for(const other of list.querySelectorAll('.uos-settings-entry'))if(other!==box)other.open=false});
       if(greetings[i]){const source=el('details','uos-source');source.append(el('summary','','查看原开场正文'),el('pre','',greetings[i]));box.append(source)}
@@ -432,7 +433,7 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       cover.append(el('span','uos-number',String(i+1).padStart(2,'0')));
       const label=el('span','uos-label'),title=el('strong'),description=el('div','uos-description'),namesPreview=el('p','uos-card-names'),categoryPreview=el('div','uos-opening-tags');body.append(label,title,description,namesPreview,categoryPreview);preview.append(cover,body);previewWrap.append(preview);box.append(previewWrap);
       let coverSettings;
-      const updatePreview=()=>{entryHeading.textContent=`第 ${i+1} 条 · ${entry.title||'未命名开场'}`;label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;applyOpeningCover(cover,entry,greetings[i]||entry.title,i,host,{shade:true});const metadata=openingMetadata(entry);categoryPreview.replaceChildren();for(const text of [metadata.group?`分组 · ${metadata.group}`:'',...metadata.tags].filter(Boolean))categoryPreview.append(el('span','',text));coverSettings?.refresh();orderEditor?.refresh();pagePreview?.refresh()};updatePreview();
+      const updatePreview=()=>{entryHeading.textContent=`第 ${i+1} 条 · ${entry.title||'未命名开场'}`;label.textContent=entry.label||`OPENING ${String(i+1).padStart(2,'0')}`;title.textContent=entry.title;description.textContent=entry.description;namesPreview.textContent=`登场人物 · ${typeof entry.names==='string'?entry.names||'未识别':'保存后重新自动识别'}`;applyOpeningCover(cover,entry,greetings[i]||entry.title,i,host,{shade:true});const metadata=openingMetadata(entry);categoryPreview.replaceChildren();for(const text of [metadata.group?`分组 · ${metadata.group}`:'',...metadata.tags].filter(Boolean))categoryPreview.append(el('span','',text));coverSettings?.refresh();orderEditor?.refresh();openingPicker?.refresh();pagePreview?.refresh()};updatePreview();
       const group=el('div','uos-fields');group.append(
         field('标题',entry.title,v=>{entry.title=v;updatePreview()}),
         field('卡片标注',entry.label,v=>{entry.label=v;updatePreview()}),
@@ -444,10 +445,12 @@ export function mountInDocument(doc = document, helperApi = null, {backgroundSer
       coverSettings=createCoverSettings({el,entry,onChange:updatePreview});box.append(coverSettings.element);
       if(entry.nameSuggestions?.length){const accept=el('button','uos-icon',`采纳候选：${entry.nameSuggestions.join('、')}`);accept.type='button';accept.onclick=()=>{entry.names=[...new Set([...(entry.names||'').split(/[、，,\/]/).filter(Boolean),...entry.nameSuggestions])].join('、');manuallyEditedNames.add(i);group.querySelectorAll('input,textarea')[2].value=entry.names;updatePreview();status('候选已填入人物字段，请检查后保存。')};box.append(accept)}
       if(greetings[i]){const propose=el('button','uos-icon','从原文生成文案建议');propose.type='button';propose.onclick=()=>{const next=suggest(greetings[i],i);entry.title=next.title;entry.description=next.description;const inputs=group.querySelectorAll('input,textarea');inputs[0].value=entry.title;inputs[3].value=entry.description;updatePreview();status(`第 ${i+1} 条建议已填入，检查后再保存。`)};box.append(propose)}
-      const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);
+      const clear=el('button','uos-icon','移除封面');clear.type='button';clear.onclick=()=>{entry.image='';updatePreview();status(`第 ${i+1} 条已改用主题排版封面`)};box.append(clear);list.append(box);editorRows.push(box);
     });
     orderEditor=createOpeningOrderEditor({el,doc:activePopup.frame.contentDocument,getOrder:()=>draftOpeningOrder||[],getItems:()=>draft?.entries||[],isDisabled:()=>settingsSaving||disposed,onChange:order=>{draftOpeningOrder=order;pagePreview?.refresh()}});
     list.before(orderEditor.element);moduleHelp.attach(orderEditor.heading,'order');
+    openingPicker=createOpeningPicker({el,container:list,rows:editorRows,getEntries:()=>draft?.entries||[]});list.after(recognition);
+    createSettingsViews({el,fields,views:[{id:'page',label:'页面与预览',nodes:[pageFields,pagePreview.element]},{id:'order',label:'调整顺序',nodes:[orderEditor.element]},{id:'edit',label:'编辑开场',nodes:[list,recognition]}],initial:editorRows.length?'edit':'page'});
     renderMusicSettings({root:dlg,settings:draft,isCurrent:settingsFields.isCurrent,
       fields:settingsFields,renderMusic});
     const diag=$('[data-diagnostics]');diag.replaceChildren();for(const [key,value] of diagnostics()){const row=el('div','uos-diagnostic-row');row.append(el('span','',key),el('strong','',value));diag.append(row)}

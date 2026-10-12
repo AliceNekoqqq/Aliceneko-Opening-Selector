@@ -2,6 +2,7 @@ import {mountInDocument} from './selector.js';
 import {buildAuthorHtml} from './author-template.js';
 import {THEME_ART} from './theme-art.js';
 import {RUNTIME_VERSION} from './version.js';
+import {createAuthorMenu} from './author-menu.js';
 
 const AUTHOR_VERSION=RUNTIME_VERSION;
 export const AUTHOR_MARKER='<UniversalOpeningSelector/>';
@@ -69,12 +70,13 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
     active?.frame.contentDocument?.querySelector('[data-uos]')?.__uosDispose?.();
     if(!active)return;
     const {frame,container,contents,resize}=active;active=null;resize?.disconnect();
-    for(const popup of doc.querySelectorAll('iframe[data-uos-frame]'))popup.remove();frame.remove();
+    frame.remove();
     if(container.isConnected){while(contents.firstChild)container.insertBefore(contents.firstChild,contents);contents.remove()}
   }
   function scan(){
     if(updating)return;updating=true;
     try{
+      menu.scan();
       const {state,reason}=inspectAuthorState(host.SillyTavern?.getContext?.(),helper);
       const first=doc.querySelector('#chat .mes[mesid="0"],#chat .mes[data-mesid="0"]');
       const container=first?.querySelector('.mes_text,.mes_text_container')||first;
@@ -106,9 +108,11 @@ export function mountAuthorSelector(startDocument=document,helperApi,{showSetupH
     }catch(error){closeFrame();console.warn('[Aliceneko Opening Selector] 作者选择页加载失败',error)}
     finally{updating=false}
   }
+  const menu=createAuthorMenu({doc,host,helper,getContext:()=>host.SillyTavern?.getContext?.(),authorHtml,mount:mountInDocument,backgroundService,afterMigration:()=>scan(),
+    getExistingRoot:()=>active?.key.split('\u0000')[0]===(host.SillyTavern?.getContext?.()?.characters?.[host.SillyTavern?.getContext?.()?.characterId]?.avatar)?active.frame.contentDocument?.querySelector('[data-uos]'):null});
   const observer=new host.MutationObserver(scan);if(doc.body)observer.observe(doc.body,{childList:true,subtree:true});
   const timer=host.setInterval(scan,1300),runnerWindow=startDocument.defaultView;
-  const api={version:AUTHOR_VERSION,scan,prepareForUpdate:async()=>active?.frame.contentDocument?.querySelector('[data-uos]')?.__uosPrepareForUpdate?.()??true,close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
+  const api={version:AUTHOR_VERSION,scan,open:menu.open,prepareForUpdate:async()=>{if(!(await active?.frame.contentDocument?.querySelector('[data-uos]')?.__uosPrepareForUpdate?.()??true))return false;return menu.prepareForUpdate()},close:()=>{observer.disconnect();host.clearInterval(timer);runnerWindow?.removeEventListener?.('pagehide',onPageHide);menu.close();active?.resize?.disconnect();closeFrame();closeNotice();if(doc.__uosAuthor===api)delete doc.__uosAuthor}};
   const onPageHide=()=>{if(doc.__uosAuthor===api)api.close()};doc.__uosAuthor=api;
   if(runnerWindow!==host)runnerWindow?.addEventListener?.('pagehide',onPageHide,{once:true});
   scan();return api;

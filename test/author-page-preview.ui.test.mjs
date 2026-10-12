@@ -15,26 +15,26 @@ try{
   (await import(url)).mountUniversalSelector(document,window.TavernHelper);
  },moduleUrl);
  const author=page.frameLocator('[data-uos-author-frame]'),settings=page.frameLocator('[data-uos-frame]'),preview=settings.frameLocator('.uos-page-preview-frame');
- await author.locator('[data-settings-button]').click();assert.equal(await settings.locator('.uos-page-preview-frame').count(),0);
+ await author.locator('[data-settings-button]').click();await settings.getByRole('button',{name:'页面与预览',exact:true}).click();assert.equal(await settings.locator('.uos-page-preview-frame').count(),0);
  assert.match(await settings.locator('.uos-page-preview>summary').textContent(),/点击预览整个选择页/);assert.equal(await settings.locator('.uos-page-preview-copy small').isVisible(),true);assert.equal(await settings.locator('.uos-page-preview-action').textContent(),'展开预览');
  await settings.locator('.uos-page-preview>summary').click();await preview.locator('[data-title]').filter({hasText:'原标题'}).waitFor();assert.equal(await settings.locator('.uos-page-preview-action').textContent(),'收起预览');
  assert.equal(await preview.locator('audio').count(),0);assert.equal(await preview.locator('[data-uos]').evaluate(node=>node.inert),true);assert.equal(await preview.locator('.uos-card-preview-button').first().isDisabled(),true);
  await settings.getByLabel('页面标题',{exact:true}).fill('实时草稿标题');await preview.locator('[data-title]').filter({hasText:'实时草稿标题'}).waitFor();assert.equal(await author.locator('[data-title]').textContent(),'原标题');
  await settings.getByLabel('页面版式',{exact:true}).selectOption('catalog');await preview.locator('[data-uos][data-layout=catalog]').waitFor();
- const entry=settings.locator('.uos-settings-entry').first();await entry.getByLabel('分组（留空表示未分组）',{exact:true}).fill('主线');await entry.getByLabel('筛选标签（逗号分隔）',{exact:true}).fill('重逢、清晨');await preview.locator('.uos-opening-group-title').filter({hasText:'主线'}).waitFor();await preview.locator('.uos-opening-tags').filter({hasText:'重逢'}).waitFor();
- await entry.locator('.uos-cover-settings>summary').click();await entry.getByRole('button',{name:'使用默认封面 3',exact:true}).click();
+ await settings.getByRole('button',{name:'编辑开场',exact:true}).click();const entry=settings.locator('.uos-settings-entry').first();await entry.getByLabel('分组（留空表示未分组）',{exact:true}).fill('主线');await entry.getByLabel('筛选标签（逗号分隔）',{exact:true}).fill('重逢、清晨');await settings.getByRole('button',{name:'页面与预览',exact:true}).click();await preview.locator('.uos-opening-group-title').filter({hasText:'主线'}).waitFor();await preview.locator('.uos-opening-tags').filter({hasText:'重逢'}).waitFor();
+ await settings.getByRole('button',{name:'编辑开场',exact:true}).click();await entry.locator('.uos-cover-settings>summary').click();await entry.getByRole('button',{name:'使用默认封面 3',exact:true}).click();
  await entry.getByLabel('横向焦点',{exact:true}).evaluate(node=>{node.value='20';node.dispatchEvent(new Event('input',{bubbles:true}))});
- await preview.locator('.uos-cover[style*="20% 50%"]').waitFor();
+ await settings.getByRole('button',{name:'页面与预览',exact:true}).click();await preview.locator('.uos-cover[style*="20% 50%"]').waitFor();
  await settings.getByRole('button',{name:'桌面 · 900px',exact:true}).click();assert.equal(await preview.locator('html').evaluate(node=>node.ownerDocument.defaultView.innerWidth),900);
  await settings.getByRole('button',{name:'手机 · 390px',exact:true}).click();assert.equal(await preview.locator('html').evaluate(node=>node.ownerDocument.defaultView.innerWidth),390);
  assert.equal(await page.evaluate(()=>__state.writes),0);assert.equal(await page.evaluate(()=>__state.saves),0);
  await settings.locator('[data-close]').click();await settings.getByRole('button',{name:'继续编辑',exact:true}).click();assert.equal(await settings.locator('.uos-page-preview-frame').count(),1);
  await settings.locator('[data-close]').click();await settings.getByRole('button',{name:'放弃更改',exact:true}).click();await page.locator('[data-uos-frame]').waitFor({state:'detached'});assert.equal(await author.locator('[data-title]').textContent(),'原标题');assert.equal(await page.evaluate(()=>__state.saves),0);
- await author.locator('[data-settings-button]').click();await settings.locator('.uos-page-preview>summary').click();await preview.locator('[data-title]').filter({hasText:'原标题'}).waitFor();
+ await author.locator('[data-settings-button]').click();await settings.getByRole('button',{name:'页面与预览',exact:true}).click();await settings.locator('.uos-page-preview>summary').click();await preview.locator('[data-title]').filter({hasText:'原标题'}).waitFor();
  await settings.getByLabel('页面标题',{exact:true}).fill('已保存标题');await preview.locator('[data-title]').filter({hasText:'已保存标题'}).waitFor();await settings.locator('[data-save]').click();await page.locator('[data-uos-frame]').waitFor({state:'detached'});assert.equal(await author.locator('[data-title]').textContent(),'已保存标题');assert.equal(await page.evaluate(()=>__state.saves),1);
  // The preview viewport stays fixed while the settings window fits a narrow host.
  for(const width of [320,768]){
-  await page.setViewportSize({width,height:900});await author.locator('[data-settings-button]').click();await settings.locator('.uos-page-preview>summary').click();await preview.locator('[data-title]').filter({hasText:'已保存标题'}).waitFor();
+  await page.setViewportSize({width,height:900});await author.locator('[data-settings-button]').click();await settings.getByRole('button',{name:'页面与预览',exact:true}).click();await settings.locator('.uos-page-preview>summary').click();await preview.locator('[data-title]').filter({hasText:'已保存标题'}).waitFor();
   assert.equal(await settings.locator('.uos-sheet').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);assert.equal(await preview.locator('[data-uos]').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);
   await settings.getByRole('button',{name:'桌面 · 900px',exact:true}).click();assert.equal(await preview.locator('html').evaluate(node=>node.ownerDocument.defaultView.innerWidth),900);assert.equal(await settings.locator('.uos-sheet').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);
   await settings.locator('[data-close]').click();await page.locator('[data-uos-frame]').waitFor({state:'detached'});
