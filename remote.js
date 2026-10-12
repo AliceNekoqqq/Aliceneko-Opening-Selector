@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.19-beta.3" : "development";
+var RUNTIME_VERSION = true ? "1.0.20-beta.1" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -175,13 +175,14 @@ function createThemeBackgroundController(element, property, view, { timeoutMs = 
 
 // src/module-help-content.js
 var MODULE_HELP = {
+  authorMenu: { title: "开场白选择器入口", purpose: "从酒馆左下角菜单打开作者设置，按确认结果准备角色卡。", steps: ["先选择一张单人角色卡，再打开左下角菜单中的「开场白选择器入口」。", "已有标记时直接打开；没有标记时先确认是否自动添加并迁移原主开场。", "编辑后保存到角色卡，再导出分享。"], options: [["自动添加并迁移", "原主开场完整移至备用开场第一条，其他顺序顺延；空主开场不新增空条目。"]], buttons: [["取消", "关闭提示，不修改角色卡。"]], notes: ["这是手动入口，加载脚本不会自动迁移任何卡。", "已经开始的聊天保持原样；新建聊天使用选择页。"] },
   order: { title: "开场顺序", purpose: "在插件内调整备用开场顺序，确认保存后生效。", steps: ["拖动左侧手柄把开场移到想要的位置；手机上从手柄拖动，其他位置可正常滚动。", "也可点击上下箭头，或聚焦手柄后按键盘上下方向键微调。", "通过整页实时预览检查新顺序，最后点击「保存到角色卡」。"], options: [["编号与配置", "保存后重新编号，正文、封面、人物、标签和世界书预设保持对应。"]], buttons: [["恢复原顺序", "恢复本次打开设置时的顺序，保留其他编辑。"], ["保存到角色卡", "将开场顺序与当前作者设置一起保存。"]], notes: ["拖动只调整草稿；放弃修改不会改变角色卡。", "主开场的选择器标记固定在第一条，不参与排序；已开始的其他聊天不会被改写。"] },
   playerSettings: { title: "玩家设置", purpose: "按需要调整显示与识别结果，保留作者默认配置。", steps: ["展开需要修改的分区。", "显示信息与识别规则使用分区内的保存按钮；外观选择会立即记住。", "关闭时如有未保存修改，可保存、放弃或返回继续编辑。"], options: [["开场显示", "修正标题、人物或显示标注。"], ["界面外观", "调整悬浮入口、看板娘 Logo 与插件大标题。"], ["功能开关", "启用或关闭盲盒抽卡；立即生效，按角色保存在本机，重新开启保留卡池。"], ["识别规则／插件", "修正标签提取和别名，或检查更新。"]], buttons: [["仅保存到本机／保存到角色卡", "前者只影响本机；后者将允许分享的修正写入角色配置。"]], notes: ["人物列表有独立保存按钮，两版按角色共用本机名单。", "此页不会替换开场正文；生成新开场请使用主界面的创建入口。"] },
   titleRules: { title: "标题提取规则", purpose: "避免状态栏或辅助标签被误当作开场标题。", steps: ["查看自动标题，找出需要跳过的标签。", "填写标签名称，用逗号分隔；不用填写整段正文。", "保存后检查卡片标题和简介。"], options: [["排除标题中的 <字段>", "例如填写 SceneInfo，会在提取标题和简介时跳过该标签。"]], buttons: [["仅保存到本机／保存到角色卡", "保存玩家本机修正或作者默认规则。"]], notes: ["此设置不修改正文，也不排除人物识别中的这些标签。", "手工填写的标题优先于自动提取。"] },
   openings: { title: "开场浏览与选择", purpose: "找到想玩的故事起点，阅读后再决定是否进入。", steps: ["用搜索和人物、分组、标签筛选缩小范围。", "点击「预览完整正文」查看内容；也可通过命运盲盒随机挑选。", "确认后点击进入开场。仅浏览、收藏和抽卡不会自动切换。"], options: [["搜索与筛选", "搜索标题、人物和正文；多个筛选条件同时生效。分组折叠只隐藏列表。"], ["收藏", "点击 ☆ 收藏或取消收藏；「只看收藏」与其他筛选组合使用。"]], buttons: [["人物列表", "整理统一人物名单，影响识别、人物筛选及生成器。"], ["创建／生成开场白", "使用当前主 API 生成草稿，编辑确认后追加备用开场。"], ["预览完整正文／进入开场", "预览只阅读；进入才执行开场切换及已分配的世界书预设。"], ["主题／设置", "主题调整外观，设置修改显示、识别与作者配置。"]], notes: ["人物是全文提及匹配，回忆、标签和状态栏里的姓名也可能命中。", "收藏、抽卡偏好按角色保存在本机；作者配置需保存到角色卡。"] },
-  authorSettings: { title: "作者设置", purpose: "设计选择页，并把可分享的配置保存到角色卡。", steps: ["按需要打开开场白、世界书、BGM 或制卡检查。", "编辑时可查看卡片和整页实时预览。", "完成后点击底部「保存到角色卡」，再从酒馆导出。"], options: [["开场白", "页面信息、版式、标题、简介、封面、人物、分组和标签。"], ["世界书／BGM", "为开场分配世界书预设；上传音乐及歌词。"], ["制卡检查／更新", "检查当前角色数据；查看版本与更新说明。"]], buttons: [["保存到角色卡", "写入并复核作者配置；只关掉设置不会自动保存。"], ["关闭时的保存／放弃／继续编辑", "保存写入卡片；放弃撤销本次草稿；继续编辑返回设置。"]], notes: ["世界书编辑需要先「保存预设」，再「保存到角色卡」。", "人物列表、收藏与抽卡设置有各自的本机保存方式，不随这颗保存按钮写入卡片。"] },
+  authorSettings: { title: "作者设置", purpose: "设计选择页，并把可分享的配置保存到角色卡。", steps: ["按需要打开开场白、世界书、BGM 或制卡检查。", "编辑时可查看卡片和整页实时预览。", "完成后点击底部「保存到角色卡」，再从酒馆导出。"], options: [["开场白", "页面与预览、调整顺序、编辑开场三个分区；标题、简介、封面、人物、分组和标签均保留。"], ["世界书／BGM", "为开场分配世界书预设；上传音乐及歌词。"], ["制卡检查／更新", "检查当前角色数据；查看版本与更新说明。"]], buttons: [["保存到角色卡", "写入并复核作者配置；只关掉设置不会自动保存。"], ["关闭时的保存／放弃／继续编辑", "保存写入卡片；放弃撤销本次草稿；继续编辑返回设置。"]], notes: ["世界书编辑需要先「保存预设」，再「保存到角色卡」。", "人物列表、收藏与抽卡设置有各自的本机保存方式，不随这颗保存按钮写入卡片。"] },
   page: { title: "页面信息与版式", purpose: "让选择页符合角色卡的风格和信息层级。", steps: ["填写页面标题和导语。", "选择版式，决定是否显示看板娘与插件大标题。", "通过整页实时预览查看效果，再保存到角色卡。"], options: [["页面标题／导语", "展示在选择页顶部，说明这张卡的故事入口。"], ["看板娘 Logo／插件大标题", "两个开关独立；底部来源信息始终保留。"], ["页面版式", "改变卡片排列和信息呈现，可与任意主题搭配。"], ["启用盲盒抽卡", "立即生效，按角色保存在本机，不随角色卡导出；关闭隐藏盲盒与卡池入口，重新开启保留原卡池。"]], buttons: [["整页实时预览", "查看当前草稿的完整页面，预览内不会真正选择故事。"], ["保存到角色卡", "保存上述作者配置，导出后可分享。"]], notes: ["玩家可在本机覆盖部分界面偏好，不会改写作者默认值。"] },
-  cards: { title: "开场卡片与封面", purpose: "调整各条开场的展示信息，保留原始开场正文。", steps: ["展开想修改的开场，并查看原文及实时卡片预览。", "填写标题、简介、人物、分组和标签，调整封面。", "保存到角色卡；阅读正文使用「预览完整正文」。"], options: [["标题／简介／标注", "用于选择器展示；不会替换原始开场正文。"], ["登场人物", "留空并保存恢复自动识别；输入「无」隐藏人物。启用人物名单后，最终显示还需遵守名单。"], ["分组／筛选标签", "同名分组合并，标签供组合筛选使用。"], ["默认封面／自定义图片", "自定义图片优先；默认封面编号可固定，也可使用自动分配。"], ["取景位置", "调整图片横纵位置；只改变显示裁切，不改变原图片。"]], buttons: [["查看原开场正文", "只读查看正文，便于核对卡片信息。"], ["重新随机／居中显示", "重新选择默认封面或将显示位置恢复居中。"], ["采纳候选", "把候选填入人物字段；名单管理启用时还需在人物列表中确认。"]], notes: ["更改默认封面会清除当前自定义封面。", "折叠开场只隐藏编辑项；最终使用底部保存按钮写入角色卡。"] },
+  cards: { title: "开场卡片与封面", purpose: "调整各条开场的展示信息，保留原始开场正文。", steps: ["在「编辑开场」下拉选择要修改的一条，查看原文及实时卡片预览。", "填写标题、简介、人物、分组和标签，调整封面。", "保存到角色卡；阅读正文使用「预览完整正文」。"], options: [["标题／简介／标注", "用于选择器展示；不会替换原始开场正文。"], ["登场人物", "留空并保存恢复自动识别；输入「无」隐藏人物。启用人物名单后，最终显示还需遵守名单。"], ["分组／筛选标签", "同名分组合并，标签供组合筛选使用。"], ["默认封面／自定义图片", "自定义图片优先；默认封面编号可固定，也可使用自动分配。"], ["取景位置", "调整图片横纵位置；只改变显示裁切，不改变原图片。"]], buttons: [["查看原开场正文", "只读查看正文，便于核对卡片信息。"], ["重新随机／居中显示", "重新选择默认封面或将显示位置恢复居中。"], ["采纳候选", "把候选填入人物字段；名单管理启用时还需在人物列表中确认。"]], notes: ["更改默认封面会清除当前自定义封面。", "折叠开场只隐藏编辑项；最终使用底部保存按钮写入角色卡。"] },
   people: { title: "人物列表", purpose: "整理实际使用的人物词表，让识别和生成共用同一份名单。", steps: ["搜索姓名或来源，必要时勾选「只看待确认」。", "勾选要保留的人物，确认身份或删除不需要的行。", "点击「保存并重新识别」立即应用；关闭或取消则放弃本次修改。"], options: [["人物勾选", "决定是否纳入名单；取消勾选仍显示该行。勾选并保存即正式确认。"], ["待确认", "身份证据不足的候选；确认后去掉括号标记，保存后正式参与识别。"], ["补充人物", "用顿号、逗号或换行添加、修改遗漏的姓名。"]], buttons: [["全选／取消全选", "只改变勾选状态，不删除人物行。"], ["确认／确认已勾选人物", "单人确认会勾选此人；批量确认只处理已勾选项，不会勾回未选人物。"], ["取消勾选待确认", "取消候选的勾选，人物行仍在。"], ["删除未勾选／删除待确认", "立即移除对应人物行；保存后重新读取或重新打开也不自动恢复。"], ["重新读取人物", "刷新绑定世界书和候选来源，保留当前取舍与删除。"], ["恢复读取名单", "恢复当前读取到的行并全选，清空补充；保存前仍可取消。"], ["恢复自动识别", "准备清除本机名单限制，点击保存后恢复传统自动识别。"]], notes: ["搜索和只看待确认只改变显示；批量操作仍作用于整份列表。", "按角色保存在本机，作者和玩家共用；不修改世界书或角色卡。保存后名单外姓名仅作候选，明确删除／排除项不会重新加入。"] },
   generation: { title: "开场白生成", purpose: "使用已配置的主 API 创作独立新开场，检查后追加备用开场。", steps: ["选择登场人物，填写故事种子、场景和核心事件。", "按需要展开更多创作选项，再点击生成。", "编辑生成正文，核对标题、人物和状态栏；确认后加入备用开场。"], options: [["人物／故事种子", "名单来自人物管理及角色资料；人物可直接修改增补。故事种子只提供创作方向。"], ["氛围／场景／关系／核心事件", "描述文风、时间地点、玩家身份及想看到的情节；留空项交由模型构思。"], ["视角／篇幅／语言", "指定叙述方式、目标长度和输出语言；实际长度受模型回复上限影响。"], ["当前预设／独立创作提示", "都调用主 API；当前预设沿用酒馆预设，独立提示减少预设对格式的干扰。"], ["结构参考／正文格式", "选已有开场并编辑参考；选择沿用结构、纯叙事或自定义格式。参考不代表此次剧情已经发生。"], ["内容限制／世界书资料", "填写必须遵守或避免的内容；世界书选项控制额外补充的有效人物资料。"]], buttons: [["生成开场白／取消生成", "生成草稿；取消只针对本次请求，等待结束前不叠加生成。"], ["草稿版本", "恢复最近五份草稿；改写会保留旧版本。"], ["按修改方向生成新版本", "先填写修改方向，再用当前正文继续调整。"], ["加入新建备用开场白", "保存正文、标题和人物；保存前检查冲突，完成后不会自动进入故事。"]], notes: ["不读取当前聊天作为剧情起点，调用使用当前主 API 配置并产生正常 API 消耗。", "选项与最近五份草稿按角色、作者／玩家模式保存在本机；新增备用开场写入角色卡，导出后可分享。"] },
   pagePreview: { title: "整页实时预览", purpose: "保存前检查当前作者草稿在电脑和手机上的完整效果。", steps: ["展开预览，切换手机或桌面宽度。", "继续编辑上方配置，预览会自动同步。", "检查后点击设置底部「保存到角色卡」。"], options: [["手机 · 390px／桌面 · 900px", "模拟两种页面宽度；窄窗口会缩放预览以容纳完整页面。"]], buttons: [["展开预览／收起预览", "打开或收起检查区域，不清除草稿。"], ["保存到角色卡", "只有保存才写入卡片；预览里的按钮不会切换故事。"]], notes: ["预览不发送消息、不应用世界书开关；不会修改当前聊天。"] },
@@ -6093,6 +6094,77 @@ function createOpeningOrderEditor({ el, doc, getOrder, getItems, onChange, isDis
   } };
 }
 
+// src/author-settings-layout.js
+function createSettingsViews({ el, fields, views, initial }) {
+  const nav = el("nav", "uos-settings-views");
+  nav.setAttribute("aria-label", "开场白设置分区");
+  const buttons = /* @__PURE__ */ new Map();
+  function select(id) {
+    for (const view of views) {
+      const active = view.id === id;
+      for (const node of view.nodes) node.hidden = !active;
+      buttons.get(view.id).setAttribute("aria-pressed", String(active));
+    }
+  }
+  for (const view of views) {
+    const button = el("button", "uos-icon", view.label);
+    button.type = "button";
+    button.onclick = () => select(view.id);
+    buttons.set(view.id, button);
+    nav.append(button);
+  }
+  fields.prepend(nav);
+  select(initial || views[0].id);
+  return { select };
+}
+function createOpeningPicker({ el, container, rows, getEntries }) {
+  const tools = el("div", "uos-opening-picker"), field = el("label"), caption = el("span", "", "正在编辑"), select = el("select"), previous = el("button", "uos-icon", "←"), next = el("button", "uos-icon", "→");
+  select.setAttribute("aria-label", "选择要编辑的开场");
+  previous.type = next.type = "button";
+  previous.setAttribute("aria-label", "编辑上一条开场");
+  next.setAttribute("aria-label", "编辑下一条开场");
+  field.append(caption, select);
+  tools.append(field, previous, next);
+  let current = 0;
+  const options = rows.map((_, i) => {
+    const option = el("option");
+    option.value = String(i);
+    select.append(option);
+    return option;
+  });
+  function refresh() {
+    const entries = getEntries();
+    options.forEach((option, i) => option.textContent = `${String(i + 1).padStart(2, "0")} · ${entries[i]?.title || "未命名开场"}`);
+    select.value = String(current);
+    previous.disabled = current === 0;
+    next.disabled = current === rows.length - 1;
+    rows.forEach((row, i) => {
+      row.hidden = i !== current;
+      row.open = i === current;
+    });
+  }
+  select.onchange = () => {
+    current = Number(select.value);
+    refresh();
+  };
+  previous.onclick = () => {
+    if (current > 0) {
+      current--;
+      refresh();
+    }
+  };
+  next.onclick = () => {
+    if (current < rows.length - 1) {
+      current++;
+      refresh();
+    }
+  };
+  if (rows.length) container.prepend(tools);
+  else container.append(el("p", "uos-help", "还没有备用开场，可返回首页生成第一条，或在酒馆角色编辑器中添加。"));
+  refresh();
+  return { refresh };
+}
+
 // src/worldbook-preset-editor.js
 function createWorldbookPresetEditor({
   doc,
@@ -7189,6 +7261,21 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos-settings-group h3,.uos-settings-entries h3{font-size:16px;margin:0 0 8px;color:var(--text)}
 .uos-settings-group>summary,.uos-settings-entry>summary{cursor:pointer;color:var(--accent);font-weight:650;line-height:1.6;overflow-wrap:anywhere}
 .uos-settings-group .uos-field{margin:14px 0}.uos-settings-group .uos-help{margin:8px 0}
+.uos-settings-views{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 18px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.uos-settings-views button{flex:1;min-height:44px;white-space:nowrap}
+.uos-settings-views button[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.uos-openings-settings>.uos-settings-group{border:0;border-radius:0;background:transparent;padding:4px 0;margin:8px 0}
+.uos-openings-settings .uos-settings-entry{border:0;border-radius:0;background:transparent;margin:0;padding:0}
+.uos-openings-settings .uos-settings-entry>summary{display:none}
+.uos-openings-settings .uos-settings-entry .uos-fields{gap:16px}
+.uos-opening-picker{display:grid;grid-template-columns:minmax(0,1fr) 44px 44px;gap:8px;align-items:end;padding:0 0 16px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.uos-opening-picker label{display:grid;gap:6px;min-width:0;font-size:12px;color:var(--muted)}
+.uos-opening-picker select{width:100%;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel);color:var(--text);font:inherit}
+.uos-opening-picker button{height:44px;padding:0!important;font-size:18px}
+.uos-openings-settings>.uos-settings-entries>h3{margin:0 0 6px}
+.uos-openings-settings .uos-order-row{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent}
+.uos-openings-settings .uos-order-row.is-dragging{background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
+.uos-openings-settings [hidden]{display:none!important}
 .uos-settings-entry{margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 .uos-order-list{display:grid;gap:8px;min-width:0}
 .uos-order-row{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0;scroll-margin:80px}
@@ -8503,6 +8590,9 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     draftOpeningOrder = greetingList().map((_, i) => i);
     const manuallyEditedNames = /* @__PURE__ */ new Set(), fields = $("[data-settings-fields]");
     fields.replaceChildren();
+    fields.classList.add("uos-openings-settings");
+    let openingPicker;
+    const editorRows = [];
     const pageFields = el("section", "uos-settings-group");
     pageFields.append(el("h3", "", "页面信息"), el("p", "uos-help", "先设置选择页的标题与导语，再编辑每条开场。"), field("页面标题", draft.title, (v) => draft.title = v), field("页面导语", draft.subtitle, (v) => draft.subtitle = v, true));
     fields.append(pageFields);
@@ -8588,7 +8678,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       aliasWarning.textContent = personAliases(v).conflicts.length ? `重复别名未参与匹配：${personAliases(v).conflicts.join("、")}。请只保留一个归属。` : "";
     }, true));
     const list = el("div", "uos-settings-entries");
-    list.append(el("h3", "", "开场卡片"), el("p", "uos-help", "展开要修改的开场。收起只隐藏编辑项，不会清除修改。"));
+    list.append(el("h3", "", "编辑开场"), el("p", "uos-help", "选择一条开场编辑。切换不会丢失修改，完成后统一保存。"));
     fields.append(list);
     moduleHelp.attach(list.querySelector("h3"), "cards");
     const greetings = greetingList();
@@ -8633,6 +8723,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
         for (const text2 of [metadata.group ? `分组 · ${metadata.group}` : "", ...metadata.tags].filter(Boolean)) categoryPreview.append(el("span", "", text2));
         coverSettings?.refresh();
         orderEditor?.refresh();
+        openingPicker?.refresh();
         pagePreview?.refresh();
       };
       updatePreview();
@@ -8713,6 +8804,7 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
       };
       box.append(clear);
       list.append(box);
+      editorRows.push(box);
     });
     orderEditor = createOpeningOrderEditor({ el, doc: activePopup.frame.contentDocument, getOrder: () => draftOpeningOrder || [], getItems: () => draft?.entries || [], isDisabled: () => settingsSaving || disposed, onChange: (order) => {
       draftOpeningOrder = order;
@@ -8720,6 +8812,9 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
     } });
     list.before(orderEditor.element);
     moduleHelp.attach(orderEditor.heading, "order");
+    openingPicker = createOpeningPicker({ el, container: list, rows: editorRows, getEntries: () => draft?.entries || [] });
+    list.after(recognition);
+    createSettingsViews({ el, fields, views: [{ id: "page", label: "页面与预览", nodes: [pageFields, pagePreview.element] }, { id: "order", label: "调整顺序", nodes: [orderEditor.element] }, { id: "edit", label: "编辑开场", nodes: [list, recognition] }], initial: editorRows.length ? "edit" : "page" });
     renderMusicSettings({
       root: dlg,
       settings: draft,
@@ -8876,6 +8971,237 @@ function mountInDocument(doc = document, helperApi = null, { backgroundService =
   return true;
 }
 
+// src/author-setup.js
+var AUTHOR_ENTRY_TEXT = "<UniversalOpeningSelector/>\n【请选择开场】如果选择页没有出现，请使用酒馆首条消息的翻页箭头。";
+var dataOf4 = (card) => card?.data || card || {};
+function authorSetupPlan(card) {
+  const data = dataOf4(card), first = String(data.first_mes ?? card?.first_mes ?? ""), alternates = data.alternate_greetings ?? card?.alternate_greetings ?? [];
+  if (!Array.isArray(alternates)) throw Error("备用开场格式异常，请先检查角色卡。");
+  const ready = first.trimStart().startsWith("<UniversalOpeningSelector/>");
+  return { ready, first, alternates: alternates.slice(), nextAlternates: ready ? alternates.slice() : first.trim() ? [first, ...alternates] : alternates.slice() };
+}
+async function initializeAuthorCard({ host, getContext, helper, identity, expectedStamp, isActive = () => true }) {
+  const context = getContext(), card = context?.characters?.[identity.characterId];
+  const current = () => isActive() && getContext()?.characterId === identity.characterId && getContext()?.characters?.[identity.characterId] === card && card?.avatar === identity.avatar;
+  if (!current() || openingStamp(card) !== expectedStamp) throw Error("角色或开场已变化，请重新打开入口后再确认。");
+  if (typeof context.getRequestHeaders !== "function") throw Error("当前酒馆未提供角色卡保存接口。");
+  const headers = context.getRequestHeaders(), read = async () => {
+    const r2 = await requestCharacterCard(host, "/api/characters/get", { method: "POST", headers, body: JSON.stringify({ avatar_url: identity.avatar }) }, { readJson: true });
+    if (!r2.ok) throw Error(`角色卡读取失败（HTTP ${r2.status}）`);
+    return r2.data;
+  };
+  const latest = await read();
+  if (openingStamp(latest) !== expectedStamp) throw Error("服务器上的开场已变化，未迁移；请重新打开入口。");
+  const plan = authorSetupPlan(latest);
+  if (plan.ready) return { migrated: false };
+  if (!current() || openingStamp(card) !== expectedStamp) throw Error("角色或开场已变化，未迁移。");
+  const r = await requestCharacterCard(host, "/api/characters/merge-attributes", { method: "POST", headers, body: JSON.stringify({ avatar: identity.avatar, data: { first_mes: AUTHOR_ENTRY_TEXT, alternate_greetings: plan.nextAlternates } }) });
+  if (!r.ok) throw Error(`迁移保存失败（HTTP ${r.status}）`);
+  const saved = dataOf4(await read());
+  if (saved.first_mes !== AUTHOR_ENTRY_TEXT || JSON.stringify(saved.alternate_greetings) !== JSON.stringify(plan.nextAlternates)) throw Error("迁移请求已提交，但复核失败；请重新打开角色卡检查。");
+  if (!current()) throw Error("原角色卡已迁移，但当前角色或窗口已变化，请重新打开角色卡。");
+  card.first_mes = AUTHOR_ENTRY_TEXT;
+  card.alternate_greetings = plan.nextAlternates.slice();
+  if (card.data) {
+    card.data.first_mes = AUTHOR_ENTRY_TEXT;
+    card.data.alternate_greetings = plan.nextAlternates.slice();
+  }
+  try {
+    const message = helper?.getChatMessages?.(0, { include_swipes: true })?.[0], matches = Array.isArray(message?.swipes) ? JSON.stringify(message.swipes) === JSON.stringify([plan.first, ...plan.alternates]) : message?.message === plan.first;
+    if (current() && getContext()?.chatId === identity.chatId && Number(helper?.getLastMessageId?.() ?? 0) === 0 && Number(message?.swipe_id ?? 0) === 0 && message?.role === "assistant" && matches && typeof helper?.setChatMessages === "function") await helper.setChatMessages([{ message_id: 0, swipe_id: 0, swipes: [AUTHOR_ENTRY_TEXT, ...plan.nextAlternates] }], { refresh: "none" });
+  } catch {
+  }
+  return { migrated: true };
+}
+
+// src/author-menu.js
+function createAuthorMenu({ doc, host, helper, getContext, authorHtml: authorHtml2, mount, backgroundService, getExistingRoot = () => null }) {
+  let item = null, workshop = null, prompt = null, closed = false, busy = false;
+  const el = (tag, text2) => {
+    const node = doc.createElement(tag);
+    if (text2 != null) node.textContent = text2;
+    return node;
+  };
+  const notify = (text2) => host.toastr?.info?.(text2);
+  function selected() {
+    const c = getContext();
+    return c?.characterId != null && (c.groupId == null || c.groupId === -1) ? c.characters?.[c.characterId] : null;
+  }
+  function current(identity) {
+    const c = getContext();
+    return !closed && c?.characterId === identity.characterId && selected()?.avatar === identity.avatar;
+  }
+  function removeWorkshop() {
+    const active = workshop;
+    if (!active) return;
+    workshop = null;
+    active.root?.__uosDispose?.();
+    active.overlay.remove();
+  }
+  async function closeWorkshop() {
+    if (!workshop) return true;
+    if (!await workshop.root.__uosPrepareForUpdate?.()) return false;
+    removeWorkshop();
+    return true;
+  }
+  function showWorkshop(identity) {
+    if (!current(identity)) return;
+    const existing = getExistingRoot();
+    if (existing) {
+      existing.querySelector("[data-settings-button]")?.click();
+      return;
+    }
+    const overlay = el("section");
+    overlay.dataset.uosWorkshop = "";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "开场白选择器入口");
+    overlay.style.cssText = "position:fixed;inset:12px;z-index:99980;display:flex;flex-direction:column;background:var(--SmartThemeBlurTintColor,#17252d);border:1px solid var(--SmartThemeBorderColor,#65747d);border-radius:14px;overflow:hidden;box-shadow:0 16px 70px #0008";
+    const head = el("div"), title = el("strong", "开场白选择器入口"), close = el("button", "关闭");
+    close.type = "button";
+    head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;color:var(--SmartThemeBodyColor,#eee)";
+    close.className = "menu_button";
+    close.onclick = () => {
+      void closeWorkshop();
+    };
+    head.append(title, close);
+    const frame = el("iframe");
+    frame.title = "开场白选择器作者界面";
+    frame.style.cssText = "flex:1;min-height:0;width:100%;border:0;background:transparent;pointer-events:auto!important";
+    overlay.append(head, frame);
+    doc.body.append(overlay);
+    const frameDoc = frame.contentDocument;
+    workshop = { overlay, frame, root: null, identity };
+    try {
+      frameDoc.open();
+      frameDoc.write(authorHtml2(authorSetupPlan(selected()).alternates.length));
+      frameDoc.close();
+      const root = frameDoc.querySelector("[data-uos]");
+      root.__uosHostDocument = doc;
+      workshop.root = root;
+      if (!mount(frameDoc, helper, { backgroundService })) throw Error("作者界面未能加载");
+      root.querySelector("[data-settings-button]")?.click();
+    } catch (error) {
+      removeWorkshop();
+      notify(`打开失败：${error.message}`);
+    }
+  }
+  function showSetup(identity, card) {
+    const plan = authorSetupPlan(card), stamp = openingStamp(card), dialog = el("dialog");
+    dialog.dataset.uosSetup = "";
+    dialog.style.cssText = "max-width:460px;width:calc(100% - 40px);padding:22px;border:1px solid var(--SmartThemeBorderColor,#65747d);border-radius:14px;background:var(--SmartThemeBlurTintColor,#17252d);color:var(--SmartThemeBodyColor,#eee);font:14px/1.7 system-ui";
+    dialog.setAttribute("aria-labelledby", "uos-setup-title");
+    const title = el("h2", "为这张卡启用选择器？");
+    title.id = "uos-setup-title";
+    title.style.cssText = "font-size:19px;margin:0 0 12px";
+    const copy = el("p", plan.first.trim() ? "将自动添加选择页标记，把当前主开场完整移到第一条备用开场，其余备用开场依次顺延。" : "将自动添加选择页标记。当前主开场为空，不增加空白备用条目。");
+    const details = el("p", `角色：${card.data?.name || card.name || "当前角色"} · 迁移后 ${plan.nextAlternates.length} 条备用开场。原文和已有配置保留，已开始的聊天不会被改写。`), status = el("p"), actions = el("div"), cancel = el("button", "取消"), confirm = el("button", "自动添加并迁移");
+    actions.style.cssText = "display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap";
+    status.setAttribute("role", "status");
+    cancel.type = confirm.type = "button";
+    cancel.className = confirm.className = "menu_button";
+    const cleanup = () => {
+      if (prompt?.dialog !== dialog) return;
+      dialog.remove();
+      prompt = null;
+      try {
+        item?.focus();
+      } catch {
+      }
+    };
+    cancel.onclick = cleanup;
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      if (!busy) cleanup();
+    });
+    confirm.onclick = async () => {
+      if (busy || !current(identity)) return;
+      busy = true;
+      cancel.disabled = confirm.disabled = true;
+      status.textContent = "正在迁移并保存…";
+      try {
+        await initializeAuthorCard({ host, getContext, helper, identity, expectedStamp: stamp, isActive: () => !closed && prompt?.dialog === dialog });
+        if (!current(identity)) return;
+        cleanup();
+        showWorkshop(identity);
+      } catch (error) {
+        if (prompt?.dialog === dialog) status.textContent = error.message || String(error);
+      } finally {
+        busy = false;
+        cancel.disabled = confirm.disabled = false;
+      }
+    };
+    actions.append(cancel, confirm);
+    dialog.append(title, copy, details, status, actions);
+    doc.body.append(dialog);
+    prompt = { dialog, identity };
+    dialog.showModal();
+    confirm.focus();
+  }
+  function open() {
+    if (closed || busy) return;
+    try {
+      host.$?.("#options")?.hide?.();
+    } catch {
+    }
+    const card = selected();
+    if (!card?.avatar) {
+      notify("请先打开一张单人角色卡，再使用开场白选择器入口。");
+      return;
+    }
+    if (workshop) {
+      workshop.frame.focus();
+      return;
+    }
+    if (prompt) {
+      prompt.dialog.focus();
+      return;
+    }
+    const c = getContext(), identity = { characterId: c.characterId, avatar: card.avatar, chatId: c.chatId };
+    try {
+      if (authorSetupPlan(card).ready) showWorkshop(identity);
+      else showSetup(identity, card);
+    } catch (error) {
+      notify(error.message || String(error));
+    }
+  }
+  function scan() {
+    if (closed) return;
+    const target = doc.querySelector("#options .options-content");
+    if (target && item?.parentElement !== target) {
+      item?.remove();
+      item = el("a");
+      item.dataset.uosAuthorMenu = "";
+      item.setAttribute("role", "button");
+      item.tabIndex = 0;
+      item.style.cursor = "pointer";
+      const icon = el("i");
+      icon.className = "fa-lg fa-solid fa-book-open";
+      item.append(icon, el("span", "开场白选择器入口"));
+      item.onclick = open;
+      item.onkeydown = (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      };
+      target.append(item);
+    }
+    if (workshop && !current(workshop.identity)) removeWorkshop();
+    if (prompt && !current(prompt.identity)) {
+      prompt.dialog.remove();
+      prompt = null;
+    }
+  }
+  return { scan, open, prepareForUpdate: async () => !busy && await closeWorkshop(), close() {
+    closed = true;
+    item?.remove();
+    prompt?.dialog.remove();
+    prompt = null;
+    removeWorkshop();
+  } };
+}
+
 // src/author.js
 var AUTHOR_VERSION = RUNTIME_VERSION;
 var AUTHOR_MARKER = "<UniversalOpeningSelector/>";
@@ -8967,7 +9293,6 @@ function mountAuthorSelector(startDocument = document, helperApi, { showSetupHin
     const { frame, container, contents, resize } = active;
     active = null;
     resize?.disconnect();
-    for (const popup of doc.querySelectorAll("iframe[data-uos-frame]")) popup.remove();
     frame.remove();
     if (container.isConnected) {
       while (contents.firstChild) container.insertBefore(contents.firstChild, contents);
@@ -8978,6 +9303,7 @@ function mountAuthorSelector(startDocument = document, helperApi, { showSetupHin
     if (updating) return;
     updating = true;
     try {
+      menu.scan();
       const { state, reason } = inspectAuthorState(host.SillyTavern?.getContext?.(), helper);
       const first = doc.querySelector('#chat .mes[mesid="0"],#chat .mes[data-mesid="0"]');
       const container = first?.querySelector(".mes_text,.mes_text_container") || first;
@@ -9028,13 +9354,27 @@ function mountAuthorSelector(startDocument = document, helperApi, { showSetupHin
       updating = false;
     }
   }
+  const menu = createAuthorMenu({
+    doc,
+    host,
+    helper,
+    getContext: () => host.SillyTavern?.getContext?.(),
+    authorHtml,
+    mount: mountInDocument,
+    backgroundService,
+    getExistingRoot: () => active?.key.split("\0")[0] === host.SillyTavern?.getContext?.()?.characters?.[host.SillyTavern?.getContext?.()?.characterId]?.avatar ? active.frame.contentDocument?.querySelector("[data-uos]") : null
+  });
   const observer = new host.MutationObserver(scan);
   if (doc.body) observer.observe(doc.body, { childList: true, subtree: true });
   const timer = host.setInterval(scan, 1300), runnerWindow = startDocument.defaultView;
-  const api = { version: AUTHOR_VERSION, scan, prepareForUpdate: async () => active?.frame.contentDocument?.querySelector("[data-uos]")?.__uosPrepareForUpdate?.() ?? true, close: () => {
+  const api = { version: AUTHOR_VERSION, scan, open: menu.open, prepareForUpdate: async () => {
+    if (!(await active?.frame.contentDocument?.querySelector("[data-uos]")?.__uosPrepareForUpdate?.() ?? true)) return false;
+    return menu.prepareForUpdate();
+  }, close: () => {
     observer.disconnect();
     host.clearInterval(timer);
     runnerWindow?.removeEventListener?.("pagehide", onPageHide);
+    menu.close();
     active?.resize?.disconnect();
     closeFrame();
     closeNotice();
