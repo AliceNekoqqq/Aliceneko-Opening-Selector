@@ -1,0 +1,50 @@
+{
+  "archive": {
+    "path": "assets/theme-background-archive.webp",
+    "sha": "1c71e8309cb4684ab7e8f25ccb1a6adc4e16ff43"
+  },
+  "neon": {
+    "path": "assets/theme-background-neon.webp",
+    "sha": "def0eec1914d183e4ddd7cd58431f0a11a6e63f3"
+  },
+  "paper": {
+    "path": "assets/theme-background-paper.webp",
+    "sha": "95f4a12c71eb3031b7c96a1fc29c05936bea248d"
+  },
+  "noir": {
+    "path": "assets/theme-background-noir.webp",
+    "sha": "f82ca0dd9a75ffe968fc745b01120f3f0554907f"
+  },
+  "meadow": {
+    "path": "assets/theme-background-meadow.webp",
+    "sha": "a225f9b75c74a9911d57457a7c5d42ebac3b5bec"
+  },
+  "ancient": {
+    "path": "assets/theme-background-ancient.webp",
+    "sha": "21c53286195c5b12e751b4fc9d435744d67602ef"
+  },
+  "starmap": {
+    "path": "assets/theme-background-starmap.webp",
+    "sha": "a71b03d11b6b78d82f584767b49d219ede35cf35"
+  },
+  "rose": {
+    "path": "assets/theme-background-rose.webp",
+    "sha": "9d245c0ab2ad31b60c452a4943ed5c3719e7f9ca"
+  },
+  "wasteland": {
+    "path": "assets/theme-background-wasteland.webp",
+    "sha": "e3b17b96afc543b28ea8a033153f1ae91cfe0652"
+  },
+  "deepsea": {
+    "path": "assets/theme-background-deepsea.webp",
+    "sha": "3b0143fa3bd72c6bbb6745ccb18f36324e5ae484"
+  },
+  "amber": {
+    "path": "assets/theme-background-amber.webp",
+    "sha": "f6274d8e5c61e345394b3cce473c492bac70bbb8"
+  },
+  "theatre": {
+    "path": "assets/theme-background-theatre.webp",
+    "sha": "a6aa910d9905c361363ad735f62fd27941274737"
+  }
+}
