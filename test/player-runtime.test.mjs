@@ -78,6 +78,24 @@ function runtimeFixture(){
   const api=mountPlayerSelector(doc,helper);
   return {api,doc,host,storage,helper,context,card,get server(){return server},get reads(){return reads},get syncs(){return syncs}};
 }
+
+test('player feature switch immediately hides both entrances and survives reopening without changing the card',async()=>{
+ const f=runtimeFixture(),before=JSON.stringify(f.card);
+ try{
+  f.doc.querySelector('.uos-user-trigger').onclick({detail:0});await tick();
+  let panel=f.doc.querySelector('.uos-user-panel');
+  const input=panel.querySelector('[aria-label="启用盲盒抽卡"]');assert.equal(input.checked,true);
+  input.checked=false;input.onchange();
+  assert.equal(panel.querySelector('.uos-blind-trigger').hidden,true);assert.equal(panel.querySelector('.uos-blind-range-trigger').hidden,true);
+  panel.querySelector('.uos-blind-trigger').onclick();assert.equal(f.doc.querySelector('.uos-blind-box'),null);
+  assert.equal(JSON.stringify(f.card),before);assert.equal(f.reads,0);assert.equal(f.syncs,0);
+  panel.querySelectorAll('button').find(node=>node.textContent==='关闭').onclick();await tick();
+  f.doc.querySelector('.uos-user-trigger').onclick({detail:0});await tick();panel=f.doc.querySelector('.uos-user-panel');
+  const reopened=panel.querySelector('[aria-label="启用盲盒抽卡"]');assert.equal(reopened.checked,false);assert.equal(panel.querySelector('.uos-blind-trigger').hidden,true);
+  reopened.checked=true;reopened.onchange();assert.equal(panel.querySelector('.uos-blind-trigger').hidden,false);assert.equal(panel.querySelector('.uos-blind-range-trigger').hidden,false);
+  input.checked=false;input.onchange();assert.equal(panel.querySelector('.uos-blind-trigger').hidden,false,'detached old switch cannot change the new session');
+ }finally{f.api.close()}
+});
 test('ordinary-card player panel opens, reads people and saves a selected group through verified transaction',async()=>{
   const f=runtimeFixture(),{api,doc}=f,key='universal_opening_selector';
   try{

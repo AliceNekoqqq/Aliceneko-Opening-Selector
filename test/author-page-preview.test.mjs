@@ -69,6 +69,16 @@ test('rapid edits coalesce without reloading the iframe, and width controls do n
  preview.element.open=false;model.title='收起后的修改';f.watch.dispatch('input');f.flush();assert.equal(reads,2);preview.element.open=true;preview.element.dispatch('toggle');f.flush();assert.equal(frame.contentDocument.querySelector('[data-title]').textContent,'收起后的修改');preview.dispose();
 });
 
+test('author whole-page preview follows the local blind-box switch without changing opening content',()=>{
+ const f=fixture(),model=initial(),before=JSON.stringify(model.items);
+ const preview=createAuthorPagePreview({doc:f.doc,watch:f.watch,host:{},backgroundService:f.service,readModel:()=>model});f.watch.append(preview.element);preview.element.open=true;preview.refresh();f.flush();
+ const root=preview.element.querySelector('iframe').contentDocument.querySelector('[data-uos]');
+ assert.equal(root.querySelector('.uos-blind-trigger').hidden,false);
+ model.blindBoxEnabled=false;preview.refresh();f.flush();assert.equal(root.querySelector('.uos-blind-trigger').hidden,true);assert.equal(root.querySelector('.uos-blind-range-trigger').hidden,true);
+ model.blindBoxEnabled=true;preview.refresh();f.flush();assert.equal(root.querySelector('.uos-blind-trigger').hidden,false);assert.equal(root.querySelector('.uos-blind-range-trigger').hidden,false);
+ assert.equal(JSON.stringify(model.items),before);preview.dispose();
+});
+
 test('dispose cancels queued edits, listeners and late background writes without stopping the shared service',async()=>{
  const f=fixture(),preview=createAuthorPagePreview({doc:f.doc,watch:f.watch,host:{},backgroundService:f.service,readModel:initial});f.watch.append(preview.element);preview.element.open=true;preview.refresh();f.flush();const frame=preview.element.querySelector('iframe'),root=frame.contentDocument.querySelector('[data-uos]');
  f.watch.dispatch('input');const stale=[...f.timers.values()][0],before=root.style['--uos-theme-bg-active'];preview.dispose();preview.dispose();stale();preview.refresh();f.flush();

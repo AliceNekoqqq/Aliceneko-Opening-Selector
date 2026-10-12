@@ -4,7 +4,7 @@ import {createOpeningDrawRange,drawRangePool,keyedDrawItems,normalizeDrawRange} 
 import {THEME_IDS,themeDraw} from '../src/themes.js';
 import {blindBoxAssetCandidates} from '../src/asset-source.js';
 
-const defaults={handSize:3,performances:true,pools:[],activePoolId:null};
+const defaults={enabled:true,handSize:3,performances:true,pools:[],activePoolId:null};
 const all=()=>[{id:2,title:'清晨',body:'清晨原文'},{id:7,title:'隐藏雨夜',body:'雨夜原文'},{id:9,body:'当前原文',isCurrent:true},{id:12,body:''}];
 test('filtered mode preserves the existing eligible intersection and never broadens an empty result',()=>{
  assert.deepEqual(drawRangePool(all(),[all()[1],all()[2]],normalizeDrawRange()).map(item=>item.id),[7]);

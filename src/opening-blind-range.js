@@ -14,7 +14,7 @@ export function normalizeDrawRange(value){
   }
   const keys=cleanKeys(value?.keys),mode=value?.mode==='manual'?'manual':'filtered',selected=pools.find(pool=>pool.id===value?.activePoolId);
   const keySet=new Set(keys),matches=selected&&selected.keys.length===keys.length&&selected.keys.every(key=>keySet.has(key));
-  return {mode,keys,handSize:Number(value?.handSize)===5?5:3,performances:value?.performances!==false,pools,activePoolId:mode==='manual'&&matches?selected.id:null};
+  return {enabled:value?.enabled!==false,mode,keys,handSize:Number(value?.handSize)===5?5:3,performances:value?.performances!==false,pools,activePoolId:mode==='manual'&&matches?selected.id:null};
 }
 export function keyedDrawItems(items){
   const keys=openingFavoriteKeys(items.map(item=>item.body));return items.map((item,i)=>({...item,drawKey:keys[i]}));

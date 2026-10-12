@@ -19,8 +19,12 @@ export function inspectAuthorState(context,helper){
   if(typeof helper?.getChatMessages!=='function')return {state:null,reason:'已识别角色卡设置，但酒馆助手消息接口尚未就绪。请检查酒馆助手是否启用。'};
   let message,last;
   try{message=helper.getChatMessages(0,{include_swipes:true})?.[0];last=helper.getLastMessageId?.()}catch{return {state:null,reason:'读取首条消息失败。请保存角色卡并新建聊天。'}}
-  if(Number(last??0)>0||Number(message?.swipe_id)!==0)return {state:null,reason:null};
-  if(message?.role!=='assistant'||!String(message.swipes?.[0]||'').includes(AUTHOR_MARKER))
+  // Fresh single-greeting chats may omit swipe metadata until another opening
+  // exists. The current message still has to be the explicit author entry.
+  if(Number(last??0)>0||Number(message?.swipe_id??0)!==0)return {state:null,reason:null};
+  const entryMessage=Array.isArray(message?.swipes)&&message.swipes.length
+    ?message.swipes[0]:message?.message;
+  if(message?.role!=='assistant'||!String(entryMessage||'').trimStart().startsWith(AUTHOR_MARKER))
     return {state:null,reason:'角色卡标记已准备好，但当前首条消息不是选择页。请保存角色卡并新建聊天。'};
   return {state:{characterId:context.characterId,avatar:card.avatar,entries:greetings||[]},reason:null};
 }

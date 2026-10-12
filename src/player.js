@@ -5,7 +5,7 @@ import {openingStamp} from './opening-generation.js';
 import {createLatestRequest} from './latest-request.js';
 import {readPeopleRoster,applyPeopleRoster,filterRosterNames} from './opening-people.js';
 import {createOpeningPeopleEditor} from './opening-people-editor.js';
-import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,setBlindBoxTheme} from './opening-blind-box.js';
+import {createOpeningBlindBox,openingBlindBoxButton,updateBlindBoxButton,openingBlindRangeButton,openingBlindBoxToggle,setBlindBoxTheme} from './opening-blind-box.js';
 import {BLIND_BOX_CONTROL_CSS} from './opening-blind-box-styles.js';
 import {createOpeningFavorites} from './opening-favorites.js';
 import {createOpeningFavoritesUI} from './opening-favorites-ui.js';
@@ -591,12 +591,12 @@ export function mountPlayerSelector(startDocument=document,helperApi,{background
       const choose=el('button','uos-user-select',entry.index===snapshot.swipeId?'当前开场':`进入开场 ${entry.index+1}`);choose.type='button';choose.disabled=entry.index===snapshot.swipeId;
       choose.onclick=()=>chooseOpening(entry,choose);
       card.append(choose);target.append(card);
-    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual'});blindRangeTrigger.textContent=blindBox.rangeSummary();results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(createMascotNote(el,'search',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-user-empty').element)}
+    },rows);updateBlindBoxButton(blindTrigger,blindBox.poolItems(),{theme:panel.dataset.theme,manual:blindBox.rangeMode()==='manual',enabled:blindBox.enabled()});blindRangeTrigger.hidden=!blindBox.enabled();blindRangeTrigger.textContent=blindBox.rangeSummary();results.textContent=favoriteUI.onlyFavorites()||query.value.trim()||person.value||categoryValues.group!==null||categoryValues.tag?`找到 ${visible} / ${snapshot.entries.length} 个开场`:`${snapshot.entries.length} 个开场`;if(!visible)list.append(createMascotNote(el,'search',favoriteUI.onlyFavorites()?'没有匹配的收藏开场；关闭「只看收藏」，点击卡片旁的 ☆ 添加收藏。':'没有匹配的开场，请调整关键词或筛选条件。','uos-user-empty').element)}
     updatePeople();
     renderCards();
     const mark=el('p','uos-user-watermark',WATERMARK),footerVersion=el('span','uos-user-version',`v${VERSION}`);mark.append(footerVersion);
     const stopUpdateControl=bindUpdateControl(updateButton,doc,{versionElements:[versionBadge,footerVersion],autoCheckInput,autoCheckHint:updateHint});session.own(stopUpdateControl);
-    settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings,floatingStyle,brandVisibility});
+    settingsLayout.assemble({exclusion,people:personSettings,edits,labels:labelSettings,updates:updateSettings,floatingStyle,brandVisibility,blindBoxToggle:openingBlindBoxToggle(el,blindBox)});
     moduleHelp.heading(settings,'playerSettings','玩家设置');
     for(const [block,topic] of [[exclusion,'titleRules'],[personSettings,'recognition'],[edits,'playerEdits'],[labelSettings,'labels'],[updateSettings,'updates']])moduleHelp.attach(block.querySelector('summary'),topic);
     const appearanceHeading=[...settings.querySelectorAll('h3')].find(node=>node.textContent==='界面外观');moduleHelp.attach(appearanceHeading,'appearance');
