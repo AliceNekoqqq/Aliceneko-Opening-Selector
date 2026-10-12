@@ -1,5 +1,5 @@
 // src/version.js
-var RUNTIME_VERSION = true ? "1.0.22" : "development";
+var RUNTIME_VERSION = true ? "1.0.23" : "development";
 
 // src/themes.js
 var THEMES = Object.freeze([["archive", "旧档案"], ["neon", "霓虹夜"], ["paper", "纸与墨"], ["noir", "黑白电影"], ["meadow", "林间信"], ["ancient", "锦书古风"], ["starmap", "星海航图"], ["rose", "绯色契约"], ["wasteland", "末日警报"], ["deepsea", "深海回响"], ["amber", "琥珀沙海"], ["theatre", "月光剧场"], ["lasttrain", "末班列车"], ["aurora", "极光灯塔"], ["glasshouse", "琉璃花房"], ["japan", "月下神社"], ["school", "放学以后"]].map((theme) => Object.freeze(theme)));
@@ -32,6 +32,7 @@ function themeDraw(theme) {
 // src/asset-source.js
 var THEME_ASSET_REF = "444518cc8d97befd6016e7b948066ef23fd4e560";
 var REMASTERED_BACKGROUND_ASSET_REF = "98eb4b2418e5e05a50ec3730c4cd31555cb69d6b";
+var LATE_BACKGROUND_ASSET_REF = "817b8016942a4a0ae1ac8f1f424f44fb08f6e085";
 var SCHOOL_THEME_ASSET_REF = "b11e5addc6e1e60dae710ed4d83cb4c8565b77ea";
 var BRAND_ASSET_REF = "354db09485df9c48356bc484ede26f5e07b118a4";
 var DEFAULT_COVER_ASSET_REF = "9f2160b3d289e27390d73b5cea8450cf821b61d1";
@@ -39,6 +40,7 @@ var BLIND_BOX_ASSET_REF = "f2af3337a5a02827ce1634f1551ed93b8ef8bde9";
 var BLIND_BOX_THEME_ASSET_REF = "8e9d83f98e004db4bcb524046d1760ba11b8bc4b";
 function themeAssetRef(path) {
   const background = /^assets\/theme-background-([a-z]+)\.webp$/.exec(path);
+  if (background && THEME_IDS.slice(THEME_IDS.indexOf("lasttrain")).includes(background[1])) return LATE_BACKGROUND_ASSET_REF;
   if (background && THEME_IDS.slice(0, THEME_IDS.indexOf("lasttrain")).includes(background[1])) return REMASTERED_BACKGROUND_ASSET_REF;
   if (path === "assets/brand/theme-mascots.webp") return BRAND_ASSET_REF;
   if (/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path)) return SCHOOL_THEME_ASSET_REF;
@@ -70,7 +72,7 @@ function themeAssetCandidates(path) {
 }
 
 // src/theme-backgrounds.js
-var REMASTERED_BACKGROUND_IDS = Object.freeze(THEME_IDS.slice(0, THEME_IDS.indexOf("lasttrain")));
+var REMASTERED_BACKGROUND_IDS = THEME_IDS;
 function themeBackgroundCandidates(theme) {
   return THEME_IDS.includes(theme) ? themeAssetCandidates(`assets/theme-background-${theme}.webp`) : [];
 }
@@ -7226,7 +7228,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos[data-theme=deepsea] .uos-background-art{opacity:.54}.uos[data-theme=amber] .uos-background-art{opacity:.58}.uos[data-theme=theatre] .uos-background-art{opacity:.52}
 
 /* Three new themes: rainy last train, an aurora lighthouse and a glasshouse at dawn. */
-.uos{--uos-theme-bg-lasttrain:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-lasttrain.webp");--uos-theme-bg-aurora:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-aurora.webp");--uos-theme-bg-glasshouse:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-glasshouse.webp")}
+.uos{--uos-theme-bg-lasttrain:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@817b8016942a4a0ae1ac8f1f424f44fb08f6e085/assets/theme-background-lasttrain.webp");--uos-theme-bg-aurora:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@817b8016942a4a0ae1ac8f1f424f44fb08f6e085/assets/theme-background-aurora.webp");--uos-theme-bg-glasshouse:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@817b8016942a4a0ae1ac8f1f424f44fb08f6e085/assets/theme-background-glasshouse.webp")}
 .uos[data-theme=lasttrain]{--bg:#101922;--panel:#1b2934;--surface:#17232e;--text:#eef1ef;--muted:#b6c0c5;--accent:#d9a86e;--line:#b38b616e;--art:#3e4e5c;--cover:radial-gradient(circle at 72% 24%,#d9a86e88,transparent 32%),linear-gradient(145deg,#475c6b,#17232e 76%);background:radial-gradient(ellipse at 18% 0%,#b7793d38,transparent 43%),linear-gradient(160deg,#1b2a36,#101922 78%)}
 .uos[data-theme=lasttrain] .uos-card{border-radius:5px 5px 16px 5px;border-color:#d5ae7b88;box-shadow:0 12px 30px #050c13aa}.uos[data-theme=lasttrain] .uos-number{color:#e4b77e}.uos[data-theme=lasttrain] .uos-kicker{color:#e4c18e}
 .uos[data-theme=aurora]{--bg:#081827;--panel:#102c42;--surface:#0d2437;--text:#e9f7ff;--muted:#afccdc;--accent:#90e5d7;--line:#77bfc58a;--art:#1d5d6a;--cover:radial-gradient(circle at 72% 22%,#55d7bd88,transparent 32%),linear-gradient(145deg,#1e6470,#102a40 76%);background:radial-gradient(ellipse at 72% 0%,#2ec9b755,transparent 44%),linear-gradient(160deg,#102b45,#081827 78%)}
@@ -7239,7 +7241,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos[data-theme=lasttrain] .uos-background-art{opacity:.57}.uos[data-theme=aurora] .uos-background-art{opacity:.57}.uos[data-theme=glasshouse] .uos-background-art{opacity:.62}
 
 /* Moonlit shrine: indigo, quiet sakura and restrained shrine-gold. */
-.uos{--uos-theme-bg-japan:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@444518cc8d97befd6016e7b948066ef23fd4e560/assets/theme-background-japan.webp")}
+.uos{--uos-theme-bg-japan:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@817b8016942a4a0ae1ac8f1f424f44fb08f6e085/assets/theme-background-japan.webp")}
 .uos[data-theme=japan]{--bg:#151827;--panel:#242437;--surface:#1b1d2e;--text:#f4edf0;--muted:#c8b8c1;--accent:#dfbd9a;--line:#c889a66b;--art:#64354d;--cover:radial-gradient(circle at 73% 23%,#e8b9c988,transparent 33%),linear-gradient(145deg,#673349,#262238 76%);--display:"Noto Serif SC","Songti SC",serif;background:radial-gradient(ellipse at 74% 0%,#a9507250,transparent 46%),linear-gradient(155deg,#292139,#151827 78%)}
 .uos[data-theme=japan] .uos-card{border-radius:12px 12px 18px 18px;border-color:#d8b78388;background:repeating-linear-gradient(90deg,transparent 0 20px,#d6b57b09 21px 22px),linear-gradient(135deg,#30253a,#1b1d2e 78%);box-shadow:0 12px 30px #080a16aa}
 .uos[data-theme=japan] .uos-kicker,.uos[data-theme=japan] .uos-number{color:#e4c08e}.uos[data-theme=japan] .uos-card-body{border-top:1px solid #e2bdd04d}
@@ -7249,7 +7251,7 @@ var AUTHOR_CSS = `:root{color-scheme:dark;font-family:system-ui,"Noto Sans SC",s
 .uos[data-theme=japan] .uos-background-art{opacity:.62}
 
 /* Airy Japanese urban school-life theme; its two standalone assets keep old atlases unchanged. */
-.uos{--uos-theme-bg-school:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@b11e5addc6e1e60dae710ed4d83cb4c8565b77ea/assets/theme-background-school.webp")}
+.uos{--uos-theme-bg-school:url("https://cdn.jsdelivr.net/gh/AliceNekoqqq/Aliceneko-Opening-Selector@817b8016942a4a0ae1ac8f1f424f44fb08f6e085/assets/theme-background-school.webp")}
 .uos[data-theme=school]{--bg:#eef4fb;--panel:#ffffff;--surface:#f7faff;--text:#263b57;--muted:#536982;--accent:#32659b;--line:#b8cbdf;--art:#b9d9ee;--cover:radial-gradient(circle at 75% 22%,#f3bdd180,transparent 35%),linear-gradient(135deg,#c1dff3,#f8e5ed);--display:system-ui,"Noto Sans SC",sans-serif;--uos-theme-bg-active:var(--uos-theme-bg-school);background:radial-gradient(ellipse at 80% 0%,#e7c4d744,transparent 50%),var(--bg);color-scheme:light}
 .uos[data-theme=school] .uos-card{border-radius:15px;border-color:#b8cbdf;background:linear-gradient(145deg,#fff,#f5f8fe);box-shadow:0 10px 28px #5881a81a}
 .uos[data-theme=school] .uos-card-body{border-top:1px solid #d5deee}.uos[data-theme=school] .uos-background-art{opacity:.85}

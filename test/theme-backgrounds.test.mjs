@@ -104,7 +104,7 @@ console.log('All shared theme artwork references existing immutable repository f
  const controller=createThemeBackgroundController(root,'--uos-theme-bg-active',view,{service});
  await controller.setTheme('neon');assert.equal(values.get('--uos-scene-height'),'710px');assert.equal(attributes.get('data-background-generation'),'2');
  header.getBoundingClientRect=()=>({bottom:710});callback();assert.equal(values.get('--uos-scene-height'),'830px');
- await controller.setTheme('glasshouse');assert.equal(attributes.get('data-background-generation'),'1');callback();assert.equal(values.get('--uos-scene-height'),'830px');
+ await controller.setTheme('glasshouse');assert.equal(attributes.get('data-background-generation'),'2');await controller.setTheme('unknown');assert.equal(attributes.get('data-background-generation'),'1');callback();assert.equal(values.get('--uos-scene-height'),'830px');
  controller.close();assert.ok(disconnected);assert.equal(listeners.size,0);
 }
 console.log('Remastered scene covers wrapped header controls and cleans up layout observers');

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import {THEMES,THEME_IDS,themeDraw} from '../src/themes.js';
-import {themeAssetRef,themeAssetCandidates,SCHOOL_THEME_ASSET_REF,DEFAULT_COVER_ASSET_REF,BLIND_BOX_THEME_ASSET_REF} from '../src/asset-source.js';
+import {themeAssetRef,themeAssetCandidates,SCHOOL_THEME_ASSET_REF,LATE_BACKGROUND_ASSET_REF,DEFAULT_COVER_ASSET_REF,BLIND_BOX_THEME_ASSET_REF} from '../src/asset-source.js';
 import {themeBackgroundCandidates} from '../src/theme-backgrounds.js';
 import {THEME_ART} from '../src/theme-art.js';
 import {defaultCoverStyles} from '../src/default-covers.js';
@@ -12,8 +12,8 @@ import {buildAuthorHtml} from '../src/author-template.js';
 test('school theme has nine immutable independent assets and preserves existing theme resources',()=>{
  const paths=['assets/theme-background-school.webp','assets/theme-icon-school.webp','assets/theme-ornament-school.webp','assets/blind-box/card-backs/school.webp',...Array.from({length:5},(_,i)=>`assets/default-covers/school-${i+1}.webp`)];
  const hashes=paths.map(path=>{
-   assert.equal(themeAssetRef(path),SCHOOL_THEME_ASSET_REF);assert.equal(themeAssetCandidates(path).length,3);
-   const pinned=execFileSync('git',['rev-parse',`${SCHOOL_THEME_ASSET_REF}:${path}`],{encoding:'utf8'}).trim(),local=execFileSync('git',['hash-object',path],{encoding:'utf8'}).trim();assert.equal(local,pinned);
+   assert.equal(themeAssetRef(path),path==='assets/theme-background-school.webp'?LATE_BACKGROUND_ASSET_REF:SCHOOL_THEME_ASSET_REF);assert.equal(themeAssetCandidates(path).length,3);
+   const pinned=path==='assets/theme-background-school.webp'?JSON.parse(fs.readFileSync('assets/background-remaster/manifest.json','utf8')).school.sha:execFileSync('git',['rev-parse',`${SCHOOL_THEME_ASSET_REF}:${path}`],{encoding:'utf8'}).trim(),local=execFileSync('git',['hash-object',path],{encoding:'utf8'}).trim();assert.equal(local,pinned);
    const bytes=fs.readFileSync(path);assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');return local;
  });
  assert.equal(new Set(hashes).size,9);assert.equal(themeAssetRef('assets/default-covers/japan-1.webp'),DEFAULT_COVER_ASSET_REF);assert.equal(themeAssetRef('assets/blind-box/card-backs/japan.webp'),BLIND_BOX_THEME_ASSET_REF);

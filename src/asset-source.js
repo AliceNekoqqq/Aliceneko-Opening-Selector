@@ -1,6 +1,7 @@
 // All theme artwork already exists at this published immutable commit.
 export const THEME_ASSET_REF='444518cc8d97befd6016e7b948066ef23fd4e560';
 export const REMASTERED_BACKGROUND_ASSET_REF='98eb4b2418e5e05a50ec3730c4cd31555cb69d6b';
+export const LATE_BACKGROUND_ASSET_REF='817b8016942a4a0ae1ac8f1f424f44fb08f6e085';
 export const SCHOOL_THEME_ASSET_REF='b11e5addc6e1e60dae710ed4d83cb4c8565b77ea';
 export const BRAND_ASSET_REF='354db09485df9c48356bc484ede26f5e07b118a4';
 export const DEFAULT_COVER_ASSET_REF='9f2160b3d289e27390d73b5cea8450cf821b61d1';
@@ -9,6 +10,7 @@ import {THEME_IDS} from './themes.js';
 export const BLIND_BOX_THEME_ASSET_REF='8e9d83f98e004db4bcb524046d1760ba11b8bc4b';
 export function themeAssetRef(path){
   const background=/^assets\/theme-background-([a-z]+)\.webp$/.exec(path);
+  if(background&&THEME_IDS.slice(THEME_IDS.indexOf('lasttrain')).includes(background[1]))return LATE_BACKGROUND_ASSET_REF;
   if(background&&THEME_IDS.slice(0,THEME_IDS.indexOf('lasttrain')).includes(background[1]))return REMASTERED_BACKGROUND_ASSET_REF;
   if(path==='assets/brand/theme-mascots.webp')return BRAND_ASSET_REF;
   if(/^assets\/(?:theme-(?:background|icon|ornament)-school|default-covers\/school-[1-5]|blind-box\/card-backs\/school)\.webp$/.test(path))return SCHOOL_THEME_ASSET_REF;

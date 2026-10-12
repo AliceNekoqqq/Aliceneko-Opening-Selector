@@ -2,7 +2,7 @@ import {THEME_IDS} from './themes.js';
 
 import {THEME_ASSET_REF,themeAssetCandidates} from './asset-source.js';
 export const THEME_BACKGROUND_REF=THEME_ASSET_REF;
-export const REMASTERED_BACKGROUND_IDS=Object.freeze(THEME_IDS.slice(0,THEME_IDS.indexOf('lasttrain')));
+export const REMASTERED_BACKGROUND_IDS=THEME_IDS;
 export function themeBackgroundCandidates(theme){
   return THEME_IDS.includes(theme)?themeAssetCandidates(`assets/theme-background-${theme}.webp`):[];
 }
